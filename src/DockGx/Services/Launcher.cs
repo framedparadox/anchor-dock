@@ -8,8 +8,12 @@ public static class Launcher
 {
     public static void Launch(DockItem item)
     {
+        Diag.Log($"Launch requested: kind={item.Kind} name='{item.DisplayName}' target='{item.Target}'");
         if (item.IsSeparator || string.IsNullOrWhiteSpace(item.Target))
+        {
+            Diag.Log("Launch aborted: separator or empty target");
             return;
+        }
 
         try
         {
@@ -31,10 +35,11 @@ public static class Launcher
             }
 
             Process.Start(psi);
+            Diag.Log("Launch: Process.Start succeeded");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DockGx] Failed to launch '{item.DisplayName}' ({item.Target}): {ex.Message}");
+            Diag.Log($"Launch FAILED: {ex.GetType().Name}: {ex.Message}");
         }
     }
 }

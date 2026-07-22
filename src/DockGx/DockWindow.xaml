@@ -38,6 +38,7 @@
                                   PointerEntered="Item_PointerEntered"
                                   PointerExited="Item_PointerExited"
                                   Tapped="Item_Tapped"
+                                  PointerReleased="Item_PointerReleased"
                                   RightTapped="Item_RightTapped">
                                 <Grid.RenderTransform>
                                     <CompositeTransform />
@@ -80,7 +81,7 @@
                       ToolTipService.ToolTip="Dock settings"
                       PointerEntered="Item_PointerEntered"
                       PointerExited="Item_PointerExited"
-                      Tapped="Settings_Tapped">
+                      PointerReleased="Settings_PointerReleased">
                     <Grid.RenderTransform>
                         <CompositeTransform />
                     </Grid.RenderTransform>

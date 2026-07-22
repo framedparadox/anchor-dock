@@ -34,6 +34,7 @@ public sealed partial class DockWindow : Window
 
         // Dock-like chrome: borderless, topmost, off the taskbar & Alt-Tab, rounded corners.
         WindowChrome.MakeBorderlessToolWindow(_appWindow, _hwnd);
+        WindowChrome.StripFrame(_hwnd);
         WindowChrome.SetRoundedCorners(_hwnd, small: false);
         WindowChrome.RemoveWindowBorder(_hwnd);
         Activated += (_, _) => WindowChrome.RemoveWindowBorder(_hwnd);
@@ -71,6 +72,7 @@ public sealed partial class DockWindow : Window
         _appWindow.Resize(new SizeInt32(360, 96));
 
         _ = LoadIconsAsync();
+        Diag.Log($"ctor complete. Items={Items.Count} Snapped={_config.Snapped} Edge={_config.Edge}");
     }
 
     // ---- Seed content -----------------------------------------------------
@@ -197,64 +199,181 @@ public sealed partial class DockWindow : Window
 
     partial void OnRelayoutApplied();
 
-    // ---- Hover magnification ---------------------------------------------
+    // ---- Hover (Windows 11 taskbar style: a rounded highlight, no move/scale) --------
 
-    private static readonly Duration HoverDuration = new(TimeSpan.FromMilliseconds(140));
+    private static readonly Duration HoverDuration = new(TimeSpan.FromMilliseconds(120));
 
     private void Item_PointerEntered(object sender, PointerRoutedEventArgs e)
-        => AnimateItem((Grid)sender, scale: 1.18, translateY: -3, pill: 1.0);
+        => FadeHover((Grid)sender, 1.0);
 
     private void Item_PointerExited(object sender, PointerRoutedEventArgs e)
-        => AnimateItem((Grid)sender, scale: 1.0, translateY: 0, pill: 0.0);
+        => FadeHover((Grid)sender, 0.0);
 
-    private static void AnimateItem(Grid root, double scale, double translateY, double pill)
+    private static void FadeHover(Grid root, double opacity)
     {
-        var transform = (CompositeTransform)root.RenderTransform;
         var hoverPill = (Border)root.Children[0];
-
         var sb = new Storyboard();
-        AddDouble(sb, transform, "ScaleX", scale);
-        AddDouble(sb, transform, "ScaleY", scale);
-        AddDouble(sb, transform, "TranslateY", translateY);
-        AddDouble(sb, hoverPill, "Opacity", pill);
-        sb.Begin();
-
-        static void AddDouble(Storyboard sb, DependencyObject target, string path, double to)
+        var a = new DoubleAnimation
         {
-            var a = new DoubleAnimation
-            {
-                To = to,
-                Duration = HoverDuration,
-                EnableDependentAnimation = true,
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-            };
-            Storyboard.SetTarget(a, target);
-            Storyboard.SetTargetProperty(a, path);
-            sb.Children.Add(a);
-        }
+            To = opacity,
+            Duration = HoverDuration,
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(a, hoverPill);
+        Storyboard.SetTargetProperty(a, "Opacity");
+        sb.Children.Add(a);
+        sb.Begin();
     }
 
     // ---- Interaction ------------------------------------------------------
 
+    // Launch is triggered from BOTH Tapped and PointerReleased (belt & suspenders — whichever
+    // the input stack delivers), debounced so an item never launches twice per click.
+    private DateTime _lastLaunch = DateTime.MinValue;
+
     private void Item_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (_dragOccurred)
-            return; // this "tap" is the tail of a drag, not a launch
         if (((FrameworkElement)sender).DataContext is DockItem item)
-            Launcher.Launch(item);
+            TryLaunch(item, "Tapped");
+    }
+
+    private void Item_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        var props = e.GetCurrentPoint((UIElement)sender).Properties;
+        if (props.PointerUpdateKind != Microsoft.UI.Input.PointerUpdateKind.LeftButtonReleased)
+            return;
+        if (((FrameworkElement)sender).DataContext is DockItem item)
+            TryLaunch(item, "PointerReleased");
+    }
+
+    private void TryLaunch(DockItem item, string via)
+    {
+        if (_dragOccurred)
+            return; // the release/tap that ends a drag, not a launch
+        var now = DateTime.UtcNow;
+        if ((now - _lastLaunch).TotalMilliseconds < 350)
+            return; // already launched from the sibling event this click
+        _lastLaunch = now;
+        Diag.Log($"TryLaunch via {via}: '{item.DisplayName}'");
+        Launcher.Launch(item);
     }
 
     private void Item_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {
-        if (((FrameworkElement)sender).DataContext is not DockItem item)
+        var target = (FrameworkElement)sender;
+        if (target.DataContext is not DockItem item)
             return;
 
+        int index = Items.IndexOf(item);
         var menu = new MenuFlyout();
-        var remove = new MenuFlyoutItem { Text = "Remove from Dock" };
-        remove.Click += (_, _) => Items.Remove(item);
-        menu.Items.Add(remove);
-        menu.ShowAt((FrameworkElement)sender, e.GetPosition((FrameworkElement)sender));
+
+        menu.Items.Add(Mi("Open", () => Launcher.Launch(item)));
+        menu.Items.Add(Mi("Edit…", () => ShowEditFlyout(target, item)));
+        menu.Items.Add(Mi("Rename…", () => ShowRenameFlyout(target, item)));
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        var moveLeft = Mi("Move left", () => MoveItem(item, -1));
+        moveLeft.IsEnabled = index > 0;
+        menu.Items.Add(moveLeft);
+
+        var moveRight = Mi("Move right", () => MoveItem(item, +1));
+        moveRight.IsEnabled = index >= 0 && index < Items.Count - 1;
+        menu.Items.Add(moveRight);
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(Mi("Remove", () => Items.Remove(item)));
+
+        menu.ShowAt(target, e.GetPosition(target));
         e.Handled = true;
+
+        static MenuFlyoutItem Mi(string text, Action onClick)
+        {
+            var mi = new MenuFlyoutItem { Text = text };
+            mi.Click += (_, _) => onClick();
+            return mi;
+        }
+    }
+
+    private void MoveItem(DockItem item, int direction)
+    {
+        int i = Items.IndexOf(item);
+        int j = i + direction;
+        if (i < 0 || j < 0 || j >= Items.Count)
+            return;
+        Items.Move(i, j); // CollectionChanged -> SaveConfig + relayout
+    }
+
+    private void ShowRenameFlyout(FrameworkElement target, DockItem item)
+    {
+        var box = new TextBox { Text = item.DisplayName, Width = 240 };
+        var ok = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Right };
+        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
+        panel.Children.Add(new TextBlock { Text = "Rename", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(box);
+        panel.Children.Add(ok);
+
+        var flyout = new Flyout { Content = panel };
+        ok.Click += (_, _) =>
+        {
+            var name = box.Text.Trim();
+            if (name.Length > 0)
+            {
+                item.DisplayName = name; // observable -> tooltip updates
+                SaveConfig();
+            }
+            flyout.Hide();
+        };
+        flyout.ShowAt(target);
+        box.Focus(FocusState.Programmatic);
+        box.SelectAll();
+    }
+
+    private void ShowEditFlyout(FrameworkElement target, DockItem item)
+    {
+        var box = new TextBox { Text = item.Target, Width = 320 };
+        var ok = new Button { Content = "Save", HorizontalAlignment = HorizontalAlignment.Right };
+        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
+        panel.Children.Add(new TextBlock { Text = "Edit target", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(box);
+        panel.Children.Add(ok);
+
+        var flyout = new Flyout { Content = panel };
+        ok.Click += (_, _) =>
+        {
+            var t = box.Text.Trim();
+            if (t.Length > 0)
+            {
+                item.Target = t;
+                item.Kind = ClassifyTarget(t);
+                item.IconImage = null;
+                // Re-realize the item so kind-derived visuals (glyph) refresh, then reload icon.
+                int i = Items.IndexOf(item);
+                if (i >= 0)
+                {
+                    Items.RemoveAt(i);
+                    Items.Insert(i, item);
+                }
+                _ = LoadOneIconAsync(item);
+            }
+            flyout.Hide();
+        };
+        flyout.ShowAt(target);
+        box.Focus(FocusState.Programmatic);
+        box.SelectAll();
+    }
+
+    private static DockItemKind ClassifyTarget(string target)
+    {
+        if (Directory.Exists(target))
+            return DockItemKind.Folder;
+        if (Uri.TryCreate(target, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            return DockItemKind.WebLink;
+        return Path.GetExtension(target).ToLowerInvariant() switch
+        {
+            ".exe" or ".lnk" or ".bat" or ".cmd" or ".com" => DockItemKind.Application,
+            _ => DockItemKind.File,
+        };
     }
 
     private void DockBackground_RightTapped(object sender, RightTappedRoutedEventArgs e)
@@ -303,8 +422,11 @@ public sealed partial class DockWindow : Window
         }
     }
 
-    private void Settings_Tapped(object sender, TappedRoutedEventArgs e)
+    private void Settings_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
+        var props = e.GetCurrentPoint((UIElement)sender).Properties;
+        if (props.PointerUpdateKind != Microsoft.UI.Input.PointerUpdateKind.LeftButtonReleased)
+            return;
         if (_dragOccurred)
             return;
         ShowDockMenu((FrameworkElement)sender, new Windows.Foundation.Point(0, 0));
@@ -435,20 +557,38 @@ public sealed partial class DockWindow : Window
     private bool _dragOccurred; // suppress the launch "tap" that may follow a drag
     private NativeMethods.POINT _dragStartCursor;
     private PointInt32 _dragStartWindow;
-    private const int DragThreshold = 6;
+    private const int DragThreshold = 12;
 
     private void Dock_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (!e.GetCurrentPoint((UIElement)sender).Properties.IsLeftButtonPressed)
             return;
+
+        _dragOccurred = false; // reset on every press so a prior drag never eats this click
+
+        // Never start a window-drag from an icon or the gear — those are click targets.
+        // The dock is dragged from its background / divider only (like the taskbar).
+        if (IsInteractivePress(e.OriginalSource as DependencyObject))
+            return;
+
         NativeMethods.GetCursorPos(out _dragStartCursor);
         _dragStartWindow = _appWindow.Position;
         _dragging = false;
-        _dragOccurred = false;
 
         _dragTimer ??= CreateDragTimer();
         if (!_dragTimer.IsRunning)
             _dragTimer.Start();
+    }
+
+    /// <summary>True if the pointer press landed on an item or the settings gear (a click target).</summary>
+    private bool IsInteractivePress(DependencyObject? source)
+    {
+        for (var node = source; node is not null && node != DockStrip; node = VisualTreeHelper.GetParent(node))
+        {
+            if (node == ItemsHost || node == SettingsButton)
+                return true;
+        }
+        return false;
     }
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateDragTimer()
@@ -482,6 +622,7 @@ public sealed partial class DockWindow : Window
                 return; // still a potential click
             _dragging = true;
             _dragOccurred = true;
+            Diag.Log($"drag started (dx={dx} dy={dy})");
             PauseAutoHideForDrag();
         }
 

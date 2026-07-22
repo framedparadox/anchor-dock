@@ -44,6 +44,16 @@ internal static partial class NativeMethods
     public const long WS_EX_TOOLWINDOW = 0x00000080;
     public const long WS_EX_NOACTIVATE = 0x08000000;
 
+    // ---- Window styles (strip the non-client frame / resize border) -------
+    public const int GWL_STYLE = -16;
+    public const long WS_CAPTION = 0x00C00000;
+    public const long WS_THICKFRAME = 0x00040000;
+    public const long WS_BORDER = 0x00800000;
+    public const long WS_DLGFRAME = 0x00400000;
+
+    public const uint SWP_NOZORDER = 0x0004;
+    public const uint SWP_FRAMECHANGED = 0x0020;
+
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     public static partial nint GetWindowLongPtr(nint hwnd, int index);
 

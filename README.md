@@ -19,10 +19,10 @@ the shell uses), so it blurs the desktop behind it and follows the system light/
 - **Divider + settings button** — a gear button (and right-click anywhere) opens the dock menu.
 - **Add anything** — apps (`.exe`), shortcuts (`.lnk`), files, folders, and web links, via the
   menu. Icons come from the Windows shell (the same icons Explorer shows).
-- **Draggable** — grab the dock anywhere and drag it around the screen.
+- **Draggable** — grab the dock's background and drag it around the screen (icons stay clickable).
 - **Snap to any edge → hides behind it** — drop the dock near a screen edge and it snaps flush
   and auto-hides behind that edge (bottom / top / left / right), revealing on cursor approach.
-- **Hover magnification** — icons gently scale and lift on hover.
+- **Per-item menu** — right-click an icon: Open, Edit, Rename, Move left/right, Remove.
 - **Persistent** — items, position, and snap state are saved to JSON and restored next launch.
 - **Out of the way** — borderless, always-on-top, hidden from the taskbar and Alt-Tab.
 
@@ -48,14 +48,20 @@ dotnet build src/DockGx/DockGx.csproj -c Release -p:Platform=x64
 ## Using it
 
 - **Left-click** an icon to launch it.
-- **Drag** the dock (from anywhere on it) to move it. Drop it near a screen edge to snap +
-  auto-hide behind that edge; drop it elsewhere to float freely.
-- **Gear button** (or **right-click** anywhere on the dock) → add an App / File / Folder /
+- **Hover** an icon for a Windows 11 taskbar-style highlight.
+- **Drag the dock** from its background (the padding/divider — *not* the icons) to move it.
+  Drop it near a screen edge to snap + auto-hide behind that edge; drop it elsewhere to float.
+- **Right-click an icon** → *Open, Edit…, Rename…, Move left, Move right, Remove*.
+- **Gear button** (or **right-click the dock background**) → add an App / File / Folder /
   Web Link, choose *Snap to edge*, *Float (unsnap)*, or *Quit*.
-- **Right-click an icon** → *Remove from Dock*.
 
 Because the dock stays off the taskbar, everything (including **Quit**) lives in that menu.
 When snapped, move the cursor to that edge (within the dock's span) to reveal it.
+
+## Run / debug in VS Code
+
+Open the repo in VS Code and press **F5** (*Launch DockGx*), or run the **build** task
+(`Ctrl+Shift+B`). Both are configured in `.vscode/` for the required `x64` platform.
 
 ## Where settings live
 

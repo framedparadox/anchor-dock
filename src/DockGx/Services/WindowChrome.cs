@@ -37,15 +37,36 @@ public static class WindowChrome
     }
 
     /// <summary>
-    /// Replaces the light default DWM window border with a dark one that blends into the
-    /// glass. (COLOR_NONE is unreliable on some builds — it falls back to the light default —
-    /// so we set an explicit dark COLORREF instead.)
+    /// Makes DWM render the window's frame/border in dark mode and gives it an explicit dark
+    /// border color. Without the immersive-dark-mode flag, DWM paints a light client-edge rim
+    /// (a 1-2px white line) around a rounded backdrop window — the "white border".
     /// </summary>
     public static void RemoveWindowBorder(nint hwnd)
     {
+        int on = 1;
+        NativeMethods.DwmSetWindowAttribute(
+            hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref on, sizeof(int));
+
         int dark = 0x00161616; // COLORREF 0x00BBGGRR — near-black, matches the dark glass
         NativeMethods.DwmSetWindowAttribute(
             hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref dark, sizeof(int));
+    }
+
+    /// <summary>
+    /// Strips the non-client window frame (caption / resize border) so the client area — and
+    /// our glass — extends all the way to the window edge. This removes the ~3px frame whose
+    /// inner highlight shows up as a white line around a rounded backdrop window.
+    /// </summary>
+    public static void StripFrame(nint hwnd)
+    {
+        long style = NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_STYLE);
+        style &= ~(NativeMethods.WS_CAPTION | NativeMethods.WS_THICKFRAME |
+                   NativeMethods.WS_BORDER | NativeMethods.WS_DLGFRAME);
+        NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_STYLE, (nint)style);
+        NativeMethods.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE |
+            NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE |
+            NativeMethods.SWP_FRAMECHANGED);
     }
 
     /// <summary>Re-asserts top-most Z-order without stealing activation.</summary>
