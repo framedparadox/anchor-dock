@@ -49,8 +49,8 @@ dotnet build src/DockGx/DockGx.csproj -c Release -p:Platform=x64
 
 - **Left-click** an icon to launch it.
 - **Hover** an icon for a Windows 11 taskbar-style highlight.
-- **Drag the dock** from its background (the padding/divider — *not* the icons) to move it.
-  Drop it near a screen edge to snap + auto-hide behind that edge; drop it elsewhere to float.
+- **Drag the dock** from anywhere on it to move it freely. Drop it *at* a screen edge to snap
+  and auto-hide behind that edge; drop it anywhere else and it stays there.
 - **Right-click an icon** → *Open, Edit…, Rename…, Move left, Move right, Remove*.
 - **Gear button** (or **right-click the dock background**) → add an App / File / Folder /
   Web Link, choose *Snap to edge*, *Float (unsnap)*, or *Quit*.

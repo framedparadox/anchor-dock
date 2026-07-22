@@ -28,6 +28,12 @@ public sealed partial class DockWindow : Window
     {
         InitializeComponent();
 
+        // Content fills the whole window (no reserved title bar). This also makes WinUI
+        // size the content island's INPUT site to the full client area — without it, a
+        // borderless window can end up with a 0x0 input site that silently swallows all
+        // pointer input (no clicks / hover / drag reach the content).
+        ExtendsContentIntoTitleBar = true;
+
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         _windowId = Win32Interop.GetWindowIdFromWindow(_hwnd);
         _appWindow = AppWindow.GetFromWindowId(_windowId);
@@ -72,7 +78,6 @@ public sealed partial class DockWindow : Window
         _appWindow.Resize(new SizeInt32(360, 96));
 
         _ = LoadIconsAsync();
-        Diag.Log($"ctor complete. Items={Items.Count} Snapped={_config.Snapped} Edge={_config.Edge}");
     }
 
     // ---- Seed content -----------------------------------------------------
@@ -231,9 +236,14 @@ public sealed partial class DockWindow : Window
     // the input stack delivers), debounced so an item never launches twice per click.
     private DateTime _lastLaunch = DateTime.MinValue;
 
+    // NOTE: ItemsRepeater does NOT set FrameworkElement.DataContext on realized items
+    // (x:Bind resolves via generated code, not DataContext). We stash the item in Tag via
+    // Tag="{x:Bind}" in the template and read it back here.
+    private static DockItem? ItemOf(object sender) => (sender as FrameworkElement)?.Tag as DockItem;
+
     private void Item_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (((FrameworkElement)sender).DataContext is DockItem item)
+        if (ItemOf(sender) is DockItem item)
             TryLaunch(item, "Tapped");
     }
 
@@ -242,7 +252,7 @@ public sealed partial class DockWindow : Window
         var props = e.GetCurrentPoint((UIElement)sender).Properties;
         if (props.PointerUpdateKind != Microsoft.UI.Input.PointerUpdateKind.LeftButtonReleased)
             return;
-        if (((FrameworkElement)sender).DataContext is DockItem item)
+        if (ItemOf(sender) is DockItem item)
             TryLaunch(item, "PointerReleased");
     }
 
@@ -254,14 +264,13 @@ public sealed partial class DockWindow : Window
         if ((now - _lastLaunch).TotalMilliseconds < 350)
             return; // already launched from the sibling event this click
         _lastLaunch = now;
-        Diag.Log($"TryLaunch via {via}: '{item.DisplayName}'");
         Launcher.Launch(item);
     }
 
     private void Item_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {
         var target = (FrameworkElement)sender;
-        if (target.DataContext is not DockItem item)
+        if (target.Tag is not DockItem item)
             return;
 
         int index = Items.IndexOf(item);
@@ -566,11 +575,9 @@ public sealed partial class DockWindow : Window
 
         _dragOccurred = false; // reset on every press so a prior drag never eats this click
 
-        // Never start a window-drag from an icon or the gear — those are click targets.
-        // The dock is dragged from its background / divider only (like the taskbar).
-        if (IsInteractivePress(e.OriginalSource as DependencyObject))
-            return;
-
+        // The dock is freely movable — a press anywhere (including on an icon) can begin a
+        // drag. Movement past DragThreshold becomes a drag; a press-release without that
+        // movement stays a click and launches the item.
         NativeMethods.GetCursorPos(out _dragStartCursor);
         _dragStartWindow = _appWindow.Position;
         _dragging = false;
@@ -578,17 +585,6 @@ public sealed partial class DockWindow : Window
         _dragTimer ??= CreateDragTimer();
         if (!_dragTimer.IsRunning)
             _dragTimer.Start();
-    }
-
-    /// <summary>True if the pointer press landed on an item or the settings gear (a click target).</summary>
-    private bool IsInteractivePress(DependencyObject? source)
-    {
-        for (var node = source; node is not null && node != DockStrip; node = VisualTreeHelper.GetParent(node))
-        {
-            if (node == ItemsHost || node == SettingsButton)
-                return true;
-        }
-        return false;
     }
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateDragTimer()
@@ -622,7 +618,6 @@ public sealed partial class DockWindow : Window
                 return; // still a potential click
             _dragging = true;
             _dragOccurred = true;
-            Diag.Log($"drag started (dx={dx} dy={dy})");
             PauseAutoHideForDrag();
         }
 
@@ -636,7 +631,9 @@ public sealed partial class DockWindow : Window
         var size = _appWindow.Size;
         var work = DisplayArea.GetFromWindowId(_windowId, DisplayAreaFallback.Nearest).WorkArea;
 
-        const int snapThreshold = 48;
+        // Only snap when the dock is dropped essentially AT an edge (a small tolerance),
+        // otherwise it floats freely wherever it was dropped.
+        const int snapThreshold = 12;
         int dLeft = pos.X - work.X;
         int dTop = pos.Y - work.Y;
         int dRight = work.X + work.Width - (pos.X + size.Width);

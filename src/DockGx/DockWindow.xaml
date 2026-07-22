@@ -33,6 +33,7 @@
                                   Width="40"
                                   Height="40"
                                   Background="Transparent"
+                                  Tag="{x:Bind}"
                                   RenderTransformOrigin="0.5,1.0"
                                   ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}"
                                   PointerEntered="Item_PointerEntered"
