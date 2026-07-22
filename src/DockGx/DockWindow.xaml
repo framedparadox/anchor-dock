@@ -8,7 +8,9 @@
 
     <!-- The window itself is the glass: the acrylic backdrop paints this whole surface
          and DWM rounds its corners. Pinned to Dark so it always reads like the Win11
-         dark taskbar (no light/white background). -->
+         dark taskbar (no light/white background). Under a High Contrast theme the
+         code-behind resets this to ElementTheme.Default and paints an opaque system
+         background so the shell's high-contrast colors come through instead. -->
     <Grid x:Name="RootGrid" Background="Transparent" RequestedTheme="Dark">
         <Border x:Name="DockStrip"
                 HorizontalAlignment="Center"
@@ -20,79 +22,86 @@
             <StackPanel x:Name="Strip"
                         Orientation="Horizontal"
                         Spacing="4"
-                        VerticalAlignment="Center">
+                        VerticalAlignment="Center"
+                        XYFocusKeyboardNavigation="Enabled">
 
                 <muxc:ItemsRepeater x:Name="ItemsHost">
                     <muxc:ItemsRepeater.Layout>
                         <muxc:StackLayout Orientation="Horizontal" Spacing="4" />
                     </muxc:ItemsRepeater.Layout>
 
+                    <!-- Each item is a real Button: keyboard-focusable, Space/Enter invoke,
+                         focus visuals, hover/pressed states, and an Invoke automation pattern
+                         come from the platform for free. AutomationProperties.Name is what
+                         Narrator announces; the icon visuals are marked Raw so they are not
+                         announced separately. -->
                     <muxc:ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:DockItem">
-                            <Grid x:Name="ItemRoot"
-                                  Width="40"
-                                  Height="40"
-                                  Background="Transparent"
-                                  Tag="{x:Bind}"
-                                  RenderTransformOrigin="0.5,1.0"
-                                  ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}"
-                                  PointerEntered="Item_PointerEntered"
-                                  PointerExited="Item_PointerExited"
-                                  Tapped="Item_Tapped"
-                                  PointerReleased="Item_PointerReleased"
-                                  RightTapped="Item_RightTapped">
-                                <Grid.RenderTransform>
-                                    <CompositeTransform />
-                                </Grid.RenderTransform>
+                            <Button Width="40"
+                                    Height="40"
+                                    MinWidth="0"
+                                    MinHeight="0"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    CornerRadius="8"
+                                    Tag="{x:Bind}"
+                                    AutomationProperties.Name="{x:Bind DisplayName, Mode=OneWay}"
+                                    ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}"
+                                    Click="Item_Click"
+                                    ContextRequested="Item_ContextRequested">
+                                <Grid>
+                                    <Image Source="{x:Bind IconImage, Mode=OneWay}"
+                                           Visibility="{x:Bind ImageVisibility, Mode=OneWay}"
+                                           Width="24"
+                                           Height="24"
+                                           Stretch="Uniform"
+                                           AutomationProperties.AccessibilityView="Raw" />
 
-                                <Border x:Name="HoverPill"
-                                        CornerRadius="8"
-                                        Opacity="0"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}" />
-
-                                <Image Source="{x:Bind IconImage, Mode=OneWay}"
-                                       Visibility="{x:Bind ImageVisibility, Mode=OneWay}"
-                                       Width="24"
-                                       Height="24"
-                                       Stretch="Uniform" />
-
-                                <FontIcon Glyph="{x:Bind Glyph}"
-                                          Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                          FontSize="18"
-                                          Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                            </Grid>
+                                    <FontIcon Glyph="{x:Bind Glyph}"
+                                              Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                              FontSize="18"
+                                              Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                              AutomationProperties.AccessibilityView="Raw" />
+                                </Grid>
+                            </Button>
                         </DataTemplate>
                     </muxc:ItemsRepeater.ItemTemplate>
                 </muxc:ItemsRepeater>
 
-                <!-- Divider between user items and the settings button -->
+                <!-- Divider between user items and the settings button (decorative:
+                     hidden from assistive technology). -->
                 <Rectangle x:Name="Divider"
                            Width="1"
                            Height="24"
                            Fill="{ThemeResource TextFillColorPrimaryBrush}"
-                           Opacity="0.15" />
+                           Opacity="0.15"
+                           AutomationProperties.AccessibilityView="Raw" />
 
                 <!-- Settings (gear) button -->
-                <Grid x:Name="SettingsButton"
-                      Width="40"
-                      Height="40"
-                      Background="Transparent"
-                      RenderTransformOrigin="0.5,1.0"
-                      ToolTipService.ToolTip="Dock settings"
-                      PointerEntered="Item_PointerEntered"
-                      PointerExited="Item_PointerExited"
-                      PointerReleased="Settings_PointerReleased">
-                    <Grid.RenderTransform>
-                        <CompositeTransform />
-                    </Grid.RenderTransform>
-                    <Border CornerRadius="8" Opacity="0"
-                            Background="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                <Button x:Name="SettingsButton"
+                        Width="40"
+                        Height="40"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="8"
+                        AutomationProperties.Name="Dock settings"
+                        ToolTipService.ToolTip="Dock settings"
+                        Click="Settings_Click">
                     <FontIcon Glyph="&#xE713;"
                               FontFamily="{ThemeResource SymbolThemeFontFamily}"
                               FontSize="18"
-                              Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                </Grid>
+                              Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                              AutomationProperties.AccessibilityView="Raw" />
+                </Button>
             </StackPanel>
         </Border>
     </Grid>

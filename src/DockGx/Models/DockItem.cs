@@ -62,10 +62,10 @@ public sealed class DockItem : INotifyPropertyChanged
     [JsonIgnore]
     public string Glyph => Kind switch
     {
-        DockItemKind.WebLink => "",   // Globe
-        DockItemKind.Folder => "",    // Folder
+        DockItemKind.WebLink => "\uE774",   // Globe
+        DockItemKind.Folder => "\uE8B7",    // Folder
         DockItemKind.Separator => "",
-        _ => "",                       // Page (generic file/app fallback)
+        _ => "\uE7C3",                       // Page (generic file/app fallback)
     };
 
     [JsonIgnore]
