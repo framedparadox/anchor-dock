@@ -291,7 +291,9 @@ public sealed partial class DockWindow : Window
         // Which monitor is the dock on? Prefer the display under its stored position (so a dock
         // dropped on a secondary screen stays and hides on THAT screen); otherwise the display
         // nearest the window. This is the fix for snap/hide "jumping" across monitors.
-        var work = ResolveWorkArea(w, h);
+        var display = ResolveDisplay(w, h);
+        var work = display.WorkArea;      // excludes the taskbar — where the dock shows
+        _outer = display.OuterBounds;     // full monitor — where the dock hides (behind the taskbar)
         int margin = (int)Math.Round(8 * scale);
         int x, y;
 
@@ -337,8 +339,8 @@ public sealed partial class DockWindow : Window
             ? Math.Clamp(fy, work.Y, work.Y + Math.Max(0, work.Height - h))
             : work.Y + (work.Height - h) / 2;
 
-    /// <summary>Resolves the work area of the monitor the dock belongs to (multi-monitor safe).</summary>
-    private RectInt32 ResolveWorkArea(int w, int h)
+    /// <summary>Resolves the monitor the dock belongs to (multi-monitor safe).</summary>
+    private DisplayArea ResolveDisplay(int w, int h)
     {
         DisplayArea? da = null;
         if (_config.FreeX is int fx && _config.FreeY is int fy)
@@ -347,13 +349,16 @@ public sealed partial class DockWindow : Window
             da = DisplayArea.GetFromPoint(center, DisplayAreaFallback.Nearest);
         }
         da ??= DisplayArea.GetFromWindowId(_windowId, DisplayAreaFallback.Nearest);
-        return da.WorkArea;
+        return da;
     }
 
-    // Last computed "shown" rect and the current work area (physical px),
-    // shared with the auto-hide/snap controller (see DockWindow.AutoHide.cs).
+    // Last computed "shown" rect, the current work area, and the full monitor bounds (physical
+    // px), shared with the auto-hide/snap controller (see DockWindow.AutoHide.cs). The dock shows
+    // within the work area but hides against the outer (screen) edge so a bottom-snapped dock
+    // tucks behind the taskbar.
     private RectInt32 _shownRect;
     private RectInt32 _work;
+    private RectInt32 _outer;
 
     partial void OnRelayoutApplied();
 

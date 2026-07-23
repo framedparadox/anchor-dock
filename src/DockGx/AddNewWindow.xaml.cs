@@ -35,6 +35,11 @@ public sealed partial class AddNewWindow : Window
         Title = "Add to Dock";
         SystemBackdrop = new MicaBackdrop();
 
+        // Extend the Mica backdrop under the caption so the title bar matches a native Windows 11
+        // window instead of showing an opaque strip.
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+
         if (_appWindow.Presenter is OverlappedPresenter p)
         {
             p.IsResizable = false;
@@ -44,7 +49,7 @@ public sealed partial class AddNewWindow : Window
         }
         _appWindow.IsShownInSwitchers = true;
 
-        WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 600, 520);
+        WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 600, 560);
         WindowChrome.CenterOnCursor(_appWindow, windowId);
 
         // Track manual edits to the name so an auto-suggested name doesn't clobber user input.

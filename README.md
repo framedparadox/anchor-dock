@@ -26,8 +26,9 @@ the shell uses), so it blurs the desktop behind it and follows the system light/
   background moves the whole dock (the two gestures never conflict).
 - **Snap to any edge → hides where you left it** — drop the dock near a screen edge and it snaps
   flush and auto-hides behind *that* edge on *that* monitor, revealing on cursor approach. It
-  stays at the position you placed it along the edge (no jumping to center), and leaves a small
-  **notch** so you can find and pull it back out.
+  tucks behind the physical screen edge — at the bottom that means **behind the taskbar**, with
+  only a small **notch** peeking over it — stays at the position you placed it along the edge (no
+  jumping to center), and reveals when you reach the edge (or the notch).
 - **Show / hide without deleting** — hide items from the dock (Settings ▸ Apps, or an icon's
   right-click menu) while keeping them in the list.
 - **Empty state** — with no items the dock shows a **“＋ Add New”** button.

@@ -18,9 +18,28 @@
             </Style>
         </Grid.Resources>
 
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom title bar: extended into so the Mica backdrop flows edge-to-edge and the
+             caption matches a native Windows 11 window (no opaque white strip). -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="40" Background="Transparent">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                        Margin="14,0,0,0">
+                <FontIcon Glyph="&#xE713;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                          FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock Text="DockGx Settings" Style="{ThemeResource CaptionTextBlockStyle}"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
         <muxc:NavigationView x:Name="Nav"
+                             Grid.Row="1"
                              IsSettingsVisible="False"
                              IsBackButtonVisible="Collapsed"
+                             IsTitleBarAutoPaddingEnabled="False"
                              PaneDisplayMode="Left"
                              OpenPaneLength="200"
                              SelectionChanged="Nav_SelectionChanged">

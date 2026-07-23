@@ -32,6 +32,11 @@ public sealed partial class SettingsWindow : Window
         Title = "DockGx Settings";
         SystemBackdrop = new MicaBackdrop();
 
+        // Extend the Mica backdrop under the caption so the title bar matches a native Windows 11
+        // window instead of showing an opaque strip.
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+
         if (appWindow.Presenter is OverlappedPresenter p)
         {
             p.IsMaximizable = false;
@@ -148,7 +153,6 @@ public sealed partial class SettingsWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         // Icon (bitmap if resolved, else the kind glyph).
         var iconHost = new Grid { Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Center };
@@ -192,21 +196,32 @@ public sealed partial class SettingsWindow : Window
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
 
-        // Show/hide switch (On = shown on the dock).
+        // Actions: the show/hide switch sits directly to the left of the delete button.
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        // Show/hide switch (On = shown on the dock). No on/off caption — the switch state alone
+        // conveys it; the accessible name/tooltip carry the meaning for AT users.
         var toggle = new ToggleSwitch
         {
             IsOn = !item.Hidden,
-            OnContent = "Shown",
-            OffContent = "Hidden",
+            OnContent = null,
+            OffContent = null,
+            MinWidth = 0,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        ToolTipService.SetToolTip(toggle, "Show on the dock");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(toggle, "Show on the dock");
         toggle.Toggled += (s, _) =>
         {
             if (s is ToggleSwitch ts)
                 _dock.SetItemHidden(item, !ts.IsOn);
         };
-        Grid.SetColumn(toggle, 2);
-        grid.Children.Add(toggle);
+        actions.Children.Add(toggle);
 
         // Remove.
         var remove = new Button
@@ -222,8 +237,10 @@ public sealed partial class SettingsWindow : Window
         ToolTipService.SetToolTip(remove, "Remove from dock");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(remove, "Remove from dock");
         remove.Click += (_, _) => _dock.RemoveDockItem(item);
-        Grid.SetColumn(remove, 3);
-        grid.Children.Add(remove);
+        actions.Children.Add(remove);
+
+        Grid.SetColumn(actions, 2);
+        grid.Children.Add(actions);
 
         return new Border
         {

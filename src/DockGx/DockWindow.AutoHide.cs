@@ -36,12 +36,15 @@ public sealed partial class DockWindow
 
     private int ShownCoord => HideIsVertical ? _shownRect.Y : _shownRect.X;
 
+    // The dock hides against the OUTER (physical screen) edge, not the work-area edge, so a
+    // bottom-snapped dock slides all the way down behind the taskbar and the notch peeks out
+    // over it. (For edges with no taskbar the outer and work edges coincide.)
     private int HiddenCoord => _config.Edge switch
     {
-        DockEdge.Bottom => _work.Y + _work.Height - Peek,
-        DockEdge.Top => _work.Y - _shownRect.Height + Peek,
-        DockEdge.Left => _work.X - _shownRect.Width + Peek,
-        DockEdge.Right => _work.X + _work.Width - Peek,
+        DockEdge.Bottom => _outer.Y + _outer.Height - Peek,
+        DockEdge.Top => _outer.Y - _shownRect.Height + Peek,
+        DockEdge.Left => _outer.X - _shownRect.Width + Peek,
+        DockEdge.Right => _outer.X + _outer.Width - Peek,
         _ => _shownRect.Y,
     };
 
@@ -141,12 +144,14 @@ public sealed partial class DockWindow
         bool inX = p.X >= l && p.X <= r;
         bool inY = p.Y >= t && p.Y <= b;
 
+        // Reveal from the physical screen edge (so moving the cursor onto the notch over the
+        // taskbar reveals the dock), matching where it hides.
         bool atHotZone = _config.Edge switch
         {
-            DockEdge.Bottom => inX && p.Y >= _work.Y + _work.Height - HotZone,
-            DockEdge.Top => inX && p.Y <= _work.Y + HotZone,
-            DockEdge.Left => inY && p.X <= _work.X + HotZone,
-            DockEdge.Right => inY && p.X >= _work.X + _work.Width - HotZone,
+            DockEdge.Bottom => inX && p.Y >= _outer.Y + _outer.Height - HotZone,
+            DockEdge.Top => inX && p.Y <= _outer.Y + HotZone,
+            DockEdge.Left => inY && p.X <= _outer.X + HotZone,
+            DockEdge.Right => inY && p.X >= _outer.X + _outer.Width - HotZone,
             _ => false,
         };
 
@@ -168,8 +173,9 @@ public sealed partial class DockWindow
     {
         _revealed = reveal;
         _targetCoord = reveal ? ShownCoord : HiddenCoord;
-        if (reveal)
-            WindowChrome.EnsureTopmost(_hwnd);
+        // Re-assert top-most in both directions: when hidden at the bottom the dock sits behind
+        // the taskbar, and its notch must stay above the (also top-most) taskbar to be visible.
+        WindowChrome.EnsureTopmost(_hwnd);
         UpdateNotch();
 
         // Honor the system "show animations" accessibility setting: when animations are off
