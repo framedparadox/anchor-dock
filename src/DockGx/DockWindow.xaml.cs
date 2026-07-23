@@ -415,7 +415,7 @@ public sealed partial class DockWindow : Window
         _shownRect = new RectInt32(x, y, w, h);
         _work = work;
         _appWindow.MoveAndResize(_shownRect);
-        WindowChrome.EnsureTopmost(_hwnd);
+        ApplyTopmost();
         OnRelayoutApplied();
     }
 
@@ -468,8 +468,13 @@ public sealed partial class DockWindow : Window
     private void Item_Click(object sender, RoutedEventArgs e)
     {
         if (_dragOccurred)
+        {
+            Diag.Log("Item_Click suppressed: drag/reorder in progress");
             return; // the click that ends a drag/reorder, not a launch
-        if (ItemOf(sender) is DockItem item)
+        }
+        var item = ItemOf(sender);
+        Diag.Log($"Item_Click: tag={(item is null ? "NULL" : item.DisplayName)}");
+        if (item is not null)
             Launcher.Launch(item);
     }
 
@@ -689,6 +694,28 @@ public sealed partial class DockWindow : Window
         SaveConfig();
         ApplyAutoHide();
         QueueRelayout();
+    }
+
+    public void SetAlwaysOnTop(bool on)
+    {
+        _config.AlwaysOnTop = on;
+        SaveConfig();
+        ApplyTopmost();
+    }
+
+    // The dock is topmost while snapped (so the auto-hide reveal shows over other windows), and
+    // while floating only when the user has opted into "always on top".
+    private bool ShouldBeTopmost => _config.Snapped || _config.AlwaysOnTop;
+
+    private void ApplyTopmost()
+    {
+        bool top = ShouldBeTopmost;
+        if (_appWindow.Presenter is OverlappedPresenter p)
+            p.IsAlwaysOnTop = top;
+        if (top)
+            WindowChrome.EnsureTopmost(_hwnd);
+        else
+            WindowChrome.SetNotTopmost(_hwnd);
     }
 
     public void SetLaunchAtStartup(bool on)

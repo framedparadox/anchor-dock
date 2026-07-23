@@ -42,6 +42,12 @@ public sealed class DockConfig
     public bool LaunchAtStartup { get; set; }
 
     /// <summary>
+    /// Keep the dock above other windows while it is <b>floating</b> (not snapped). When snapped
+    /// the dock is always topmost regardless, so the auto-hide reveal works over other windows.
+    /// </summary>
+    public bool AlwaysOnTop { get; set; } = true;
+
+    /// <summary>
     /// True once the default items have been seeded (first run). Prevents re-seeding after the
     /// user has intentionally emptied the dock — an empty dock then persists and shows the
     /// "+ Add New" affordance instead of springing the defaults back.

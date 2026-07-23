@@ -93,6 +93,7 @@ public sealed partial class SettingsWindow : Window
             _ => 0,
         };
         AutoHideSwitch.IsOn = cfg.AutoHide;
+        AlwaysOnTopSwitch.IsOn = cfg.AlwaysOnTop;
         StartupSwitch.IsOn = StartupService.IsEnabled();
 
         _initializing = false;
@@ -118,6 +119,13 @@ public sealed partial class SettingsWindow : Window
         if (_initializing)
             return;
         _dock.SetAutoHide(AutoHideSwitch.IsOn);
+    }
+
+    private void AlwaysOnTopSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _dock.SetAlwaysOnTop(AlwaysOnTopSwitch.IsOn);
     }
 
     private void StartupSwitch_Toggled(object sender, RoutedEventArgs e)

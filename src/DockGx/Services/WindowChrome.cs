@@ -101,4 +101,13 @@ public static class WindowChrome
             NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE |
             NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
     }
+
+    /// <summary>Drops the window out of the always-on-top band (it stacks normally again).</summary>
+    public static void SetNotTopmost(nint hwnd)
+    {
+        NativeMethods.SetWindowPos(
+            hwnd, NativeMethods.HWND_NOTOPMOST, 0, 0, 0, 0,
+            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE |
+            NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
+    }
 }
