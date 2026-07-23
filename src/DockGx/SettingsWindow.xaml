@@ -48,6 +48,8 @@
                                          Icon="Setting" Tag="general" />
                 <muxc:NavigationViewItem x:Name="AppsNav" Content="Apps &amp; links"
                                          Icon="AllApps" Tag="apps" />
+                <muxc:NavigationViewItem x:Name="AboutNav" Content="About"
+                                         Icon="Help" Tag="about" />
             </muxc:NavigationView.MenuItems>
 
             <Grid Padding="32,24,32,24">
@@ -100,6 +102,8 @@
                                                TextWrapping="Wrap" />
                                 </StackPanel>
                                 <ToggleSwitch x:Name="AutoHideSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
                                               Toggled="AutoHideSwitch_Toggled" />
                             </Grid>
                         </Border>
@@ -121,6 +125,8 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                                 <ToggleSwitch x:Name="StartupSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
                                               Toggled="StartupSwitch_Toggled" />
                             </Grid>
                         </Border>
@@ -176,6 +182,71 @@
                         <StackPanel x:Name="AppsList" Spacing="8" HorizontalAlignment="Stretch" />
                     </ScrollViewer>
                 </Grid>
+
+                <!-- ==================== ABOUT ==================== -->
+                <ScrollViewer x:Name="AboutPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="6" MaxWidth="760" HorizontalAlignment="Left">
+                        <TextBlock Text="About" Style="{ThemeResource TitleTextBlockStyle}"
+                                   Margin="0,0,0,12" />
+
+                        <!-- Identity -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <Border Width="56" Height="56" CornerRadius="12"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}">
+                                    <FontIcon Glyph="&#xE71D;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                              FontSize="28" Foreground="White" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="DockGx" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    <TextBlock x:Name="VersionText" Text="Version 1.0"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="A macOS-style dock for Windows 11, built with WinUI 3."
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Privacy -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <FontIcon Glyph="&#xE72E;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                              FontSize="18" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                    <StackPanel>
+                                        <TextBlock Text="Privacy" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="What DockGx does and doesn't do with your data."
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Spacing="10" Margin="30,0,0,0">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Runs entirely on your PC" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   Text="Your dock items, layout and settings are saved locally to %AppData%\DockGx and never leave your device." />
+                                    </StackPanel>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Icons" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   Text="App, file and folder icons come from Windows. For a web link, DockGx fetches the website's icon (favicon) over the internet — first directly from the site, and only if that fails, from DuckDuckGo's icon service, which receives just the site's domain. Downloaded icons are cached under %AppData%\DockGx\IconCache." />
+                                    </StackPanel>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="No tracking" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   Text="No accounts, no telemetry, no analytics, no ads. Launching an item hands it to Windows exactly as double-clicking it in Explorer would." />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
         </muxc:NavigationView>
     </Grid>

@@ -24,13 +24,16 @@ the shell uses), so it blurs the desktop behind it and follows the system light/
 - **Automatic icons** — apps, files and folders use the Windows shell icon (the same icon
   Explorer shows); web links auto-fetch the site's **favicon**, cached to disk so it downloads
   once and still shows offline.
+- **Drag & drop to add** — drag an app, shortcut (`.lnk`), file or folder from Explorer or the
+  desktop straight onto the dock to add it; a URL dragged from a browser becomes a web link.
 - **Reorder by dragging** — drag an icon left/right to rearrange it; dragging the dock's
   background moves the whole dock (the two gestures never conflict).
 - **Snap to any edge → hides where you left it** — drop the dock near a screen edge and it snaps
   flush and auto-hides behind *that* edge on *that* monitor, revealing on cursor approach. It
   tucks behind the physical screen edge — at the bottom that means **behind the taskbar**, with
   only a small **notch** peeking over it — stays at the position you placed it along the edge (no
-  jumping to center), and reveals when you reach the edge (or the notch).
+  jumping to center), and reveals when you reach the edge (or the notch). On an edge **shared with
+  another monitor** it stays pinned and visible instead of sliding into the neighboring screen.
 - **Show / hide without deleting** — hide items from the dock (Settings ▸ Apps, or an icon's
   right-click menu) while keeping them in the list.
 - **Empty state** — with no items the dock shows a **“＋ Add New”** button.

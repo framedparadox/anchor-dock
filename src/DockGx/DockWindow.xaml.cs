@@ -163,6 +163,97 @@ public sealed partial class DockWindow : Window
         RaiseItemsChanged();
     }
 
+    // ---- Drag & drop onto the dock ---------------------------------------
+    //
+    // Drop apps, shortcuts (.lnk), files or folders from Explorer / the desktop straight onto
+    // the dock to add them; a dropped URL (from a browser) becomes a web link.
+
+    private void Root_DragOver(object sender, DragEventArgs e)
+    {
+        var data = e.DataView;
+        if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems) ||
+            data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.WebLink) ||
+            data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+        {
+            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            if (e.DragUIOverride is { } ui)
+            {
+                ui.Caption = "Add to dock";
+                ui.IsCaptionVisible = true;
+                ui.IsGlyphVisible = true;
+            }
+        }
+        else
+        {
+            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.None;
+        }
+    }
+
+    private async void Root_Drop(object sender, DragEventArgs e)
+    {
+        var deferral = e.GetDeferral();
+        try
+        {
+            var data = e.DataView;
+            if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
+            {
+                foreach (var storageItem in await data.GetStorageItemsAsync())
+                {
+                    var target = storageItem.Path;
+                    if (string.IsNullOrWhiteSpace(target))
+                        continue;
+                    AddDockItem(new DockItem
+                    {
+                        Kind = DockItemFactory.Classify(target),
+                        DisplayName = DockItemFactory.SuggestName(target),
+                        Target = target,
+                    });
+                }
+            }
+            else if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.WebLink))
+            {
+                AddWebLinkFromDrop((await data.GetWebLinkAsync())?.ToString());
+            }
+            else if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+            {
+                AddWebLinkFromDrop(await data.GetTextAsync());
+            }
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("Drop failed: " + ex.Message);
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    private void AddWebLinkFromDrop(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+        text = text.Trim();
+
+        if (!text.Contains("://"))
+        {
+            // Only promote bare text to a URL when it plausibly is one (a single dotted token).
+            if (text.Contains(' ') || !text.Contains('.'))
+                return;
+            text = "https://" + text;
+        }
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            return;
+
+        AddDockItem(new DockItem
+        {
+            Kind = DockItemKind.WebLink,
+            DisplayName = DockItemFactory.SuggestName(uri.ToString()),
+            Target = uri.ToString(),
+        });
+    }
+
     public void OpenAddNew()
     {
         if (_addNewWindow is not null)

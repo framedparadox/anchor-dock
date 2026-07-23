@@ -49,6 +49,7 @@ public sealed partial class SettingsWindow : Window
 
         LoadGeneral();
         RebuildApps();
+        VersionText.Text = "Version " + GetAppVersion();
 
         // Keep the Apps list in step if the dock changes elsewhere (drag reorder, per-item menu).
         // Deferred so a change we initiate from here doesn't rebuild the tree mid-handler.
@@ -58,16 +59,22 @@ public sealed partial class SettingsWindow : Window
 
     private void OnDockItemsChanged() => DispatcherQueue.TryEnqueue(RebuildApps);
 
+    private static string GetAppVersion()
+    {
+        var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        return v is null ? "1.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+    }
+
     // ---- Navigation --------------------------------------------------------
 
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         var tag = (args.SelectedItem as NavigationViewItem)?.Tag as string;
-        bool apps = tag == "apps";
-        if (AppsPanel is null || GeneralPanel is null)
+        if (GeneralPanel is null || AppsPanel is null || AboutPanel is null)
             return;
-        AppsPanel.Visibility = apps ? Visibility.Visible : Visibility.Collapsed;
-        GeneralPanel.Visibility = apps ? Visibility.Collapsed : Visibility.Visible;
+        GeneralPanel.Visibility = tag == "general" ? Visibility.Visible : Visibility.Collapsed;
+        AppsPanel.Visibility = tag == "apps" ? Visibility.Visible : Visibility.Collapsed;
+        AboutPanel.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ---- General page ------------------------------------------------------

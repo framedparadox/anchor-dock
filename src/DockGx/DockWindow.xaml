@@ -11,7 +11,8 @@
          dark taskbar (no light/white background). Under a High Contrast theme the
          code-behind resets this to ElementTheme.Default and paints an opaque system
          background so the shell's high-contrast colors come through instead. -->
-    <Grid x:Name="RootGrid" Background="Transparent" RequestedTheme="Dark">
+    <Grid x:Name="RootGrid" Background="Transparent" RequestedTheme="Dark"
+          AllowDrop="True" DragOver="Root_DragOver" Drop="Root_Drop">
         <Border x:Name="DockStrip"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"

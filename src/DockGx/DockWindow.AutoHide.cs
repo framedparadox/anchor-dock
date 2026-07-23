@@ -2,6 +2,7 @@ using DockGx.Interop;
 using DockGx.Models;
 using DockGx.Services;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Windows.Graphics;
 
@@ -28,8 +29,50 @@ public sealed partial class DockWindow
     private const int EdgePad = 24;  // slack around the dock's span
     private static readonly TimeSpan HideDelay = TimeSpan.FromMilliseconds(600);
 
+    // ===== Hidden-state "notch" handle size (DIPs) — change these to resize the notch. =====
+    // NotchLength runs ALONG the snapped edge (its long side); NotchThickness is the short side.
+    private const double NotchLength = 62;         // was 64 — the notch "width" on a top/bottom edge
+    private const double NotchLengthVertical = 40; // long side when snapped to the left/right edge
+    private const double NotchThickness = 10;      // the tab's short side (into the screen)
+
     // Whether snapped edges actually hide (vs. staying pinned flush and visible).
     private bool AutoHideEnabled => _config.Snapped && _config.AutoHide;
+
+    // True when another monitor sits immediately beyond the snapped edge (an interior / shared
+    // edge). Recomputed on each relayout so it costs nothing per poll tick.
+    private bool _edgeHasNeighbor;
+
+    // The dock only auto-hides against a TRUE outer screen edge. On an edge shared with a
+    // neighboring monitor it would slide into that monitor instead of off-screen, so we keep it
+    // pinned flush & visible there rather than "hiding into the next screen".
+    private bool CanHide => AutoHideEnabled && !_edgeHasNeighbor;
+
+    private bool ComputeEdgeHasNeighbor()
+    {
+        if (_outer.Width == 0 || _outer.Height == 0)
+            return false;
+
+        int midX = _shownRect.X + _shownRect.Width / 2;
+        int midY = _shownRect.Y + _shownRect.Height / 2;
+        var probe = _config.Edge switch
+        {
+            DockEdge.Bottom => new PointInt32(midX, _outer.Y + _outer.Height + 2),
+            DockEdge.Top => new PointInt32(midX, _outer.Y - 2),
+            DockEdge.Left => new PointInt32(_outer.X - 2, midY),
+            DockEdge.Right => new PointInt32(_outer.X + _outer.Width + 2, midY),
+            _ => new PointInt32(midX, midY),
+        };
+
+        try
+        {
+            // Fallback.None → null when the probe point is on no display (a true outer edge).
+            return DisplayArea.GetFromPoint(probe, DisplayAreaFallback.None) is not null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     // The dock hides along Y for top/bottom, along X for left/right.
     private bool HideIsVertical => _config.Edge is DockEdge.Bottom or DockEdge.Top;
@@ -54,12 +97,19 @@ public sealed partial class DockWindow
     // Called after every reposition (from UpdateSizeAndPosition).
     partial void OnRelayoutApplied()
     {
+        _edgeHasNeighbor = _config.Snapped && ComputeEdgeHasNeighbor();
         _currentCoord = ShownCoord;
-        if (AutoHideEnabled)
+        if (CanHide)
         {
             EnsureStarted();
             if (!_revealed)
                 MoveWindowCoord(HiddenCoord); // keep it tucked away after a size/edge change
+        }
+        else if (_autoHideStarted)
+        {
+            // Auto-hide off, or a shared/interior edge: pin the dock flush & visible instead of
+            // sliding it into the neighboring monitor.
+            Stop();
         }
         UpdateNotch();
     }
@@ -67,7 +117,8 @@ public sealed partial class DockWindow
     // Called when snap state changes (drag-drop, menu, settings).
     partial void ApplyAutoHide()
     {
-        if (AutoHideEnabled)
+        _edgeHasNeighbor = _config.Snapped && ComputeEdgeHasNeighbor();
+        if (CanHide)
         {
             EnsureStarted();
             SetRevealed(false);
@@ -91,7 +142,7 @@ public sealed partial class DockWindow
     // the dock shut immediately: keep it revealed for the usual grace period, then it hides.
     partial void ResumeAutoHideAfterDrag()
     {
-        if (!AutoHideEnabled)
+        if (!CanHide)
             return;
         _revealed = true;
         _lastInside = DateTime.UtcNow;
@@ -132,7 +183,7 @@ public sealed partial class DockWindow
 
     private void PollCursor()
     {
-        if (!AutoHideEnabled)
+        if (!CanHide)
             return;
         if (!NativeMethods.GetCursorPos(out var p))
             return;
@@ -199,7 +250,7 @@ public sealed partial class DockWindow
         if (Notch is null)
             return;
 
-        bool show = AutoHideEnabled && !_revealed;
+        bool show = CanHide && !_revealed;
         Notch.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (!show)
             return;
@@ -209,22 +260,22 @@ public sealed partial class DockWindow
             case DockEdge.Bottom: // window pushed down; visible band is at the TOP of the window
                 Notch.HorizontalAlignment = HorizontalAlignment.Center;
                 Notch.VerticalAlignment = VerticalAlignment.Top;
-                Notch.Width = 64; Notch.Height = 10;
+                Notch.Width = NotchLength; Notch.Height = NotchThickness;
                 break;
             case DockEdge.Top:    // visible band at the BOTTOM of the window
                 Notch.HorizontalAlignment = HorizontalAlignment.Center;
                 Notch.VerticalAlignment = VerticalAlignment.Bottom;
-                Notch.Width = 64; Notch.Height = 10;
+                Notch.Width = NotchLength; Notch.Height = NotchThickness;
                 break;
             case DockEdge.Left:   // visible band at the RIGHT of the window
                 Notch.HorizontalAlignment = HorizontalAlignment.Right;
                 Notch.VerticalAlignment = VerticalAlignment.Center;
-                Notch.Width = 10; Notch.Height = 40;
+                Notch.Width = NotchThickness; Notch.Height = NotchLengthVertical;
                 break;
             case DockEdge.Right:  // visible band at the LEFT of the window
                 Notch.HorizontalAlignment = HorizontalAlignment.Left;
                 Notch.VerticalAlignment = VerticalAlignment.Center;
-                Notch.Width = 10; Notch.Height = 40;
+                Notch.Width = NotchThickness; Notch.Height = NotchLengthVertical;
                 break;
         }
     }
