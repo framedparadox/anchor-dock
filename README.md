@@ -34,6 +34,8 @@ the shell uses), so it blurs the desktop behind it and follows the system light/
   only a small **notch** peeking over it — stays at the position you placed it along the edge (no
   jumping to center), and reveals when you reach the edge (or the notch). On an edge **shared with
   another monitor** it stays pinned and visible instead of sliding into the neighboring screen.
+- **Always on top (optional)** — the dock stays above other windows; a Settings toggle lets you
+  turn that off while it's floating (when snapped it stays on top so the auto-hide reveal works).
 - **Show / hide without deleting** — hide items from the dock (Settings ▸ Apps, or an icon's
   right-click menu) while keeping them in the list.
 - **Empty state** — with no items the dock shows a **“＋ Add New”** button.
