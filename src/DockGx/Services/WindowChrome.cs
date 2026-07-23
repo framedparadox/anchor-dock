@@ -1,11 +1,35 @@
 using DockGx.Interop;
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
+using Windows.Graphics;
 
 namespace DockGx.Services;
 
 /// <summary>Native window chrome tweaks that AppWindow/WinUI don't expose directly.</summary>
 public static class WindowChrome
 {
+    /// <summary>Sizes a window's client area given a size in device-independent pixels.</summary>
+    public static void SetClientSizeDip(AppWindow appWindow, nint hwnd, double dipW, double dipH)
+    {
+        double scale = NativeMethods.GetDpiForWindow(hwnd) / 96.0;
+        appWindow.Resize(new SizeInt32((int)Math.Ceiling(dipW * scale), (int)Math.Ceiling(dipH * scale)));
+    }
+
+    /// <summary>Centers a window on whichever monitor currently hosts the cursor.</summary>
+    public static void CenterOnCursor(AppWindow appWindow, WindowId windowId)
+    {
+        RectInt32 work;
+        if (NativeMethods.GetCursorPos(out var p))
+            work = DisplayArea.GetFromPoint(new PointInt32(p.X, p.Y), DisplayAreaFallback.Nearest).WorkArea;
+        else
+            work = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
+
+        var size = appWindow.Size;
+        int x = work.X + (work.Width - size.Width) / 2;
+        int y = work.Y + (work.Height - size.Height) / 2;
+        appWindow.Move(new PointInt32(x, y));
+    }
+
     /// <summary>
     /// Makes the window a borderless, always-on-top tool window: no title bar or frame,
     /// absent from the taskbar and Alt-Tab, and non-resizable — i.e. dock-like.

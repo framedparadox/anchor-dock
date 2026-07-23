@@ -6,7 +6,6 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
@@ -21,7 +20,19 @@ public sealed partial class DockWindow : Window
     private readonly AcrylicBackdropManager? _backdrop;
     private readonly DockConfig _config;
 
+    /// <summary>The visible items rendered on the dock (a projection of the master list that
+    /// excludes hidden items). Reordering operates on this collection.</summary>
     public ObservableCollection<DockItem> Items { get; } = new();
+
+    /// <summary>The full, ordered item list (including hidden items) — the persisted source
+    /// of truth, surfaced to the Settings window.</summary>
+    public IReadOnlyList<DockItem> AllItems => _config.Items;
+
+    public DockConfig Config => _config;
+
+    /// <summary>Raised whenever the item set changes (add / remove / hide / reorder) so an open
+    /// Settings window can refresh its Apps list.</summary>
+    public event Action? ItemsChanged;
 
     public DockWindow()
     {
@@ -63,24 +74,24 @@ public sealed partial class DockWindow : Window
 
         ItemsHost.ItemsSource = Items;
 
-        // Load persisted items/settings (seed defaults on first run).
+        // Load persisted items/settings (seed defaults only on the very first run — never
+        // after the user has intentionally emptied the dock).
         _config = DockStore.Load();
-        bool firstRun = _config.Items.Count == 0;
-        if (firstRun)
+        bool firstRun = !_config.Seeded;
+        if (firstRun && _config.Items.Count == 0)
             SeedDefaults();
-        foreach (var it in _config.Items)
-            Items.Add(it);
+        _config.Seeded = true;
+        RebuildVisible();
 
         // ContextRequested (rather than RightTapped) so the dock menu is reachable by the
         // keyboard too (Menu key / Shift+F10), not only by right-click.
         DockStrip.ContextRequested += DockBackground_ContextRequested;
         // Items are Buttons now and mark PointerPressed handled for their own press visual;
         // subscribe with handledEventsToo so a press that starts on an icon still begins a
-        // dock drag (dragging from anywhere on the dock is a feature).
+        // gesture (item reorder for icons, window drag for the background).
         DockStrip.AddHandler(UIElement.PointerPressedEvent,
             new PointerEventHandler(Dock_PointerPressed), handledEventsToo: true);
         RootGrid.Loaded += (_, _) => QueueRelayout();
-        Items.CollectionChanged += (_, _) => { SaveConfig(); QueueRelayout(); };
 
         if (firstRun)
             SaveConfig(); // materialize the default dock on disk
@@ -96,6 +107,95 @@ public sealed partial class DockWindow : Window
         _appWindow.Resize(new SizeInt32(360, 96));
 
         _ = LoadIconsAsync();
+    }
+
+    // ---- Master / visible list sync ---------------------------------------
+
+    /// <summary>Rebuilds the visible collection from the master list, honoring Hidden flags.</summary>
+    private void RebuildVisible()
+    {
+        Items.Clear();
+        foreach (var it in _config.Items)
+            if (!it.Hidden)
+                Items.Add(it);
+    }
+
+    /// <summary>
+    /// Pushes a visible reorder back into the master list. Hidden items stay anchored at their
+    /// absolute master indices; each visible slot is refilled, in order, from the (reordered)
+    /// visible collection. Deterministic and stable.
+    /// </summary>
+    private void SyncMasterFromVisible()
+    {
+        var q = new Queue<DockItem>(Items);
+        for (int i = 0; i < _config.Items.Count && q.Count > 0; i++)
+            if (!_config.Items[i].Hidden)
+                _config.Items[i] = q.Dequeue();
+    }
+
+    // ---- Public API (used by the Settings / Add windows) ------------------
+
+    public void AddDockItem(DockItem item)
+    {
+        _config.Items.Add(item);
+        if (!item.Hidden)
+            Items.Add(item);
+        PersistAndRelayout();
+        RaiseItemsChanged();
+        _ = LoadOneIconAsync(item);
+    }
+
+    public void RemoveDockItem(DockItem item)
+    {
+        _config.Items.Remove(item);
+        Items.Remove(item);
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
+    public void SetItemHidden(DockItem item, bool hidden)
+    {
+        if (item.Hidden == hidden)
+            return;
+        item.Hidden = hidden;
+        RebuildVisible();
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
+    public void OpenAddNew()
+    {
+        if (_addNewWindow is not null)
+        {
+            _addNewWindow.Activate();
+            return;
+        }
+        _addNewWindow = new AddNewWindow(this);
+        _addNewWindow.Closed += (_, _) => _addNewWindow = null;
+        _addNewWindow.Activate();
+    }
+
+    public void OpenSettings()
+    {
+        if (_settingsWindow is not null)
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+        _settingsWindow = new SettingsWindow(this);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Activate();
+    }
+
+    private AddNewWindow? _addNewWindow;
+    private SettingsWindow? _settingsWindow;
+
+    private void RaiseItemsChanged() => ItemsChanged?.Invoke();
+
+    private void PersistAndRelayout()
+    {
+        SaveConfig();
+        QueueRelayout();
     }
 
     // ---- Seed content -----------------------------------------------------
@@ -116,15 +216,11 @@ public sealed partial class DockWindow : Window
             _config.Items.Add(new DockItem { Kind = kind, DisplayName = name, Target = target });
     }
 
-    private void SaveConfig()
-    {
-        _config.Items = Items.ToList();
-        DockStore.Save(_config);
-    }
+    private void SaveConfig() => DockStore.Save(_config);
 
     private async Task LoadIconsAsync()
     {
-        foreach (var item in Items.ToArray())
+        foreach (var item in _config.Items.ToArray())
         {
             var icon = await IconService.LoadIconAsync(item);
             if (icon is not null)
@@ -156,24 +252,35 @@ public sealed partial class DockWindow : Window
     }
 
     // Dock metrics — keep in sync with the item template, Strip and DockStrip in DockWindow.xaml.
-    internal const double CellSize = 40;    // item/gear Grid Width/Height (taskbar-ish)
-    internal const double CellSpacing = 4;  // StackLayout + Strip Spacing
-    internal const double DividerWidth = 1; // Divider Rectangle width
-    internal const double StripPadX = 8;    // DockStrip Padding (left/right)
-    internal const double StripPadY = 6;    // DockStrip Padding (top/bottom)
+    internal const double CellSize = 40;      // item/gear Grid Width/Height (taskbar-ish)
+    internal const double CellSpacing = 4;    // StackLayout + Strip Spacing
+    internal const double DividerWidth = 1;   // Divider Rectangle width
+    internal const double StripPadX = 8;      // DockStrip Padding (left/right)
+    internal const double StripPadY = 6;      // DockStrip Padding (top/bottom)
+    internal const double AddNewWidth = 116;  // "+ Add New" empty-state pill width
+
+    /// <summary>Shows the "+ Add New" pill (and hides the item strip) when the dock is empty.</summary>
+    private void UpdateEmptyState()
+    {
+        bool empty = Items.Count == 0;
+        AddNewButton.Width = AddNewWidth;
+        AddNewButton.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        ItemsHost.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     private void UpdateSizeAndPosition()
     {
+        UpdateEmptyState();
+
         // Compute the strip size analytically from the (uniform) cell metrics. This is
         // deterministic and avoids the window-shrinks-then-clips-content feedback loop
         // that plagues "auto-size window to content" via ActualWidth.
-        int n = Items.Count;
-        if (n < 1)
-            return;
+        int n = Items.Count; // visible items
+        bool empty = n == 0;
 
-        // content = [n item cells] [gap] [divider] [gap] [gear cell]
-        double repeaterW = n * CellSize + (n - 1) * CellSpacing;
-        double contentW = repeaterW + CellSpacing + DividerWidth + CellSpacing + CellSize;
+        // content = [items OR add-new] [gap] [divider] [gap] [gear cell]
+        double coreW = empty ? AddNewWidth : n * CellSize + (n - 1) * CellSpacing;
+        double contentW = coreW + CellSpacing + DividerWidth + CellSpacing + CellSize;
         double dipW = contentW + 2 * StripPadX;
         double dipH = CellSize + 2 * StripPadY;
 
@@ -181,19 +288,23 @@ public sealed partial class DockWindow : Window
         int w = (int)Math.Ceiling(dipW * scale);
         int h = (int)Math.Ceiling(dipH * scale);
 
-        var work = DisplayArea.GetFromWindowId(_windowId, DisplayAreaFallback.Nearest).WorkArea;
+        // Which monitor is the dock on? Prefer the display under its stored position (so a dock
+        // dropped on a secondary screen stays and hides on THAT screen); otherwise the display
+        // nearest the window. This is the fix for snap/hide "jumping" across monitors.
+        var work = ResolveWorkArea(w, h);
         int margin = (int)Math.Round(8 * scale);
         int x, y;
 
         if (_config.Snapped)
         {
-            // Flush to the snapped edge, centered along it.
+            // Flush to the snapped edge; along the edge, keep the position the user placed it at
+            // (falling back to centered only if it has never been positioned).
             (x, y) = _config.Edge switch
             {
-                DockEdge.Top => (work.X + (work.Width - w) / 2, work.Y),
-                DockEdge.Left => (work.X, work.Y + (work.Height - h) / 2),
-                DockEdge.Right => (work.X + work.Width - w, work.Y + (work.Height - h) / 2),
-                _ => (work.X + (work.Width - w) / 2, work.Y + work.Height - h), // Bottom
+                DockEdge.Top => (AlongX(work, w), work.Y),
+                DockEdge.Left => (work.X, AlongY(work, h)),
+                DockEdge.Right => (work.X + work.Width - w, AlongY(work, h)),
+                _ => (AlongX(work, w), work.Y + work.Height - h), // Bottom
             };
         }
         else if (_config.FreeX is int fx && _config.FreeY is int fy)
@@ -213,6 +324,30 @@ public sealed partial class DockWindow : Window
         _appWindow.MoveAndResize(_shownRect);
         WindowChrome.EnsureTopmost(_hwnd);
         OnRelayoutApplied();
+    }
+
+    // Along-edge coordinates derived from the stored placement, clamped to the work area.
+    private int AlongX(RectInt32 work, int w) =>
+        _config.FreeX is int fx
+            ? Math.Clamp(fx, work.X, work.X + Math.Max(0, work.Width - w))
+            : work.X + (work.Width - w) / 2;
+
+    private int AlongY(RectInt32 work, int h) =>
+        _config.FreeY is int fy
+            ? Math.Clamp(fy, work.Y, work.Y + Math.Max(0, work.Height - h))
+            : work.Y + (work.Height - h) / 2;
+
+    /// <summary>Resolves the work area of the monitor the dock belongs to (multi-monitor safe).</summary>
+    private RectInt32 ResolveWorkArea(int w, int h)
+    {
+        DisplayArea? da = null;
+        if (_config.FreeX is int fx && _config.FreeY is int fy)
+        {
+            var center = new PointInt32(fx + w / 2, fy + h / 2);
+            da = DisplayArea.GetFromPoint(center, DisplayAreaFallback.Nearest);
+        }
+        da ??= DisplayArea.GetFromWindowId(_windowId, DisplayAreaFallback.Nearest);
+        return da.WorkArea;
     }
 
     // Last computed "shown" rect and the current work area (physical px),
@@ -237,7 +372,7 @@ public sealed partial class DockWindow : Window
     private void Item_Click(object sender, RoutedEventArgs e)
     {
         if (_dragOccurred)
-            return; // the click that ends a drag, not a launch
+            return; // the click that ends a drag/reorder, not a launch
         if (ItemOf(sender) is DockItem item)
             Launcher.Launch(item);
     }
@@ -267,7 +402,8 @@ public sealed partial class DockWindow : Window
         menu.Items.Add(moveRight);
 
         menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(Mi("Remove", () => Items.Remove(item)));
+        menu.Items.Add(Mi("Hide", () => SetItemHidden(item, true)));
+        menu.Items.Add(Mi("Remove", () => RemoveDockItem(item)));
 
         if (e.TryGetPosition(target, out var pos))
             menu.ShowAt(target, pos);
@@ -289,7 +425,10 @@ public sealed partial class DockWindow : Window
         int j = i + direction;
         if (i < 0 || j < 0 || j >= Items.Count)
             return;
-        Items.Move(i, j); // CollectionChanged -> SaveConfig + relayout
+        Items.Move(i, j);
+        SyncMasterFromVisible();
+        PersistAndRelayout();
+        RaiseItemsChanged();
     }
 
     private void ShowRenameFlyout(FrameworkElement target, DockItem item)
@@ -309,6 +448,7 @@ public sealed partial class DockWindow : Window
             {
                 item.DisplayName = name; // observable -> tooltip updates
                 SaveConfig();
+                RaiseItemsChanged();
             }
             flyout.Hide();
         };
@@ -333,7 +473,7 @@ public sealed partial class DockWindow : Window
             if (t.Length > 0)
             {
                 item.Target = t;
-                item.Kind = ClassifyTarget(t);
+                item.Kind = DockItemFactory.Classify(t);
                 item.IconImage = null;
                 // Re-realize the item so kind-derived visuals (glyph) refresh, then reload icon.
                 int i = Items.IndexOf(item);
@@ -342,6 +482,8 @@ public sealed partial class DockWindow : Window
                     Items.RemoveAt(i);
                     Items.Insert(i, item);
                 }
+                SaveConfig();
+                RaiseItemsChanged();
                 _ = LoadOneIconAsync(item);
             }
             flyout.Hide();
@@ -349,20 +491,6 @@ public sealed partial class DockWindow : Window
         flyout.ShowAt(target);
         box.Focus(FocusState.Programmatic);
         box.SelectAll();
-    }
-
-    private static DockItemKind ClassifyTarget(string target)
-    {
-        if (Directory.Exists(target))
-            return DockItemKind.Folder;
-        if (Uri.TryCreate(target, UriKind.Absolute, out var uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-            return DockItemKind.WebLink;
-        return Path.GetExtension(target).ToLowerInvariant() switch
-        {
-            ".exe" or ".lnk" or ".bat" or ".cmd" or ".com" => DockItemKind.Application,
-            _ => DockItemKind.File,
-        };
     }
 
     private void DockBackground_ContextRequested(UIElement sender, ContextRequestedEventArgs e)
@@ -379,14 +507,12 @@ public sealed partial class DockWindow : Window
     {
         var menu = new MenuFlyout();
 
-        menu.Items.Add(MenuItem("Add App…", async () => await AddAppOrFileAsync(DockItemKind.Application)));
-        menu.Items.Add(MenuItem("Add File…", async () => await AddAppOrFileAsync(DockItemKind.File)));
-        menu.Items.Add(MenuItem("Add Folder…", async () => await AddFolderAsync()));
-        menu.Items.Add(MenuItem("Add Web Link…", () => ShowAddWebLinkFlyout(target)));
+        menu.Items.Add(MenuItem("Add New…", OpenAddNew));
+        menu.Items.Add(MenuItem("Settings…", OpenSettings));
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        var snap = new MenuFlyoutSubItem { Text = "Snap to edge (hides behind it)" };
+        var snap = new MenuFlyoutSubItem { Text = "Snap to edge" };
         snap.Items.Add(SnapItem("Bottom", DockEdge.Bottom));
         snap.Items.Add(SnapItem("Top", DockEdge.Top));
         snap.Items.Add(SnapItem("Left", DockEdge.Left));
@@ -419,89 +545,14 @@ public sealed partial class DockWindow : Window
     {
         if (_dragOccurred)
             return; // the click that ends a drag, not a menu open
-        ShowDockMenu((FrameworkElement)sender, new Windows.Foundation.Point(0, 0));
+        OpenSettings();
     }
 
-    // ---- Adding items -----------------------------------------------------
-
-    private async Task AddAppOrFileAsync(DockItemKind kind)
+    private void AddNew_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new Windows.Storage.Pickers.FileOpenPicker();
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, _hwnd);
-        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.ComputerFolder;
-        picker.FileTypeFilter.Add("*");
-
-        var file = await picker.PickSingleFileAsync();
-        if (file is null)
+        if (_dragOccurred)
             return;
-
-        // A .lnk / .exe picked under "Add File" is still really an app to launch.
-        string ext = Path.GetExtension(file.Path).ToLowerInvariant();
-        if (kind == DockItemKind.File && ext is ".exe" or ".lnk" or ".bat" or ".cmd" or ".com")
-            kind = DockItemKind.Application;
-
-        AddItem(new DockItem
-        {
-            Kind = kind,
-            DisplayName = Path.GetFileNameWithoutExtension(file.Path),
-            Target = file.Path,
-        });
-    }
-
-    private async Task AddFolderAsync()
-    {
-        var picker = new Windows.Storage.Pickers.FolderPicker();
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, _hwnd);
-        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.ComputerFolder;
-        picker.FileTypeFilter.Add("*");
-
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is null)
-            return;
-
-        AddItem(new DockItem
-        {
-            Kind = DockItemKind.Folder,
-            DisplayName = folder.Name,
-            Target = folder.Path,
-        });
-    }
-
-    private void ShowAddWebLinkFlyout(FrameworkElement target)
-    {
-        var nameBox = new TextBox { PlaceholderText = "Name (optional)", Width = 260 };
-        var urlBox = new TextBox { PlaceholderText = "https://example.com", Width = 260 };
-        var addButton = new Button { Content = "Add", HorizontalAlignment = HorizontalAlignment.Right };
-
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(FlyoutHeader("Add Web Link"));
-        panel.Children.Add(nameBox);
-        panel.Children.Add(urlBox);
-        panel.Children.Add(addButton);
-
-        var flyout = new Flyout { Content = panel };
-
-        addButton.Click += (_, _) =>
-        {
-            var url = urlBox.Text.Trim();
-            if (url.Length == 0)
-                return;
-            if (!url.Contains("://"))
-                url = "https://" + url;
-            var name = string.IsNullOrWhiteSpace(nameBox.Text) ? url : nameBox.Text.Trim();
-
-            AddItem(new DockItem { Kind = DockItemKind.WebLink, DisplayName = name, Target = url });
-            flyout.Hide();
-        };
-
-        flyout.ShowAt(target);
-        urlBox.Focus(FocusState.Programmatic);
-    }
-
-    private void AddItem(DockItem item)
-    {
-        Items.Add(item); // triggers SaveConfig + relayout
-        _ = LoadOneIconAsync(item);
+        OpenAddNew();
     }
 
     private static async Task LoadOneIconAsync(DockItem item)
@@ -513,14 +564,16 @@ public sealed partial class DockWindow : Window
 
     // ---- Snap / free positioning -----------------------------------------
 
-    private void SetSnap(DockEdge? edge)
+    public void SetSnap(DockEdge? edge)
     {
         if (edge is DockEdge e)
         {
             _config.Snapped = true;
             _config.Edge = e;
-            _config.FreeX = null;
-            _config.FreeY = null;
+            // Keep the current on-screen position as the placement anchor so it snaps flush
+            // without jumping to the screen center.
+            _config.FreeX = _shownRect.X;
+            _config.FreeY = _shownRect.Y;
         }
         else
         {
@@ -534,18 +587,55 @@ public sealed partial class DockWindow : Window
         QueueRelayout();   // reposition (snap flush or clamp free)
     }
 
+    public void SetAutoHide(bool on)
+    {
+        _config.AutoHide = on;
+        SaveConfig();
+        ApplyAutoHide();
+        QueueRelayout();
+    }
+
+    public void SetLaunchAtStartup(bool on)
+    {
+        _config.LaunchAtStartup = on;
+        StartupService.SetEnabled(on);
+        SaveConfig();
+    }
+
+    /// <summary>Clears the dock, re-seeds the default items and returns to a floating position.</summary>
+    public void ResetToDefaults()
+    {
+        _config.Items.Clear();
+        SeedDefaults();
+        _config.Snapped = false;
+        _config.FreeX = null;
+        _config.FreeY = null;
+        RebuildVisible();
+        SaveConfig();
+        ApplyAutoHide();
+        QueueRelayout();
+        RaiseItemsChanged();
+        _ = LoadIconsAsync();
+    }
+
     // ---- Dragging ---------------------------------------------------------
     //
     // Dragging a top-level window under the cursor is racy with WinUI pointer capture
     // (the cursor outruns the moving window and slips off it, dropping capture). So we
     // poll the global cursor and left-button state on a timer instead — rock solid
     // regardless of which window the cursor is currently over.
+    //
+    // A press that starts on an item reorders THAT item (never moves the dock); a press on
+    // the background / divider / gear moves the whole dock window.
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _dragTimer;
     private bool _dragging;
-    private bool _dragOccurred; // suppress the launch "tap" that may follow a drag
+    private bool _dragOccurred;  // suppress the launch "tap" that may follow a drag/reorder
     private NativeMethods.POINT _dragStartCursor;
     private PointInt32 _dragStartWindow;
+    private DockItem? _reorderItem; // non-null while a press started on an item
+    private double _reorderHostLeftPx;
+    private double _reorderPitchPx;
     private const int DragThreshold = 12;
 
     private void Dock_PointerPressed(object sender, PointerRoutedEventArgs e)
@@ -554,17 +644,31 @@ public sealed partial class DockWindow : Window
             return;
 
         _dragOccurred = false; // reset on every press so a prior drag never eats this click
-
-        // The dock is freely movable — a press anywhere (including on an icon) can begin a
-        // drag. Movement past DragThreshold becomes a drag; a press-release without that
-        // movement stays a click and launches the item.
         NativeMethods.GetCursorPos(out _dragStartCursor);
-        _dragStartWindow = _appWindow.Position;
         _dragging = false;
+
+        // Did the press land on a dock item? If so this gesture is an item reorder, not a
+        // window move — "don't allow dragging of the dock when moving the apps / items".
+        _reorderItem = FindItemFromSource(e.OriginalSource);
+        if (_reorderItem is null)
+            _dragStartWindow = _appWindow.Position;
 
         _dragTimer ??= CreateDragTimer();
         if (!_dragTimer.IsRunning)
             _dragTimer.Start();
+    }
+
+    /// <summary>Walks up from the pressed element to find the dock item it belongs to (if any).</summary>
+    private static DockItem? FindItemFromSource(object source)
+    {
+        var d = source as DependencyObject;
+        while (d is not null)
+        {
+            if (d is FrameworkElement fe && fe.Tag is DockItem item)
+                return item;
+            d = VisualTreeHelper.GetParent(d);
+        }
+        return null;
     }
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateDragTimer()
@@ -583,6 +687,15 @@ public sealed partial class DockWindow : Window
             _dragTimer?.Stop();
             bool wasDragging = _dragging;
             _dragging = false;
+
+            if (_reorderItem is not null)
+            {
+                _reorderItem = null;
+                if (wasDragging)
+                    EndItemReorder();
+                return;
+            }
+
             if (wasDragging)
             {
                 EndDragSnap();
@@ -599,6 +712,23 @@ public sealed partial class DockWindow : Window
         int dx = cur.X - _dragStartCursor.X;
         int dy = cur.Y - _dragStartCursor.Y;
 
+        // ---- Item reorder path ----
+        if (_reorderItem is not null)
+        {
+            if (!_dragging)
+            {
+                if (Math.Abs(dx) <= DragThreshold && Math.Abs(dy) <= DragThreshold)
+                    return; // still a potential click/launch
+                _dragging = true;
+                _dragOccurred = true;
+                PauseAutoHideForDrag();
+                BeginItemReorder();
+            }
+            UpdateItemReorder(cur.X);
+            return;
+        }
+
+        // ---- Window move path ----
         if (!_dragging)
         {
             if (Math.Abs(dx) <= DragThreshold && Math.Abs(dy) <= DragThreshold)
@@ -611,6 +741,46 @@ public sealed partial class DockWindow : Window
         _appWindow.Move(new PointInt32(_dragStartWindow.X + dx, _dragStartWindow.Y + dy));
     }
 
+    // ---- Item reorder mechanics ----
+
+    private void BeginItemReorder()
+    {
+        double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
+        // The window is stationary during a reorder, so the strip's screen geometry is fixed:
+        // capture the item host's left edge and per-cell pitch once, in physical pixels.
+        var origin = ItemsHost.TransformToVisual(RootGrid)
+            .TransformPoint(new Windows.Foundation.Point(0, 0));
+        _reorderHostLeftPx = _appWindow.Position.X + origin.X * scale;
+        _reorderPitchPx = (CellSize + CellSpacing) * scale;
+    }
+
+    private void UpdateItemReorder(int cursorScreenX)
+    {
+        int count = Items.Count;
+        if (count < 2 || _reorderItem is null || _reorderPitchPx <= 0)
+            return;
+
+        int from = Items.IndexOf(_reorderItem);
+        if (from < 0)
+            return;
+
+        double rel = cursorScreenX - _reorderHostLeftPx;
+        int target = (int)Math.Floor(rel / _reorderPitchPx);
+        target = Math.Clamp(target, 0, count - 1);
+        if (target != from)
+            Items.Move(from, target);
+    }
+
+    private void EndItemReorder()
+    {
+        SyncMasterFromVisible();
+        SaveConfig();
+        RaiseItemsChanged();
+        ResumeAutoHideAfterDrag();
+        DispatcherQueue.TryEnqueue(
+            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => _dragOccurred = false);
+    }
+
     /// <summary>On drop, snap to the nearest work-area edge if close enough, else float free.</summary>
     private void EndDragSnap()
     {
@@ -620,12 +790,17 @@ public sealed partial class DockWindow : Window
 
         // Only snap when the dock is dropped essentially AT an edge (a small tolerance),
         // otherwise it floats freely wherever it was dropped.
-        const int snapThreshold = 12;
+        const int snapThreshold = 16;
         int dLeft = pos.X - work.X;
         int dTop = pos.Y - work.Y;
         int dRight = work.X + work.Width - (pos.X + size.Width);
         int dBottom = work.Y + work.Height - (pos.Y + size.Height);
         int min = Math.Min(Math.Min(dLeft, dRight), Math.Min(dTop, dBottom));
+
+        // Remember exactly where it was dropped: this anchors the snapped position along the
+        // edge (so it hides where you left it) and identifies the monitor it lives on.
+        _config.FreeX = pos.X;
+        _config.FreeY = pos.Y;
 
         if (min <= snapThreshold)
         {
@@ -634,14 +809,10 @@ public sealed partial class DockWindow : Window
                          : min == dTop ? DockEdge.Top
                          : min == dLeft ? DockEdge.Left
                          : DockEdge.Right;
-            _config.FreeX = null;
-            _config.FreeY = null;
         }
         else
         {
             _config.Snapped = false;
-            _config.FreeX = pos.X;
-            _config.FreeY = pos.Y;
         }
 
         SaveConfig();
@@ -675,4 +846,5 @@ public sealed partial class DockWindow : Window
 
     partial void ApplyAutoHide();
     partial void PauseAutoHideForDrag();
+    partial void ResumeAutoHideAfterDrag();
 }

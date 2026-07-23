@@ -41,6 +41,12 @@ public sealed class DockItem : INotifyPropertyChanged
     /// <summary>Optional path to a user-supplied icon overriding the shell icon.</summary>
     public string? CustomIconPath { get; set; }
 
+    /// <summary>
+    /// When true the item stays in the config (and in the Settings ▸ Apps list) but is not
+    /// rendered on the dock. Toggled from the Settings window's per-app show/hide switch.
+    /// </summary>
+    public bool Hidden { get; set; }
+
     // ---- Runtime-only visual state (never serialized) ----------------------
 
     private ImageSource? _iconImage;

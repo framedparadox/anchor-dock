@@ -16,14 +16,23 @@ the shell uses), so it blurs the desktop behind it and follows the system light/
   dark, with a dark window border so there's no light/white outline.
 - **Rounded corners** — the native Windows 11 window rounding (DWM).
 - **Taskbar-sized icons** — 24 px icons in 40 px cells, matching the Windows 11 taskbar.
-- **Divider + settings button** — a gear button (and right-click anywhere) opens the dock menu.
-- **Add anything** — apps (`.exe`), shortcuts (`.lnk`), files, folders, and web links, via the
-  menu. Icons come from the Windows shell (the same icons Explorer shows).
-- **Draggable** — grab the dock's background and drag it around the screen (icons stay clickable).
-- **Snap to any edge → hides behind it** — drop the dock near a screen edge and it snaps flush
-  and auto-hides behind that edge (bottom / top / left / right), revealing on cursor approach.
-- **Per-item menu** — right-click an icon: Open, Edit, Rename, Move left/right, Remove.
-- **Persistent** — items, position, and snap state are saved to JSON and restored next launch.
+- **Settings window** — a gear button opens a Windows-Settings-style window (Mica, left
+  navigation) with a **General** page (position, auto-hide, start-with-Windows, reset/quit) and an
+  **Apps & links** page that lists every entry with a show/hide switch and a remove button.
+- **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
+  link / shortcut**, with a type picker, Browse, and auto-suggested names. Icons come from the
+  Windows shell (the same icons Explorer shows).
+- **Reorder by dragging** — drag an icon left/right to rearrange it; dragging the dock's
+  background moves the whole dock (the two gestures never conflict).
+- **Snap to any edge → hides where you left it** — drop the dock near a screen edge and it snaps
+  flush and auto-hides behind *that* edge on *that* monitor, revealing on cursor approach. It
+  stays at the position you placed it along the edge (no jumping to center), and leaves a small
+  **notch** so you can find and pull it back out.
+- **Show / hide without deleting** — hide items from the dock (Settings ▸ Apps, or an icon's
+  right-click menu) while keeping them in the list.
+- **Empty state** — with no items the dock shows a **“＋ Add New”** button.
+- **Per-item menu** — right-click an icon: Open, Edit, Rename, Move left/right, Hide, Remove.
+- **Persistent** — items, position, snap state and settings are saved to JSON and restored next launch.
 - **Out of the way** — borderless, always-on-top, hidden from the taskbar and Alt-Tab.
 
 ## Requirements
@@ -49,14 +58,16 @@ dotnet build src/DockGx/DockGx.csproj -c Release -p:Platform=x64
 
 - **Left-click** an icon to launch it.
 - **Hover** an icon for a Windows 11 taskbar-style highlight.
-- **Drag the dock** from anywhere on it to move it freely. Drop it *at* a screen edge to snap
-  and auto-hide behind that edge; drop it anywhere else and it stays there.
-- **Right-click an icon** → *Open, Edit…, Rename…, Move left, Move right, Remove*.
-- **Gear button** (or **right-click the dock background**) → add an App / File / Folder /
-  Web Link, choose *Snap to edge*, *Float (unsnap)*, or *Quit*.
+- **Drag an icon** left/right to reorder it. **Drag the dock's background** (the padding around the
+  icons, the divider, or the gear) to move the whole dock; drop it *at* a screen edge to snap and
+  auto-hide behind that edge, or anywhere else to float.
+- **Right-click an icon** → *Open, Edit…, Rename…, Move left, Move right, Hide, Remove*.
+- **Gear button** → opens **Settings** (General + Apps & links).
+- **Right-click the dock background** → *Add New…*, *Settings…*, *Snap to edge*, *Float (unsnap)*, *Quit*.
 
-Because the dock stays off the taskbar, everything (including **Quit**) lives in that menu.
-When snapped, move the cursor to that edge (within the dock's span) to reveal it.
+Because the dock stays off the taskbar, everything (including **Quit**) lives in the gear/settings
+and the right-click menu. When snapped, move the cursor to that edge (within the dock's span) — or
+onto the notch — to reveal it.
 
 ## Run / debug in VS Code
 
@@ -76,17 +87,21 @@ Delete this file to reset the dock to its seeded defaults.
 ```
 src/DockGx/
   App.xaml(.cs)              App entry point; creates the single DockWindow.
-  DockWindow.xaml(.cs)       The dock window: glass, chrome, layout, items, menu.
-  DockWindow.AutoHide.cs     Auto-hide controller (cursor polling + slide animation).
+  DockWindow.xaml(.cs)       The dock window: glass, chrome, layout, items, drag/reorder, menu.
+  DockWindow.AutoHide.cs     Auto-hide controller (cursor polling, slide animation, hidden notch).
+  SettingsWindow.xaml(.cs)   Windows-Settings-style window: General + Apps & links pages.
+  AddNewWindow.xaml(.cs)     Windows-app-style modal for adding an app/file/folder/link/shortcut.
   Models/
-    DockItem.cs              One dock entry (kind, target, icon). Serializable.
-    DockConfig.cs            Persisted items + settings (auto-hide, edge, icon size).
+    DockItem.cs              One dock entry (kind, target, icon, hidden). Serializable.
+    DockConfig.cs            Persisted items + settings (snap edge, placement, auto-hide, startup).
   Services/
     AcrylicBackdropManager.cs  Applies + keeps-alive the taskbar-style acrylic.
     IconService.cs             Shell-thumbnail icons for apps/files/folders.
     Launcher.cs                ShellExecute-based launching (apps, files, URLs).
     DockStore.cs               JSON load/save of the config.
-    WindowChrome.cs            Borderless/topmost/tool-window + rounded corners.
+    DockItemFactory.cs         Classifies a target (app/file/folder/link) and suggests a name.
+    StartupService.cs          Per-user "start with Windows" Run-key toggle.
+    WindowChrome.cs            Borderless/topmost/tool-window, rounded corners, dialog sizing.
     Diag.cs                    Lightweight file logger (%Temp%\dockgx.log).
   Interop/
     NativeMethods.cs           Win32/DWM P/Invoke (corners, Z-order, DPI, cursor).
@@ -103,6 +118,21 @@ src/DockGx/
   *analytically* from the (uniform) cell metrics rather than by measuring the live tree —
   this avoids the "shrink window → clip content → lock small" feedback loop and needs no
   manual `Measure()` (which throws on live elements).
+- **Master vs. visible items.** `DockConfig.Items` is the ordered source of truth (including
+  hidden items); the dock renders a filtered projection. A visible reorder is merged back into
+  the master list with hidden items kept anchored at their indices, so hiding/showing never
+  loses position.
+- **Reorder vs. move gestures.** A press that starts on an icon reorders that icon; a press on
+  the background/divider/gear moves the whole window. Both are driven by polling the global
+  cursor + button state on a timer (WinUI pointer capture is racy while a window moves under the
+  cursor).
+- **Snap keeps its place.** The dropped position is remembered even while snapped, and the target
+  monitor is resolved from that point (`DisplayArea.GetFromPoint`), so a snapped dock hides where
+  you left it on the correct screen instead of re-centering.
+- **`Window` has no `Resources`.** WinUI 3's `Window` is not a `FrameworkElement`, so shared XAML
+  resources live on the root panel (`<Grid.Resources>`), not `<Window.Resources>` — the latter
+  makes the XAML compiler fail with no diagnostic. The new dialog windows use the built-in
+  `MicaBackdrop` for their glass.
 - **Unpackaged & self-contained** so it runs like a normal desktop utility with no MSIX and
   no separate runtime install.
 
@@ -113,7 +143,7 @@ src/DockGx/
   next step.
 - **Magnification is subtle** (stays within the glass strip). True macOS "pop above the dock"
   magnification needs a taller window with a masked backdrop — a good future enhancement.
-- **No tray icon yet** — management is via the gear button / right-click menu.
+- **No tray icon yet** — management is via the gear button (Settings) / right-click menu.
 - **Web-link icons** use a globe glyph (no favicon fetching yet).
 
 ## Publishing

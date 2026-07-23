@@ -2,14 +2,16 @@ using DockGx.Interop;
 using DockGx.Models;
 using DockGx.Services;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using Windows.Graphics;
 
 namespace DockGx;
 
 /// <summary>
-/// Snap + auto-hide behavior. When the dock is snapped to an edge it slides off that edge
-/// leaving a thin peek, and reveals when the cursor reaches the edge within the dock's span.
-/// Works for all four edges. Partial of <see cref="DockWindow"/>.
+/// Snap + auto-hide behavior. When the dock is snapped to an edge (and auto-hide is on) it
+/// slides off that edge leaving a thin peek plus a rounded "notch" handle, and reveals when the
+/// cursor reaches the edge within the dock's span. Works for all four edges. Partial of
+/// <see cref="DockWindow"/>.
 /// </summary>
 public sealed partial class DockWindow
 {
@@ -21,10 +23,13 @@ public sealed partial class DockWindow
     private int _targetCoord;
     private DateTime _lastInside = DateTime.MinValue;
 
-    private const int Peek = 3;      // px of the dock left visible when hidden
+    private const int Peek = 6;      // px of the dock left visible when hidden (the notch band)
     private const int HotZone = 6;   // px band at the edge that triggers a reveal
     private const int EdgePad = 24;  // slack around the dock's span
     private static readonly TimeSpan HideDelay = TimeSpan.FromMilliseconds(600);
+
+    // Whether snapped edges actually hide (vs. staying pinned flush and visible).
+    private bool AutoHideEnabled => _config.Snapped && _config.AutoHide;
 
     // The dock hides along Y for top/bottom, along X for left/right.
     private bool HideIsVertical => _config.Edge is DockEdge.Bottom or DockEdge.Top;
@@ -47,24 +52,26 @@ public sealed partial class DockWindow
     partial void OnRelayoutApplied()
     {
         _currentCoord = ShownCoord;
-        if (_config.Snapped)
+        if (AutoHideEnabled)
         {
             EnsureStarted();
             if (!_revealed)
                 MoveWindowCoord(HiddenCoord); // keep it tucked away after a size/edge change
         }
+        UpdateNotch();
     }
 
-    // Called when snap state changes (drag-drop, menu).
+    // Called when snap state changes (drag-drop, menu, settings).
     partial void ApplyAutoHide()
     {
-        if (_config.Snapped)
+        if (AutoHideEnabled)
         {
             EnsureStarted();
             SetRevealed(false);
         }
         else
         {
+            // Not hiding: fully stop the controller and pin the dock flush/visible.
             Stop();
         }
     }
@@ -74,19 +81,39 @@ public sealed partial class DockWindow
         _pollTimer?.Stop();
         _slideTimer?.Stop();
         _revealed = true; // don't fight the drag
+        UpdateNotch();
+    }
+
+    // Re-arm auto-hide after an in-place interaction (e.g. an item reorder) without slamming
+    // the dock shut immediately: keep it revealed for the usual grace period, then it hides.
+    partial void ResumeAutoHideAfterDrag()
+    {
+        if (!AutoHideEnabled)
+            return;
+        _revealed = true;
+        _lastInside = DateTime.UtcNow;
+        EnsureStarted();
+        _pollTimer?.Start();
+        UpdateNotch();
     }
 
     private void EnsureStarted()
     {
-        if (_autoHideStarted)
+        if (_autoHideStarted && _pollTimer is not null)
+        {
+            _pollTimer.Start();
             return;
+        }
         _autoHideStarted = true;
 
-        _pollTimer = DispatcherQueue.CreateTimer();
+        _pollTimer ??= DispatcherQueue.CreateTimer();
         _pollTimer.Interval = TimeSpan.FromMilliseconds(100);
-        _pollTimer.Tick += (_, _) => PollCursor();
+        _pollTimer.Tick -= OnPollTick;
+        _pollTimer.Tick += OnPollTick;
         _pollTimer.Start();
     }
+
+    private void OnPollTick(DispatcherQueueTimer sender, object args) => PollCursor();
 
     private void Stop()
     {
@@ -97,11 +124,12 @@ public sealed partial class DockWindow
         _slideTimer = null;
         _revealed = true;
         MoveWindowCoord(ShownCoord); // snap fully back into view
+        UpdateNotch();
     }
 
     private void PollCursor()
     {
-        if (!_config.Snapped)
+        if (!AutoHideEnabled)
             return;
         if (!NativeMethods.GetCursorPos(out var p))
             return;
@@ -142,6 +170,7 @@ public sealed partial class DockWindow
         _targetCoord = reveal ? ShownCoord : HiddenCoord;
         if (reveal)
             WindowChrome.EnsureTopmost(_hwnd);
+        UpdateNotch();
 
         // Honor the system "show animations" accessibility setting: when animations are off
         // (reduced motion), jump straight to the target instead of the slide.
@@ -152,6 +181,46 @@ public sealed partial class DockWindow
             return;
         }
         StartSlide();
+    }
+
+    /// <summary>
+    /// Positions and shows the hidden-state "notch" handle. It only appears when the dock is
+    /// hidden, and is anchored to the edge of the window that stays on-screen (the side facing
+    /// into the desktop) so it pokes out of the thin peek band.
+    /// </summary>
+    private void UpdateNotch()
+    {
+        if (Notch is null)
+            return;
+
+        bool show = AutoHideEnabled && !_revealed;
+        Notch.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show)
+            return;
+
+        switch (_config.Edge)
+        {
+            case DockEdge.Bottom: // window pushed down; visible band is at the TOP of the window
+                Notch.HorizontalAlignment = HorizontalAlignment.Center;
+                Notch.VerticalAlignment = VerticalAlignment.Top;
+                Notch.Width = 64; Notch.Height = 10;
+                break;
+            case DockEdge.Top:    // visible band at the BOTTOM of the window
+                Notch.HorizontalAlignment = HorizontalAlignment.Center;
+                Notch.VerticalAlignment = VerticalAlignment.Bottom;
+                Notch.Width = 64; Notch.Height = 10;
+                break;
+            case DockEdge.Left:   // visible band at the RIGHT of the window
+                Notch.HorizontalAlignment = HorizontalAlignment.Right;
+                Notch.VerticalAlignment = VerticalAlignment.Center;
+                Notch.Width = 10; Notch.Height = 40;
+                break;
+            case DockEdge.Right:  // visible band at the LEFT of the window
+                Notch.HorizontalAlignment = HorizontalAlignment.Left;
+                Notch.VerticalAlignment = VerticalAlignment.Center;
+                Notch.Width = 10; Notch.Height = 40;
+                break;
+        }
     }
 
     // Cached once: the reduced-motion preference rarely changes within a session. Guarded so
