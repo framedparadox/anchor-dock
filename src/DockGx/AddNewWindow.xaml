@@ -50,38 +50,53 @@
                 <TextBlock Text="What are you adding?" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <ToggleButton x:Name="AppType" Click="TypeSelected" Width="94" Height="76" Padding="0"
-                                  HorizontalContentAlignment="Center">
+                                  HorizontalContentAlignment="Center"
+                                  AutomationProperties.Name="App">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE71D;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22" />
-                            <TextBlock Text="App" HorizontalAlignment="Center" />
+                            <FontIcon Glyph="&#xE71D;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
+                                      AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock Text="App" HorizontalAlignment="Center"
+                                       AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
                     <ToggleButton x:Name="FileType" Click="TypeSelected" Width="94" Height="76" Padding="0"
-                                  HorizontalContentAlignment="Center">
+                                  HorizontalContentAlignment="Center"
+                                  AutomationProperties.Name="File">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE8A5;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22" />
-                            <TextBlock Text="File" HorizontalAlignment="Center" />
+                            <FontIcon Glyph="&#xE8A5;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
+                                      AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock Text="File" HorizontalAlignment="Center"
+                                       AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
                     <ToggleButton x:Name="FolderType" Click="TypeSelected" Width="94" Height="76" Padding="0"
-                                  HorizontalContentAlignment="Center">
+                                  HorizontalContentAlignment="Center"
+                                  AutomationProperties.Name="Folder">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE8B7;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22" />
-                            <TextBlock Text="Folder" HorizontalAlignment="Center" />
+                            <FontIcon Glyph="&#xE8B7;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
+                                      AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock Text="Folder" HorizontalAlignment="Center"
+                                       AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
                     <ToggleButton x:Name="LinkType" Click="TypeSelected" Width="94" Height="76" Padding="0"
-                                  HorizontalContentAlignment="Center">
+                                  HorizontalContentAlignment="Center"
+                                  AutomationProperties.Name="Web Link">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE71B;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22" />
-                            <TextBlock Text="Web Link" HorizontalAlignment="Center" />
+                            <FontIcon Glyph="&#xE71B;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
+                                      AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock Text="Web Link" HorizontalAlignment="Center"
+                                       AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
                     <ToggleButton x:Name="ShortcutType" Click="TypeSelected" Width="94" Height="76" Padding="0"
-                                  HorizontalContentAlignment="Center">
+                                  HorizontalContentAlignment="Center"
+                                  AutomationProperties.Name="Shortcut">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE8A7;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22" />
-                            <TextBlock Text="Shortcut" HorizontalAlignment="Center" />
+                            <FontIcon Glyph="&#xE8A7;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
+                                      AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock Text="Shortcut" HorizontalAlignment="Center"
+                                       AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
                 </StackPanel>
@@ -124,7 +139,11 @@
             <!-- Footer -->
             <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8"
                         HorizontalAlignment="Right">
-                <Button Content="Cancel" MinWidth="96" Click="Cancel_Click" />
+                <Button Content="Cancel" MinWidth="96" Click="Cancel_Click">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Escape" />
+                    </Button.KeyboardAccelerators>
+                </Button>
                 <Button x:Name="AddButton" Content="Add to Dock" MinWidth="120"
                         Style="{ThemeResource AccentButtonStyle}" Click="Add_Click" />
             </StackPanel>

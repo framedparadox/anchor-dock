@@ -62,6 +62,16 @@ dotnet build src/DockGx/DockGx.csproj -c Release -p:Platform=x64
 
 > WinUI apps cannot target `AnyCPU`; always pass `-p:Platform=x64` (this machine's architecture).
 
+## Tests
+
+```powershell
+dotnet test tests/DockGx.Tests/DockGx.Tests.csproj -p:Platform=x64
+```
+
+`tests/DockGx.Tests/` covers the pure-logic pieces (`Models/`, `Services/DockItemFactory.cs`)
+with xUnit. It targets the same Windows-qualified TFM as the app (WinUI types like `ImageSource`
+require it), so — like the app itself — it only builds and runs on Windows.
+
 ## Using it
 
 - **Left-click** an icon to launch it.

@@ -12,8 +12,9 @@ namespace DockGx;
 /// <summary>
 /// A Windows-Settings-style window: a left NavigationView with a <b>General</b> page (position,
 /// auto-hide, start-with-Windows, maintenance) and an <b>Apps &amp; links</b> page that lists every
-/// dock entry with a show/hide switch and a remove button. Mica-backed and always-on-top so it
-/// stays above the (topmost) dock.
+/// dock entry with a show/hide switch and a remove button. Mica-backed, and matches the dock's
+/// own topmost state so it stays above the dock when the dock is topmost (snapped, or
+/// floating with "always on top" on) without needlessly outranking every other app otherwise.
 /// </summary>
 public sealed partial class SettingsWindow : Window
 {
@@ -40,7 +41,10 @@ public sealed partial class SettingsWindow : Window
         if (appWindow.Presenter is OverlappedPresenter p)
         {
             p.IsMaximizable = false;
-            p.IsAlwaysOnTop = true;
+            // Only outrank other apps when the dock itself currently does — otherwise this
+            // window would needlessly float above everything (full-screen apps, video calls)
+            // even though a floating, non-topmost dock doesn't need that.
+            p.IsAlwaysOnTop = dock.Config.Snapped || dock.Config.AlwaysOnTop;
         }
         appWindow.IsShownInSwitchers = true;
 
@@ -135,7 +139,25 @@ public sealed partial class SettingsWindow : Window
         _dock.SetLaunchAtStartup(StartupSwitch.IsOn);
     }
 
-    private void Reset_Click(object sender, RoutedEventArgs e) => _dock.ResetToDefaults();
+    // Resetting wipes every pinned app/file/folder/link with no undo, so — unlike the
+    // low-stakes, easily-re-added per-item "Remove" — it gets a confirmation dialog, per the
+    // Fluent guidance to confirm destructive, hard-to-recover actions. The safe choice (Cancel)
+    // is the default button so an accidental Enter doesn't wipe the dock.
+    private async void Reset_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = Nav.XamlRoot,
+            Title = "Reset dock to defaults?",
+            Content = "This removes every pinned app, file, folder and link you've added, and "
+                    + "restores the built-in defaults. This can't be undone.",
+            PrimaryButtonText = "Reset",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            _dock.ResetToDefaults();
+    }
 
     private void Quit_Click(object sender, RoutedEventArgs e) => Application.Current.Exit();
 
@@ -243,7 +265,7 @@ public sealed partial class SettingsWindow : Window
         {
             Content = new FontIcon
             {
-                Glyph = "",
+                Glyph = "\uE74D", // Delete
                 FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                 FontSize = 14,
             },

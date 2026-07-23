@@ -26,6 +26,20 @@
 
     <DefaultLanguage>en-US</DefaultLanguage>
     <EnableDefaultCssItems>false</EnableDefaultCssItems>
+
+    <!-- App identity metadata: shows up in the exe's Details tab, Task Manager, and is required
+         for a real Store/installer submission (see docs/microsoft-store-deployment.md).
+         An <ApplicationIcon> is still needed for a shipping build; adding one requires an actual
+         .ico asset, tracked as a follow-up (recommendation #13 in
+         docs/design-guidelines-review.md). -->
+    <Product>DockGx</Product>
+    <Company>DockGx</Company>
+    <Authors>DockGx</Authors>
+    <Description>A macOS-style dock for Windows 11.</Description>
+    <Version>1.0.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <NeutralLanguage>en-US</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
