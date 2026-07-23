@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
+using Windows.System;
 
 namespace DockGx;
 
@@ -542,7 +543,8 @@ public sealed partial class DockWindow : Window
         panel.Children.Add(ok);
 
         var flyout = new Flyout { Content = panel };
-        ok.Click += (_, _) =>
+
+        void Commit()
         {
             var name = box.Text.Trim();
             if (name.Length > 0)
@@ -552,7 +554,20 @@ public sealed partial class DockWindow : Window
                 RaiseItemsChanged();
             }
             flyout.Hide();
+        }
+
+        ok.Click += (_, _) => Commit();
+        // Enter commits like the button would; Escape is handled by the flyout's own
+        // light-dismiss behavior (no extra wiring needed).
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == VirtualKey.Enter)
+            {
+                Commit();
+                e.Handled = true;
+            }
         };
+
         flyout.ShowAt(target);
         box.Focus(FocusState.Programmatic);
         box.SelectAll();
@@ -568,7 +583,8 @@ public sealed partial class DockWindow : Window
         panel.Children.Add(ok);
 
         var flyout = new Flyout { Content = panel };
-        ok.Click += (_, _) =>
+
+        void Commit()
         {
             var t = box.Text.Trim();
             if (t.Length > 0)
@@ -588,7 +604,20 @@ public sealed partial class DockWindow : Window
                 _ = LoadOneIconAsync(item);
             }
             flyout.Hide();
+        }
+
+        ok.Click += (_, _) => Commit();
+        // Enter commits like the button would; Escape is handled by the flyout's own
+        // light-dismiss behavior (no extra wiring needed).
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == VirtualKey.Enter)
+            {
+                Commit();
+                e.Handled = true;
+            }
         };
+
         flyout.ShowAt(target);
         box.Focus(FocusState.Programmatic);
         box.SelectAll();

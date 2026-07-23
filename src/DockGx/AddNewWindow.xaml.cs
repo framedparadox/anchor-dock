@@ -10,8 +10,9 @@ namespace DockGx;
 
 /// <summary>
 /// A Windows-app-style modal for adding a new dock entry: an app, file, folder, web link or a
-/// free-form shortcut/command. Mica-backed, centered, and always-on-top so it floats above the
-/// (topmost) dock. Not truly modal to the OS, but presented like the shell's add-item dialogs.
+/// free-form shortcut/command. Mica-backed, centered, and matches the dock's own topmost state
+/// (see <see cref="SettingsWindow"/>). Not truly modal to the OS, but presented like the shell's
+/// add-item dialogs.
 /// </summary>
 public sealed partial class AddNewWindow : Window
 {
@@ -45,7 +46,10 @@ public sealed partial class AddNewWindow : Window
             p.IsResizable = false;
             p.IsMaximizable = false;
             p.IsMinimizable = false;
-            p.IsAlwaysOnTop = true;
+            // Only outrank other apps when the dock itself currently does — otherwise this
+            // dialog would needlessly float above everything (full-screen apps, video calls)
+            // even though a floating, non-topmost dock doesn't need that.
+            p.IsAlwaysOnTop = dock.Config.Snapped || dock.Config.AlwaysOnTop;
         }
         _appWindow.IsShownInSwitchers = true;
 
