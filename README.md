@@ -115,3 +115,11 @@ src/DockGx/
   magnification needs a taller window with a masked backdrop — a good future enhancement.
 - **No tray icon yet** — management is via the gear button / right-click menu.
 - **Web-link icons** use a globe glyph (no favicon fetching yet).
+
+## Publishing
+
+- **Microsoft Store** — see [`docs/microsoft-store-deployment.md`](docs/microsoft-store-deployment.md)
+  for an end-to-end guide (MSIX packaging, the manifest, restricted-capability justifications for
+  the launcher/icon behavior, Partner Center submission, and a no-repackaging EXE alternative).
+- **Design review** — [`docs/design-guidelines-review.md`](docs/design-guidelines-review.md)
+  tracks how the app measures up to the Windows 11 / Fluent design guidelines.

@@ -9,7 +9,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Graphics;
 
 namespace DockGx;
@@ -19,7 +18,7 @@ public sealed partial class DockWindow : Window
     private readonly nint _hwnd;
     private readonly WindowId _windowId;
     private readonly AppWindow _appWindow;
-    private readonly AcrylicBackdropManager _backdrop;
+    private readonly AcrylicBackdropManager? _backdrop;
     private readonly DockConfig _config;
 
     public ObservableCollection<DockItem> Items { get; } = new();
@@ -45,9 +44,22 @@ public sealed partial class DockWindow : Window
         WindowChrome.RemoveWindowBorder(_hwnd);
         Activated += (_, _) => WindowChrome.RemoveWindowBorder(_hwnd);
 
-        // The Windows 11 taskbar "glass".
-        _backdrop = new AcrylicBackdropManager(this);
-        _backdrop.TryApply();
+        // Respect the High Contrast accessibility theme: the acrylic "glass" and the
+        // pinned-Dark styling are suppressed so the shell's high-contrast system colors
+        // come through and the dock stays legible.
+        if (IsHighContrast())
+        {
+            RootGrid.RequestedTheme = ElementTheme.Default; // follow the system HC theme
+            if (Application.Current.Resources.TryGetValue(
+                    "SolidBackgroundFillColorBaseBrush", out var bg) && bg is Brush brush)
+                RootGrid.Background = brush; // opaque, since there is no backdrop behind it
+        }
+        else
+        {
+            // The Windows 11 taskbar "glass".
+            _backdrop = new AcrylicBackdropManager(this);
+            _backdrop.TryApply();
+        }
 
         ItemsHost.ItemsSource = Items;
 
@@ -59,8 +71,14 @@ public sealed partial class DockWindow : Window
         foreach (var it in _config.Items)
             Items.Add(it);
 
-        DockStrip.RightTapped += DockBackground_RightTapped;
-        DockStrip.PointerPressed += Dock_PointerPressed;
+        // ContextRequested (rather than RightTapped) so the dock menu is reachable by the
+        // keyboard too (Menu key / Shift+F10), not only by right-click.
+        DockStrip.ContextRequested += DockBackground_ContextRequested;
+        // Items are Buttons now and mark PointerPressed handled for their own press visual;
+        // subscribe with handledEventsToo so a press that starts on an icon still begins a
+        // dock drag (dragging from anywhere on the dock is a feature).
+        DockStrip.AddHandler(UIElement.PointerPressedEvent,
+            new PointerEventHandler(Dock_PointerPressed), handledEventsToo: true);
         RootGrid.Loaded += (_, _) => QueueRelayout();
         Items.CollectionChanged += (_, _) => { SaveConfig(); QueueRelayout(); };
 
@@ -71,7 +89,7 @@ public sealed partial class DockWindow : Window
             _pollTimer?.Stop();
             _slideTimer?.Stop();
             _dragTimer?.Stop();
-            _backdrop.Dispose();
+            _backdrop?.Dispose();
         };
 
         // Modest initial size so the first frame isn't full-screen before relayout.
@@ -204,70 +222,29 @@ public sealed partial class DockWindow : Window
 
     partial void OnRelayoutApplied();
 
-    // ---- Hover (Windows 11 taskbar style: a rounded highlight, no move/scale) --------
-
-    private static readonly Duration HoverDuration = new(TimeSpan.FromMilliseconds(120));
-
-    private void Item_PointerEntered(object sender, PointerRoutedEventArgs e)
-        => FadeHover((Grid)sender, 1.0);
-
-    private void Item_PointerExited(object sender, PointerRoutedEventArgs e)
-        => FadeHover((Grid)sender, 0.0);
-
-    private static void FadeHover(Grid root, double opacity)
-    {
-        var hoverPill = (Border)root.Children[0];
-        var sb = new Storyboard();
-        var a = new DoubleAnimation
-        {
-            To = opacity,
-            Duration = HoverDuration,
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-        };
-        Storyboard.SetTarget(a, hoverPill);
-        Storyboard.SetTargetProperty(a, "Opacity");
-        sb.Children.Add(a);
-        sb.Begin();
-    }
-
     // ---- Interaction ------------------------------------------------------
-
-    // Launch is triggered from BOTH Tapped and PointerReleased (belt & suspenders — whichever
-    // the input stack delivers), debounced so an item never launches twice per click.
-    private DateTime _lastLaunch = DateTime.MinValue;
+    //
+    // Hover, pressed and keyboard-focus visuals come from Button itself (the Windows 11
+    // subtle-fill control states), so there is no hand-rolled hover animation here.
 
     // NOTE: ItemsRepeater does NOT set FrameworkElement.DataContext on realized items
     // (x:Bind resolves via generated code, not DataContext). We stash the item in Tag via
     // Tag="{x:Bind}" in the template and read it back here.
     private static DockItem? ItemOf(object sender) => (sender as FrameworkElement)?.Tag as DockItem;
 
-    private void Item_Tapped(object sender, TappedRoutedEventArgs e)
-    {
-        if (ItemOf(sender) is DockItem item)
-            TryLaunch(item, "Tapped");
-    }
-
-    private void Item_PointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        var props = e.GetCurrentPoint((UIElement)sender).Properties;
-        if (props.PointerUpdateKind != Microsoft.UI.Input.PointerUpdateKind.LeftButtonReleased)
-            return;
-        if (ItemOf(sender) is DockItem item)
-            TryLaunch(item, "PointerReleased");
-    }
-
-    private void TryLaunch(DockItem item, string via)
+    // Button.Click fires for a pointer click AND a keyboard invoke (Space/Enter), so this one
+    // handler covers mouse, touch and keyboard. Suppressed after a drag gesture.
+    private void Item_Click(object sender, RoutedEventArgs e)
     {
         if (_dragOccurred)
-            return; // the release/tap that ends a drag, not a launch
-        var now = DateTime.UtcNow;
-        if ((now - _lastLaunch).TotalMilliseconds < 350)
-            return; // already launched from the sibling event this click
-        _lastLaunch = now;
-        Launcher.Launch(item);
+            return; // the click that ends a drag, not a launch
+        if (ItemOf(sender) is DockItem item)
+            Launcher.Launch(item);
     }
 
-    private void Item_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    // ContextRequested fires for right-click and for the keyboard context-menu gesture
+    // (Menu key / Shift+F10), so the per-item menu is reachable without a mouse.
+    private void Item_ContextRequested(UIElement sender, ContextRequestedEventArgs e)
     {
         var target = (FrameworkElement)sender;
         if (target.Tag is not DockItem item)
@@ -292,7 +269,10 @@ public sealed partial class DockWindow : Window
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(Mi("Remove", () => Items.Remove(item)));
 
-        menu.ShowAt(target, e.GetPosition(target));
+        if (e.TryGetPosition(target, out var pos))
+            menu.ShowAt(target, pos);
+        else
+            menu.ShowAt(target); // keyboard-invoked: let the platform place it on the element
         e.Handled = true;
 
         static MenuFlyoutItem Mi(string text, Action onClick)
@@ -317,7 +297,7 @@ public sealed partial class DockWindow : Window
         var box = new TextBox { Text = item.DisplayName, Width = 240 };
         var ok = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Right };
         var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(new TextBlock { Text = "Rename", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(FlyoutHeader("Rename"));
         panel.Children.Add(box);
         panel.Children.Add(ok);
 
@@ -342,7 +322,7 @@ public sealed partial class DockWindow : Window
         var box = new TextBox { Text = item.Target, Width = 320 };
         var ok = new Button { Content = "Save", HorizontalAlignment = HorizontalAlignment.Right };
         var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(new TextBlock { Text = "Edit target", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(FlyoutHeader("Edit target"));
         panel.Children.Add(box);
         panel.Children.Add(ok);
 
@@ -385,9 +365,13 @@ public sealed partial class DockWindow : Window
         };
     }
 
-    private void DockBackground_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    private void DockBackground_ContextRequested(UIElement sender, ContextRequestedEventArgs e)
     {
-        ShowDockMenu((FrameworkElement)sender, e.GetPosition((FrameworkElement)sender));
+        var fe = (FrameworkElement)sender;
+        if (e.TryGetPosition(fe, out var pos))
+            ShowDockMenu(fe, pos);
+        else
+            ShowDockMenu(fe, new Windows.Foundation.Point(0, 0));
         e.Handled = true;
     }
 
@@ -431,15 +415,11 @@ public sealed partial class DockWindow : Window
         }
     }
 
-    private void Settings_PointerReleased(object sender, PointerRoutedEventArgs e)
+    private void Settings_Click(object sender, RoutedEventArgs e)
     {
-        var props = e.GetCurrentPoint((UIElement)sender).Properties;
-        if (props.PointerUpdateKind != Microsoft.UI.Input.PointerUpdateKind.LeftButtonReleased)
-            return;
         if (_dragOccurred)
-            return;
+            return; // the click that ends a drag, not a menu open
         ShowDockMenu((FrameworkElement)sender, new Windows.Foundation.Point(0, 0));
-        e.Handled = true;
     }
 
     // ---- Adding items -----------------------------------------------------
@@ -494,7 +474,7 @@ public sealed partial class DockWindow : Window
         var addButton = new Button { Content = "Add", HorizontalAlignment = HorizontalAlignment.Right };
 
         var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(new TextBlock { Text = "Add Web Link", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(FlyoutHeader("Add Web Link"));
         panel.Children.Add(nameBox);
         panel.Children.Add(urlBox);
         panel.Children.Add(addButton);
@@ -604,7 +584,14 @@ public sealed partial class DockWindow : Window
             bool wasDragging = _dragging;
             _dragging = false;
             if (wasDragging)
+            {
                 EndDragSnap();
+                // Clear the drag flag once the trailing click (the pointer-release that ended
+                // the drag) has been delivered and suppressed. Low priority runs after input
+                // delivery, so a later keyboard invoke (Enter/Space) is not blocked.
+                DispatcherQueue.TryEnqueue(
+                    Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => _dragOccurred = false);
+            }
             return;
         }
 
@@ -660,6 +647,30 @@ public sealed partial class DockWindow : Window
         SaveConfig();
         ApplyAutoHide();
         QueueRelayout();
+    }
+
+    // ---- Accessibility / small UI helpers ---------------------------------
+
+    /// <summary>
+    /// True when Windows is using a High Contrast theme. Guarded: on any failure (e.g. the
+    /// setting is unavailable in this host) we assume false and keep the normal glass styling.
+    /// </summary>
+    private static bool IsHighContrast()
+    {
+        try { return new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast; }
+        catch { return false; }
+    }
+
+    /// <summary>A flyout section header using the Fluent "body strong" type-ramp style.</summary>
+    private static TextBlock FlyoutHeader(string text)
+    {
+        var tb = new TextBlock { Text = text };
+        if (Application.Current.Resources.TryGetValue("BodyStrongTextBlockStyle", out var s) &&
+            s is Style style)
+            tb.Style = style;
+        else
+            tb.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        return tb;
     }
 
     partial void ApplyAutoHide();

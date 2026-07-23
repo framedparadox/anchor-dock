@@ -142,7 +142,27 @@ public sealed partial class DockWindow
         _targetCoord = reveal ? ShownCoord : HiddenCoord;
         if (reveal)
             WindowChrome.EnsureTopmost(_hwnd);
+
+        // Honor the system "show animations" accessibility setting: when animations are off
+        // (reduced motion), jump straight to the target instead of the slide.
+        if (ReducedMotion)
+        {
+            _currentCoord = _targetCoord;
+            MoveWindowCoord(_targetCoord);
+            return;
+        }
         StartSlide();
+    }
+
+    // Cached once: the reduced-motion preference rarely changes within a session. Guarded so
+    // an unavailable setting simply leaves animations on.
+    private bool? _reducedMotion;
+    private bool ReducedMotion => _reducedMotion ??= ComputeReducedMotion();
+
+    private static bool ComputeReducedMotion()
+    {
+        try { return !new Windows.UI.ViewManagement.UISettings().AnimationsEnabled; }
+        catch { return false; }
     }
 
     private void StartSlide()
