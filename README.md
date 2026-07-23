@@ -20,8 +20,10 @@ the shell uses), so it blurs the desktop behind it and follows the system light/
   navigation) with a **General** page (position, auto-hide, start-with-Windows, reset/quit) and an
   **Apps & links** page that lists every entry with a show/hide switch and a remove button.
 - **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
-  link / shortcut**, with a type picker, Browse, and auto-suggested names. Icons come from the
-  Windows shell (the same icons Explorer shows).
+  link / shortcut**, with a type picker, Browse, and auto-suggested names.
+- **Automatic icons** — apps, files and folders use the Windows shell icon (the same icon
+  Explorer shows); web links auto-fetch the site's **favicon**, cached to disk so it downloads
+  once and still shows offline.
 - **Reorder by dragging** — drag an icon left/right to rearrange it; dragging the dock's
   background moves the whole dock (the two gestures never conflict).
 - **Snap to any edge → hides where you left it** — drop the dock near a screen edge and it snaps
@@ -97,7 +99,7 @@ src/DockGx/
     DockConfig.cs            Persisted items + settings (snap edge, placement, auto-hide, startup).
   Services/
     AcrylicBackdropManager.cs  Applies + keeps-alive the taskbar-style acrylic.
-    IconService.cs             Shell-thumbnail icons for apps/files/folders.
+    IconService.cs             Shell-thumbnail icons for apps/files/folders; cached favicons for links.
     Launcher.cs                ShellExecute-based launching (apps, files, URLs).
     DockStore.cs               JSON load/save of the config.
     DockItemFactory.cs         Classifies a target (app/file/folder/link) and suggests a name.
@@ -145,7 +147,8 @@ src/DockGx/
 - **Magnification is subtle** (stays within the glass strip). True macOS "pop above the dock"
   magnification needs a taller window with a masked backdrop — a good future enhancement.
 - **No tray icon yet** — management is via the gear button (Settings) / right-click menu.
-- **Web-link icons** use a globe glyph (no favicon fetching yet).
+- **Web-link icons** fetch the site favicon (site `/favicon.ico`, then a favicon service),
+  falling back to a globe glyph when a site has none or there's no connectivity.
 
 ## Publishing
 

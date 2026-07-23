@@ -172,8 +172,8 @@
                                Style="{ThemeResource CaptionTextBlockStyle}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
-                    <ScrollViewer Grid.Row="2">
-                        <StackPanel x:Name="AppsList" Spacing="8" MaxWidth="820" HorizontalAlignment="Left" />
+                    <ScrollViewer Grid.Row="2" HorizontalContentAlignment="Stretch">
+                        <StackPanel x:Name="AppsList" Spacing="8" HorizontalAlignment="Stretch" />
                     </ScrollViewer>
                 </Grid>
             </Grid>
