@@ -1,6 +1,6 @@
 # DockGx
 
-A macOS-style dock for Windows 11, built with **WinUI 3 / Windows App SDK**. It floats a
+A floating dock for Windows 11, built with **WinUI 3 / Windows App SDK**. It floats a
 compact, glass "strip" above the taskbar that holds apps, files, folders, and web links —
 launch anything with a click.
 

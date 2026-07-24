@@ -1,4 +1,6 @@
 using System.Net.Http;
+using System.Runtime.InteropServices;
+using DockGx.Interop;
 using DockGx.Models;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -47,7 +49,7 @@ public static class IconService
                 case DockItemKind.Application:
                 case DockItemKind.File:
                     if (File.Exists(item.Target))
-                        return await ThumbnailAsync(await StorageFile.GetFileFromPathAsync(item.Target));
+                        return await AppOrFileIconAsync(item.Target);
                     break;
 
                 case DockItemKind.Folder:
@@ -59,11 +61,54 @@ public static class IconService
                     return await FaviconAsync(item.Target);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fall through to glyph fallback on any shell/IO failure.
+            Diag.Log($"IconService: load failed for '{item.Target}': {ex.GetType().Name}: {ex.Message}");
         }
         return null;
+    }
+
+    /// <summary>
+    /// Apps and files usually get a crisp thumbnail via the WinRT Storage pipeline, but that
+    /// pipeline flatly refuses to open shortcuts — <c>StorageFile.GetFileFromPathAsync</c> on a
+    /// .lnk throws <c>UnauthorizedAccessException</c> ("UNABLE_TO_MASK_PATH") every time,
+    /// regardless of where the .lnk lives — and it can deny arbitrary paths for an unpackaged
+    /// app more generally. <see cref="NativeMethods.SHGetFileInfo"/> has neither limitation, so
+    /// it's the fallback whenever the WinRT path doesn't pan out.
+    /// </summary>
+    private static async Task<ImageSource?> AppOrFileIconAsync(string path)
+    {
+        try
+        {
+            return await ThumbnailAsync(await StorageFile.GetFileFromPathAsync(path));
+        }
+        catch (Exception ex)
+        {
+            Diag.Log($"IconService: Storage thumbnail failed for '{path}' ({ex.GetType().Name}) — falling back to the shell icon");
+            return await ShellIconAsync(path);
+        }
+    }
+
+    private static async Task<ImageSource?> ShellIconAsync(string path)
+    {
+        var info = new NativeMethods.SHFILEINFO();
+        nint result = NativeMethods.SHGetFileInfo(
+            path, 0, ref info, (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
+            NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_LARGEICON);
+        if (result == 0 || info.hIcon == nint.Zero)
+            return null;
+        try
+        {
+            using var icon = System.Drawing.Icon.FromHandle(info.hIcon);
+            using var bitmap = icon.ToBitmap();
+            using var ms = new MemoryStream();
+            bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            return await DecodeAsync(ms.ToArray());
+        }
+        finally
+        {
+            NativeMethods.DestroyIcon(info.hIcon);
+        }
     }
 
     private static async Task<ImageSource?> ThumbnailAsync(IStorageItemProperties item)

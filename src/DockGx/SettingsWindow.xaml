@@ -229,7 +229,7 @@
                                     <TextBlock x:Name="VersionText" Text="Version 1.0"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="A macOS-style dock for Windows 11, built with WinUI 3."
+                                    <TextBlock Text="A floating dock for Windows 11, built with WinUI 3."
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>

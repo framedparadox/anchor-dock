@@ -210,7 +210,7 @@ ones from §3.
     <Application Id="App" Executable="DockGx.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="DockGx"
-        Description="A macOS-style dock for Windows 11."
+        Description="A floating dock for Windows 11."
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">

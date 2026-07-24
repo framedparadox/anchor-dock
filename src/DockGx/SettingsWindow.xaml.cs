@@ -191,27 +191,43 @@ public sealed partial class SettingsWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        // Icon (bitmap if resolved, else the kind glyph).
+        // Icon (bitmap if resolved, else the kind glyph). Built imperatively rather than via
+        // a binding, so it needs its own refresh: icons often resolve asynchronously (shell
+        // thumbnail / favicon fetch) after this row is already on screen, and this keeps it
+        // in sync with that instead of freezing on whatever was resolved (or not) at build time.
         var iconHost = new Grid { Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Center };
-        if (item.IconImage is not null)
+        void RenderIcon()
         {
-            iconHost.Children.Add(new Image
+            iconHost.Children.Clear();
+            if (item.IconImage is not null)
             {
-                Source = item.IconImage,
-                Width = 28,
-                Height = 28,
-                Stretch = Stretch.Uniform,
-            });
+                iconHost.Children.Add(new Image
+                {
+                    Source = item.IconImage,
+                    Width = 28,
+                    Height = 28,
+                    Stretch = Stretch.Uniform,
+                });
+            }
+            else
+            {
+                iconHost.Children.Add(new FontIcon
+                {
+                    Glyph = item.Glyph,
+                    FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                    FontSize = 18,
+                });
+            }
         }
-        else
+        RenderIcon();
+
+        void OnItemPropertyChanged(object? s, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            iconHost.Children.Add(new FontIcon
-            {
-                Glyph = item.Glyph,
-                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                FontSize = 18,
-            });
+            if (e.PropertyName == nameof(DockItem.IconImage))
+                RenderIcon();
         }
+        item.PropertyChanged += OnItemPropertyChanged;
+
         Grid.SetColumn(iconHost, 0);
         grid.Children.Add(iconHost);
 
@@ -279,7 +295,7 @@ public sealed partial class SettingsWindow : Window
         Grid.SetColumn(actions, 2);
         grid.Children.Add(actions);
 
-        return new Border
+        var row = new Border
         {
             Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
             BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
@@ -288,6 +304,10 @@ public sealed partial class SettingsWindow : Window
             Padding = new Thickness(14, 10, 12, 10),
             Child = grid,
         };
+        // The DockItem outlives this row (it's rebuilt wholesale on every RebuildApps), so the
+        // subscription above must be torn down explicitly or it leaks a handler per rebuild.
+        row.Unloaded += (_, _) => item.PropertyChanged -= OnItemPropertyChanged;
+        return row;
     }
 
     private static string KindLabel(DockItemKind kind) => kind switch
