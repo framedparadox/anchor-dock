@@ -19,6 +19,7 @@ namespace DockGx;
 public sealed partial class SettingsWindow : Window
 {
     private readonly DockWindow _dock;
+    private readonly AppWindow _appWindow;
     private bool _initializing;
 
     public SettingsWindow(DockWindow dock)
@@ -28,17 +29,22 @@ public sealed partial class SettingsWindow : Window
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-        var appWindow = AppWindow.GetFromWindowId(windowId);
+        _appWindow = AppWindow.GetFromWindowId(windowId);
 
         Title = "DockGx Settings";
         SystemBackdrop = new MicaBackdrop();
+
+        // Match the dock's chosen Light/Dark/System theme so the Settings window reads the same,
+        // and keep the caption buttons in step if the OS theme changes while System mode is on.
+        ApplyTheme(dock.Config.Theme);
+        RootGrid.ActualThemeChanged += (_, _) => ApplyCaptionButtonTheme();
 
         // Extend the Mica backdrop under the caption so the title bar matches a native Windows 11
         // window instead of showing an opaque strip.
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        if (appWindow.Presenter is OverlappedPresenter p)
+        if (_appWindow.Presenter is OverlappedPresenter p)
         {
             p.IsMaximizable = false;
             // Only outrank other apps when the dock itself currently does — otherwise this
@@ -46,10 +52,10 @@ public sealed partial class SettingsWindow : Window
             // even though a floating, non-topmost dock doesn't need that.
             p.IsAlwaysOnTop = dock.Config.Snapped || dock.Config.AlwaysOnTop;
         }
-        appWindow.IsShownInSwitchers = true;
+        _appWindow.IsShownInSwitchers = true;
 
-        WindowChrome.SetClientSizeDip(appWindow, hwnd, 880, 640);
-        WindowChrome.CenterOnCursor(appWindow, windowId);
+        WindowChrome.SetClientSizeDip(_appWindow, hwnd, 880, 640);
+        WindowChrome.CenterOnCursor(_appWindow, windowId);
 
         LoadGeneral();
         RebuildApps();
@@ -62,6 +68,17 @@ public sealed partial class SettingsWindow : Window
     }
 
     private void OnDockItemsChanged() => DispatcherQueue.TryEnqueue(RebuildApps);
+
+    /// <summary>Applies the given app theme to this window's root (called on open and whenever
+    /// the choice changes elsewhere), and re-themes the system caption buttons to match.</summary>
+    internal void ApplyTheme(DockTheme theme)
+    {
+        RootGrid.RequestedTheme = DockWindow.ResolveTheme(theme);
+        ApplyCaptionButtonTheme();
+    }
+
+    private void ApplyCaptionButtonTheme() =>
+        WindowChrome.SetTitleBarTheme(_appWindow, dark: RootGrid.ActualTheme != ElementTheme.Light);
 
     private static string GetAppVersion()
     {
@@ -88,6 +105,13 @@ public sealed partial class SettingsWindow : Window
         _initializing = true;
 
         var cfg = _dock.Config;
+        ThemeChoice.SelectedIndex = cfg.Theme switch
+        {
+            DockTheme.Light => 0,
+            DockTheme.Dark => 1,
+            DockTheme.System => 2,
+            _ => 1,
+        };
         EdgeChoice.SelectedIndex = !cfg.Snapped ? 0 : cfg.Edge switch
         {
             DockEdge.Bottom => 1,
@@ -101,6 +125,19 @@ public sealed partial class SettingsWindow : Window
         StartupSwitch.IsOn = StartupService.IsEnabled();
 
         _initializing = false;
+    }
+
+    private void ThemeChoice_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        var theme = ThemeChoice.SelectedIndex switch
+        {
+            0 => DockTheme.Light,
+            2 => DockTheme.System,
+            _ => DockTheme.Dark,
+        };
+        _dock.SetTheme(theme);
     }
 
     private void EdgeChoice_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -158,8 +195,6 @@ public sealed partial class SettingsWindow : Window
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             _dock.ResetToDefaults();
     }
-
-    private void Quit_Click(object sender, RoutedEventArgs e) => Application.Current.Exit();
 
     // ---- Apps page ---------------------------------------------------------
 

@@ -5,19 +5,23 @@ compact, glass "strip" above the taskbar that holds apps, files, folders, and we
 launch anything with a click.
 
 The glass is the **real Windows 11 acrylic material** (the same `DesktopAcrylicBackdrop`
-the shell uses), so it blurs the desktop behind it and follows the system light/dark theme.
+the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (default) or
+**system-following** theme from Settings.
 
 ![The dock](docs/dock.png)
 
 ## Features
 
-- **Glass background** — Windows 11 dark taskbar-style acrylic. Real desktop blur, kept
-  translucent even though a dock is never the focused window (see *Architecture*). Pinned to
-  dark, with a dark window border so there's no light/white outline.
+- **Glass background** — Windows 11 taskbar-style acrylic. Real desktop blur, kept
+  translucent even though a dock is never the focused window (see *Architecture*), with a
+  matching window border so there's no light/white outline.
+- **Theme** — choose **Light**, **Dark** (default) or **System** (follow the Windows setting)
+  from Settings ▸ General. The dock, its glass and the Settings/Add windows all switch together;
+  a High Contrast accessibility theme always overrides it.
 - **Rounded corners** — the native Windows 11 window rounding (DWM).
 - **Taskbar-sized icons** — 24 px icons in 40 px cells, matching the Windows 11 taskbar.
 - **Settings window** — a gear button opens a Windows-Settings-style window (Mica, left
-  navigation) with a **General** page (position, auto-hide, start-with-Windows, reset/quit) and an
+  navigation) with a **General** page (theme, position, auto-hide, start-with-Windows, reset/quit) and an
   **Apps & links** page that lists every entry with a show/hide switch and a remove button.
 - **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
   link / shortcut**, with a type picker, Browse, and auto-suggested names.
@@ -111,7 +115,7 @@ src/DockGx/
   AddNewWindow.xaml(.cs)     Windows-app-style modal for adding an app/file/folder/link/shortcut.
   Models/
     DockItem.cs              One dock entry (kind, target, icon, hidden). Serializable.
-    DockConfig.cs            Persisted items + settings (snap edge, placement, auto-hide, startup).
+    DockConfig.cs            Persisted items + settings (theme, snap edge, placement, auto-hide, startup).
   Services/
     AcrylicBackdropManager.cs  Applies + keeps-alive the taskbar-style acrylic.
     IconService.cs             Shell-thumbnail icons for apps/files/folders; cached favicons for links.

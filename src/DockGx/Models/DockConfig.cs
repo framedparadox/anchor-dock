@@ -9,6 +9,18 @@ public enum DockEdge
     Right,
 }
 
+/// <summary>
+/// The app's colour theme. <see cref="System"/> follows the current Windows light/dark setting;
+/// <see cref="Light"/> and <see cref="Dark"/> pin it regardless. A High Contrast accessibility
+/// theme always overrides this so the shell's high-contrast colours come through.
+/// </summary>
+public enum DockTheme
+{
+    Light,
+    Dark,
+    System,
+}
+
 /// <summary>Everything that persists between runs: the items and dock settings.</summary>
 public sealed class DockConfig
 {
@@ -46,6 +58,12 @@ public sealed class DockConfig
     /// the dock is always topmost regardless, so the auto-hide reveal works over other windows.
     /// </summary>
     public bool AlwaysOnTop { get; set; } = true;
+
+    /// <summary>
+    /// The app's colour theme. Defaults to <see cref="DockTheme.Dark"/> so it reads like the
+    /// Windows 11 dark taskbar (and so existing configs without this field keep that look).
+    /// </summary>
+    public DockTheme Theme { get; set; } = DockTheme.Dark;
 
     /// <summary>
     /// True once the default items have been seeded (first run). Prevents re-seeding after the

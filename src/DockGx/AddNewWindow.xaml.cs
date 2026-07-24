@@ -36,6 +36,11 @@ public sealed partial class AddNewWindow : Window
         Title = "Add to Dock";
         SystemBackdrop = new MicaBackdrop();
 
+        // Match the dock's chosen Light/Dark/System theme so this window reads the same, and keep
+        // the caption buttons in step if the OS theme changes while System mode is on.
+        ApplyTheme(dock.Config.Theme);
+        RootGrid.ActualThemeChanged += (_, _) => ApplyCaptionButtonTheme();
+
         // Extend the Mica backdrop under the caption so the title bar matches a native Windows 11
         // window instead of showing an opaque strip.
         ExtendsContentIntoTitleBar = true;
@@ -65,6 +70,17 @@ public sealed partial class AddNewWindow : Window
 
         SelectType(AddKind.App);
     }
+
+    /// <summary>Applies the given app theme to this window's root (called on open and whenever
+    /// the choice changes while this window is open), and re-themes the caption buttons to match.</summary>
+    internal void ApplyTheme(DockTheme theme)
+    {
+        RootGrid.RequestedTheme = DockWindow.ResolveTheme(theme);
+        ApplyCaptionButtonTheme();
+    }
+
+    private void ApplyCaptionButtonTheme() =>
+        WindowChrome.SetTitleBarTheme(_appWindow, dark: RootGrid.ActualTheme != ElementTheme.Light);
 
     // ---- Type selection ----------------------------------------------------
 

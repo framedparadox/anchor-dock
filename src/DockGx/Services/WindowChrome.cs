@@ -52,6 +52,17 @@ public static class WindowChrome
         NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, (nint)ex);
     }
 
+    /// <summary>
+    /// Sets the theme of the system caption buttons (minimize / close) so they render with the
+    /// right glyph color from the first frame. Without this the buttons inherit the theme late
+    /// (only after activation / a pointer pass over them), so a light-themed window briefly shows
+    /// hard-to-see light glyphs.
+    /// </summary>
+    public static void SetTitleBarTheme(AppWindow appWindow, bool dark)
+    {
+        appWindow.TitleBar.PreferredTheme = dark ? TitleBarTheme.Dark : TitleBarTheme.Light;
+    }
+
     /// <summary>Applies the Windows 11 rounded-corner treatment to the window.</summary>
     public static void SetRoundedCorners(nint hwnd, bool small = false)
     {
@@ -61,19 +72,21 @@ public static class WindowChrome
     }
 
     /// <summary>
-    /// Makes DWM render the window's frame/border in dark mode and gives it an explicit dark
-    /// border color. Without the immersive-dark-mode flag, DWM paints a light client-edge rim
-    /// (a 1-2px white line) around a rounded backdrop window — the "white border".
+    /// Makes DWM render the window's frame/border to match the app theme and gives it an explicit
+    /// border color that blends into the glass. Without this, DWM paints a contrasting 1-2px rim
+    /// around a rounded backdrop window — a white line in dark mode, or a black line in light mode.
     /// </summary>
-    public static void RemoveWindowBorder(nint hwnd)
+    public static void RemoveWindowBorder(nint hwnd, bool dark)
     {
-        int on = 1;
+        int immersiveDark = dark ? 1 : 0;
         NativeMethods.DwmSetWindowAttribute(
-            hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref on, sizeof(int));
+            hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref immersiveDark, sizeof(int));
 
-        int dark = 0x00161616; // COLORREF 0x00BBGGRR — near-black, matches the dark glass
+        // COLORREF 0x00BBGGRR — a near-glass color so the rounded rim disappears into the
+        // backdrop: near-black for the dark taskbar glass, near-white for the light glass.
+        int border = dark ? 0x00161616 : 0x00F2F2F2;
         NativeMethods.DwmSetWindowAttribute(
-            hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref dark, sizeof(int));
+            hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref border, sizeof(int));
     }
 
     /// <summary>

@@ -49,38 +49,50 @@ public sealed partial class DockWindow : Window
         _appWindow = AppWindow.GetFromWindowId(_windowId);
 
         // Dock-like chrome: borderless, topmost, off the taskbar & Alt-Tab, rounded corners.
+        // The DWM border color is theme-dependent, so it's applied later (ApplyWindowBorder)
+        // once the theme is known. It's re-asserted on every activation because DWM otherwise
+        // resets it back to the default (contrasting) rim.
         WindowChrome.MakeBorderlessToolWindow(_appWindow, _hwnd);
         WindowChrome.StripFrame(_hwnd);
         WindowChrome.SetRoundedCorners(_hwnd, small: false);
-        WindowChrome.RemoveWindowBorder(_hwnd);
-        Activated += (_, _) => WindowChrome.RemoveWindowBorder(_hwnd);
+        Activated += (_, _) => ApplyWindowBorder();
 
-        // Respect the High Contrast accessibility theme: the acrylic "glass" and the
-        // pinned-Dark styling are suppressed so the shell's high-contrast system colors
-        // come through and the dock stays legible.
+        // Load persisted items/settings first so the chosen theme can be applied as the window's
+        // chrome is set up (seed defaults only on the very first run — never after the user has
+        // intentionally emptied the dock).
+        _config = DockStore.Load();
+        bool firstRun = !_config.Seeded;
+        if (firstRun && _config.Items.Count == 0)
+            SeedDefaults();
+        _config.Seeded = true;
+
+        // Apply the chosen Light/Dark/System theme to the dock's root. A High Contrast theme
+        // always wins (ApplyTheme resolves to ElementTheme.Default), in which case the acrylic
+        // "glass" is also suppressed below so the shell's high-contrast system colors come
+        // through and the dock stays legible.
+        ApplyTheme();
+
+        // Match the rounded DWM border to the effective theme now, and keep it in step when the
+        // theme changes — either the user's choice, or the OS light/dark setting while in System
+        // mode (ActualThemeChanged covers both).
+        ApplyWindowBorder();
+        RootGrid.ActualThemeChanged += (_, _) => ApplyWindowBorder();
+
         if (IsHighContrast())
         {
-            RootGrid.RequestedTheme = ElementTheme.Default; // follow the system HC theme
             if (Application.Current.Resources.TryGetValue(
                     "SolidBackgroundFillColorBaseBrush", out var bg) && bg is Brush brush)
                 RootGrid.Background = brush; // opaque, since there is no backdrop behind it
         }
         else
         {
-            // The Windows 11 taskbar "glass".
+            // The Windows 11 taskbar "glass". Follows RootGrid's theme via its own
+            // ActualThemeChanged subscription, so a later SetTheme re-tints it automatically.
             _backdrop = new AcrylicBackdropManager(this);
             _backdrop.TryApply();
         }
 
         ItemsHost.ItemsSource = Items;
-
-        // Load persisted items/settings (seed defaults only on the very first run — never
-        // after the user has intentionally emptied the dock).
-        _config = DockStore.Load();
-        bool firstRun = !_config.Seeded;
-        if (firstRun && _config.Items.Count == 0)
-            SeedDefaults();
-        _config.Seeded = true;
         RebuildVisible();
 
         // ContextRequested (rather than RightTapped) so the dock menu is reachable by the
@@ -729,6 +741,43 @@ public sealed partial class DockWindow : Window
         _config.AlwaysOnTop = on;
         SaveConfig();
         ApplyTopmost();
+    }
+
+    // ---- Theme ------------------------------------------------------------
+
+    /// <summary>
+    /// Resolves the <see cref="ElementTheme"/> to request for any DockGx window given the chosen
+    /// <see cref="DockTheme"/>. A High Contrast accessibility theme always wins (returns
+    /// <see cref="ElementTheme.Default"/> so the window follows the system HC colors).
+    /// </summary>
+    internal static ElementTheme ResolveTheme(DockTheme theme)
+    {
+        if (IsHighContrast())
+            return ElementTheme.Default;
+        return theme switch
+        {
+            DockTheme.Light => ElementTheme.Light,
+            DockTheme.System => ElementTheme.Default,
+            _ => ElementTheme.Dark,
+        };
+    }
+
+    /// <summary>Applies the configured theme to the dock's root. The acrylic backdrop re-tints
+    /// itself via its own <c>ActualThemeChanged</c> subscription.</summary>
+    private void ApplyTheme() => RootGrid.RequestedTheme = ResolveTheme(_config.Theme);
+
+    /// <summary>Re-colors the rounded DWM border to blend into the current (light or dark) glass.</summary>
+    private void ApplyWindowBorder() =>
+        WindowChrome.RemoveWindowBorder(_hwnd, dark: RootGrid.ActualTheme != ElementTheme.Light);
+
+    /// <summary>Persists the chosen theme and applies it to the dock and any open child windows.</summary>
+    public void SetTheme(DockTheme theme)
+    {
+        _config.Theme = theme;
+        SaveConfig();
+        ApplyTheme();
+        _settingsWindow?.ApplyTheme(theme);
+        _addNewWindow?.ApplyTheme(theme);
     }
 
     // The dock is topmost while snapped (so the auto-hide reveal shows over other windows), and

@@ -7,7 +7,7 @@
 
     <!-- NOTE: WinUI 3's Window is not a FrameworkElement and has no Resources property, so
          shared resources live on the root Grid, not on <Window.Resources>. -->
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.Resources>
             <Style x:Key="Card" TargetType="Border">
                 <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
@@ -48,8 +48,11 @@
                                          Icon="Setting" Tag="general" />
                 <muxc:NavigationViewItem x:Name="AppsNav" Content="Apps &amp; links"
                                          Icon="AllApps" Tag="apps" />
-                <muxc:NavigationViewItem x:Name="AboutNav" Content="About"
-                                         Icon="Help" Tag="about" />
+                <muxc:NavigationViewItem x:Name="AboutNav" Content="About" Tag="about">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE946;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>
 
             <Grid Padding="32,24,32,24">
@@ -59,29 +62,62 @@
                         <TextBlock Text="General" Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
 
+                        <!-- Appearance / theme -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE771;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Theme" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="Choose a light or dark look, or follow your Windows setting."
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ComboBox x:Name="ThemeChoice" Grid.Column="2" MinWidth="170"
+                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                          AutomationProperties.Name="App theme"
+                                          SelectionChanged="ThemeChoice_SelectionChanged">
+                                    <ComboBoxItem Content="Light" />
+                                    <ComboBoxItem Content="Dark" />
+                                    <ComboBoxItem Content="Use system setting" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+
                         <!-- Position -->
                         <Border Style="{StaticResource Card}">
-                            <StackPanel Spacing="10">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <FontIcon Glyph="&#xE7C4;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                              FontSize="18" VerticalAlignment="Top" Margin="0,2,0,0" />
-                                    <StackPanel>
-                                        <TextBlock Text="Dock position" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="Float freely, or snap flush to a screen edge."
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    </StackPanel>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE7C4;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Dock position" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="Float freely, or snap flush to a screen edge."
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
                                 </StackPanel>
-                                <ComboBox x:Name="EdgeChoice" MinWidth="240"
-                                          Header="Snap the dock to"
+                                <ComboBox x:Name="EdgeChoice" Grid.Column="2" MinWidth="190"
+                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                          AutomationProperties.Name="Snap the dock to"
                                           SelectionChanged="EdgeChoice_SelectionChanged">
-                                    <ComboBoxItem Content="Floating (don't snap)" />
+                                    <ComboBoxItem Content="Floating" />
                                     <ComboBoxItem Content="Bottom edge" />
                                     <ComboBoxItem Content="Top edge" />
                                     <ComboBoxItem Content="Left edge" />
                                     <ComboBoxItem Content="Right edge" />
                                 </ComboBox>
-                            </StackPanel>
+                            </Grid>
                         </Border>
 
                         <!-- Auto-hide -->
@@ -160,22 +196,25 @@
 
                         <!-- Maintenance -->
                         <Border Style="{StaticResource Card}">
-                            <StackPanel Spacing="12">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <FontIcon Glyph="&#xE777;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                              FontSize="18" VerticalAlignment="Top" Margin="0,2,0,0" />
-                                    <StackPanel>
-                                        <TextBlock Text="Maintenance" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="Restore the seeded dock, or close the app."
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    </StackPanel>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE777;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Maintenance" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="Remove every pinned item and restore the seeded dock."
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Content="Reset dock to defaults" Click="Reset_Click" />
-                                    <Button Content="Quit DockGx" Click="Quit_Click" />
-                                </StackPanel>
-                            </StackPanel>
+                                <Button Grid.Column="2" Content="Reset dock to defaults"
+                                        VerticalAlignment="Center" HorizontalAlignment="Right"
+                                        Click="Reset_Click" />
+                            </Grid>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
@@ -212,7 +251,10 @@
 
                 <!-- ==================== ABOUT ==================== -->
                 <ScrollViewer x:Name="AboutPanel" Visibility="Collapsed">
-                    <StackPanel Spacing="6" MaxWidth="760" HorizontalAlignment="Left">
+                    <!-- Stretch so the cards fill the page width whether or not the Privacy
+                         expander is open (a Left-aligned panel would size to its content and
+                         only widen once the long expanded text appears). -->
+                    <StackPanel Spacing="6" HorizontalAlignment="Stretch">
                         <TextBlock Text="About" Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
 
@@ -236,42 +278,43 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Privacy -->
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel Spacing="12">
+                        <!-- Privacy: collapsed by default; expand for the details. -->
+                        <Expander HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Stretch"
+                                  IsExpanded="False">
+                            <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <FontIcon Glyph="&#xE72E;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                              FontSize="18" VerticalAlignment="Top" Margin="0,2,0,0" />
-                                    <StackPanel>
+                                              FontSize="18" VerticalAlignment="Center" />
+                                    <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="Privacy" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                                         <TextBlock Text="What DockGx does and doesn't do with your data."
                                                    Style="{ThemeResource CaptionTextBlockStyle}"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     </StackPanel>
                                 </StackPanel>
-
-                                <StackPanel Spacing="10" Margin="30,0,0,0">
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="Runs entirely on your PC" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock TextWrapping="Wrap"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   Text="Your dock items, layout and settings are saved locally to %AppData%\DockGx and never leave your device." />
-                                    </StackPanel>
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="Icons" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock TextWrapping="Wrap"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   Text="App, file and folder icons come from Windows. For a web link, DockGx fetches the website's icon (favicon) over the internet — first directly from the site, and only if that fails, from DuckDuckGo's icon service, which receives just the site's domain. Downloaded icons are cached under %AppData%\DockGx\IconCache." />
-                                    </StackPanel>
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="No tracking" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock TextWrapping="Wrap"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   Text="No accounts, no telemetry, no analytics, no ads. Launching an item hands it to Windows exactly as double-clicking it in Explorer would." />
-                                    </StackPanel>
+                            </Expander.Header>
+                            <StackPanel Spacing="12">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Runs entirely on your PC" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               Text="Your dock items, layout and settings are saved locally to %AppData%\DockGx and never leave your device." />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Icons" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               Text="App, file and folder icons come from Windows. For a web link, DockGx fetches the website's icon (favicon) over the internet — first directly from the site, and only if that fails, from DuckDuckGo's icon service, which receives just the site's domain. Downloaded icons are cached under %AppData%\DockGx\IconCache." />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="No tracking" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               Text="No accounts, no telemetry, no analytics, no ads. Launching an item hands it to Windows exactly as double-clicking it in Explorer would." />
                                 </StackPanel>
                             </StackPanel>
-                        </Border>
+                        </Expander>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

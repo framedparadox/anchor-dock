@@ -7,10 +7,11 @@
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
 
     <!-- The window itself is the glass: the acrylic backdrop paints this whole surface
-         and DWM rounds its corners. Pinned to Dark so it always reads like the Win11
-         dark taskbar (no light/white background). Under a High Contrast theme the
-         code-behind resets this to ElementTheme.Default and paints an opaque system
-         background so the shell's high-contrast colors come through instead. -->
+         and DWM rounds its corners. RequestedTheme here is only the pre-load default
+         (Dark, matching the Win11 dark taskbar); the code-behind sets the real theme from
+         the user's Light/Dark/System choice (see ApplyTheme). Under a High Contrast theme
+         that resolves to ElementTheme.Default and an opaque system background is painted so
+         the shell's high-contrast colors come through instead. -->
     <Grid x:Name="RootGrid" Background="Transparent" RequestedTheme="Dark"
           AllowDrop="True" DragOver="Root_DragOver" Drop="Root_Drop">
         <Border x:Name="DockStrip"
