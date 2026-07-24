@@ -26,6 +26,7 @@ public class DockConfigTests
         Assert.False(cfg.LaunchAtStartup);
         Assert.True(cfg.AlwaysOnTop);
         Assert.Equal(DockTheme.Dark, cfg.Theme);
+        Assert.False(cfg.VerticalWhenSideSnapped);
         Assert.False(cfg.Seeded);
     }
 

@@ -357,10 +357,38 @@ public sealed partial class DockWindow : Window
     // Dock metrics — keep in sync with the item template, Strip and DockStrip in DockWindow.xaml.
     internal const double CellSize = 40;      // item/gear Grid Width/Height (taskbar-ish)
     internal const double CellSpacing = 4;    // StackLayout + Strip Spacing
-    internal const double DividerWidth = 1;   // Divider Rectangle width
+    internal const double DividerWidth = 1;   // Divider Rectangle thickness (short side)
+    internal const double DividerLength = 24; // Divider Rectangle length (long side)
     internal const double StripPadX = 8;      // DockStrip Padding (left/right)
     internal const double StripPadY = 6;      // DockStrip Padding (top/bottom)
     internal const double AddNewWidth = 116;  // "+ Add New" empty-state pill width
+
+    /// <summary>
+    /// True when the dock should lay out vertically: the "vertical when side-snapped" option is
+    /// on, the dock is snapped to the left or right edge, and it has at least one item (the
+    /// empty-state "+ Add New" pill is always horizontal). Top/bottom and floating stay horizontal.
+    /// </summary>
+    private bool IsVertical =>
+        _config.VerticalWhenSideSnapped &&
+        _config.Snapped &&
+        _config.Edge is DockEdge.Left or DockEdge.Right &&
+        Items.Count > 0;
+
+    /// <summary>Flips the strip, the item layout and the divider between horizontal and vertical.</summary>
+    private void ApplyOrientation(bool vertical)
+    {
+        Strip.Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal;
+        if (ItemsHost.Layout is StackLayout stack)
+            stack.Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal;
+
+        // The divider is a thin line laid across the strip's flow, so its long/short sides swap
+        // with the orientation (a vertical bar between horizontal items, a horizontal bar between
+        // vertical items), and it's centered on the cross axis.
+        Divider.Width = vertical ? DividerLength : DividerWidth;
+        Divider.Height = vertical ? DividerWidth : DividerLength;
+        Divider.HorizontalAlignment = vertical ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+        Divider.VerticalAlignment = vertical ? VerticalAlignment.Stretch : VerticalAlignment.Center;
+    }
 
     /// <summary>Shows the "+ Add New" pill (and hides the item strip) when the dock is empty.</summary>
     private void UpdateEmptyState()
@@ -380,12 +408,16 @@ public sealed partial class DockWindow : Window
         // that plagues "auto-size window to content" via ActualWidth.
         int n = Items.Count; // visible items
         bool empty = n == 0;
+        bool vertical = IsVertical; // false when empty
+        ApplyOrientation(vertical);
 
-        // content = [items OR add-new] [gap] [divider] [gap] [gear cell]
-        double coreW = empty ? AddNewWidth : n * CellSize + (n - 1) * CellSpacing;
-        double contentW = coreW + CellSpacing + DividerWidth + CellSpacing + CellSize;
-        double dipW = contentW + 2 * StripPadX;
-        double dipH = CellSize + 2 * StripPadY;
+        // Along the strip's flow: [items OR add-new] [gap] [divider] [gap] [gear cell].
+        // Across it: a single cell. Which of these is the window's width vs. height depends on
+        // whether the dock is laid out vertically.
+        double coreMain = empty ? AddNewWidth : n * CellSize + (n - 1) * CellSpacing;
+        double contentMain = coreMain + CellSpacing + DividerWidth + CellSpacing + CellSize;
+        double dipW = vertical ? CellSize + 2 * StripPadX : contentMain + 2 * StripPadX;
+        double dipH = vertical ? contentMain + 2 * StripPadY : CellSize + 2 * StripPadY;
 
         double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
         int w = (int)Math.Ceiling(dipW * scale);
@@ -743,6 +775,13 @@ public sealed partial class DockWindow : Window
         ApplyTopmost();
     }
 
+    public void SetVerticalWhenSideSnapped(bool on)
+    {
+        _config.VerticalWhenSideSnapped = on;
+        SaveConfig();
+        QueueRelayout(); // re-orient (and re-size) if the dock is currently snapped to a side
+    }
+
     // ---- Theme ------------------------------------------------------------
 
     /// <summary>
@@ -834,8 +873,9 @@ public sealed partial class DockWindow : Window
     private NativeMethods.POINT _dragStartCursor;
     private PointInt32 _dragStartWindow;
     private DockItem? _reorderItem; // non-null while a press started on an item
-    private double _reorderHostLeftPx;
+    private double _reorderOriginPx; // screen px of the item host's leading edge along the flow axis
     private double _reorderPitchPx;
+    private bool _reorderVertical;   // captured at gesture start so mid-drag stays consistent
     private const int DragThreshold = 12;
 
     private void Dock_PointerPressed(object sender, PointerRoutedEventArgs e)
@@ -924,7 +964,7 @@ public sealed partial class DockWindow : Window
                 PauseAutoHideForDrag();
                 BeginItemReorder();
             }
-            UpdateItemReorder(cur.X);
+            UpdateItemReorder(cur.X, cur.Y);
             return;
         }
 
@@ -947,14 +987,18 @@ public sealed partial class DockWindow : Window
     {
         double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
         // The window is stationary during a reorder, so the strip's screen geometry is fixed:
-        // capture the item host's left edge and per-cell pitch once, in physical pixels.
+        // capture the item host's leading edge and per-cell pitch once, in physical pixels. When
+        // the dock is vertical the items flow down the Y axis, so track Y instead of X.
+        _reorderVertical = IsVertical;
         var origin = ItemsHost.TransformToVisual(RootGrid)
             .TransformPoint(new Windows.Foundation.Point(0, 0));
-        _reorderHostLeftPx = _appWindow.Position.X + origin.X * scale;
+        _reorderOriginPx = _reorderVertical
+            ? _appWindow.Position.Y + origin.Y * scale
+            : _appWindow.Position.X + origin.X * scale;
         _reorderPitchPx = (CellSize + CellSpacing) * scale;
     }
 
-    private void UpdateItemReorder(int cursorScreenX)
+    private void UpdateItemReorder(int cursorScreenX, int cursorScreenY)
     {
         int count = Items.Count;
         if (count < 2 || _reorderItem is null || _reorderPitchPx <= 0)
@@ -964,7 +1008,8 @@ public sealed partial class DockWindow : Window
         if (from < 0)
             return;
 
-        double rel = cursorScreenX - _reorderHostLeftPx;
+        double coord = _reorderVertical ? cursorScreenY : cursorScreenX;
+        double rel = coord - _reorderOriginPx;
         int target = (int)Math.Floor(rel / _reorderPitchPx);
         target = Math.Clamp(target, 0, count - 1);
         if (target != from)

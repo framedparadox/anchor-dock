@@ -21,7 +21,7 @@ the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (
 - **Rounded corners** — the native Windows 11 window rounding (DWM).
 - **Taskbar-sized icons** — 24 px icons in 40 px cells, matching the Windows 11 taskbar.
 - **Settings window** — a gear button opens a Windows-Settings-style window (Mica, left
-  navigation) with a **General** page (theme, position, auto-hide, start-with-Windows, reset/quit) and an
+  navigation) with a **General** page (theme, position, vertical-on-side-edges, auto-hide, start-with-Windows, reset) and an
   **Apps & links** page that lists every entry with a show/hide switch and a remove button.
 - **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
   link / shortcut**, with a type picker, Browse, and auto-suggested names.
@@ -38,6 +38,8 @@ the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (
   only a small **notch** peeking over it — stays at the position you placed it along the edge (no
   jumping to center), and reveals when you reach the edge (or the notch). On an edge **shared with
   another monitor** it stays pinned and visible instead of sliding into the neighboring screen.
+- **Transpose (optional)** — a Settings toggle makes the dock stack its icons
+  vertically when snapped to the **left or right** edge; top, bottom and floating stay horizontal.
 - **Always on top (optional)** — the dock stays above other windows; a Settings toggle lets you
   turn that off while it's floating (when snapped it stays on top so the auto-hide reveal works).
 - **Show / hide without deleting** — hide items from the dock (Settings ▸ Apps, or an icon's

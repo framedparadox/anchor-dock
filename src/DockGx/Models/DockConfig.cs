@@ -66,6 +66,13 @@ public sealed class DockConfig
     public DockTheme Theme { get; set; } = DockTheme.Dark;
 
     /// <summary>
+    /// When the dock is snapped to the <b>left or right</b> edge, arrange its icons vertically
+    /// instead of horizontally. Top/bottom snapping and floating always stay horizontal. Off by
+    /// default (the dock is horizontal everywhere).
+    /// </summary>
+    public bool VerticalWhenSideSnapped { get; set; }
+
+    /// <summary>
     /// True once the default items have been seeded (first run). Prevents re-seeding after the
     /// user has intentionally emptied the dock — an empty dock then persists and shows the
     /// "+ Add New" affordance instead of springing the defaults back.

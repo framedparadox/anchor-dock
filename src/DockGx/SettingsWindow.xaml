@@ -120,6 +120,31 @@
                             </Grid>
                         </Border>
 
+                        <!-- Snapping behaviour: vertical when snapped to a side edge -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE7AD;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Transpose" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="When the dock is snapped to the left or right edge, stack its icons vertically. Top, bottom and floating stay horizontal."
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="VerticalSnapSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="Transpose (Edge Snapping)"
+                                              Toggled="VerticalSnapSwitch_Toggled" />
+                            </Grid>
+                        </Border>
+
                         <!-- Auto-hide -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">

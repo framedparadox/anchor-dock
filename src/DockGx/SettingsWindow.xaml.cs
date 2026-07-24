@@ -120,6 +120,7 @@ public sealed partial class SettingsWindow : Window
             DockEdge.Right => 4,
             _ => 0,
         };
+        VerticalSnapSwitch.IsOn = cfg.VerticalWhenSideSnapped;
         AutoHideSwitch.IsOn = cfg.AutoHide;
         AlwaysOnTopSwitch.IsOn = cfg.AlwaysOnTop;
         StartupSwitch.IsOn = StartupService.IsEnabled();
@@ -153,6 +154,13 @@ public sealed partial class SettingsWindow : Window
             _ => null, // Floating
         };
         _dock.SetSnap(edge);
+    }
+
+    private void VerticalSnapSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _dock.SetVerticalWhenSideSnapped(VerticalSnapSwitch.IsOn);
     }
 
     private void AutoHideSwitch_Toggled(object sender, RoutedEventArgs e)
