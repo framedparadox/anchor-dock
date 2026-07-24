@@ -9,7 +9,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
-using Windows.System;
 
 namespace DockGx;
 
@@ -561,7 +560,7 @@ public sealed partial class DockWindow : Window
         // light-dismiss behavior (no extra wiring needed).
         box.KeyDown += (_, e) =>
         {
-            if (e.Key == VirtualKey.Enter)
+            if (e.Key == Windows.System.VirtualKey.Enter)
             {
                 Commit();
                 e.Handled = true;
@@ -611,7 +610,7 @@ public sealed partial class DockWindow : Window
         // light-dismiss behavior (no extra wiring needed).
         box.KeyDown += (_, e) =>
         {
-            if (e.Key == VirtualKey.Enter)
+            if (e.Key == Windows.System.VirtualKey.Enter)
             {
                 Commit();
                 e.Handled = true;
