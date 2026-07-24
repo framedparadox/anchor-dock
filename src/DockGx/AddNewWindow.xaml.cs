@@ -209,8 +209,19 @@ public sealed partial class AddNewWindow : Window
                 kind = DockItemKind.Folder;
                 break;
             case AddKind.Link:
+                // A "Web link" is specifically an http/https address (arbitrary URIs/commands go
+                // through the "Shortcut" type instead). Add the scheme if omitted, then validate —
+                // so a WebLink item never carries a non-web scheme that its globe icon would belie.
                 if (!target.Contains("://"))
                     target = "https://" + target;
+                if (!Uri.TryCreate(target, UriKind.Absolute, out var linkUri) ||
+                    (linkUri.Scheme != Uri.UriSchemeHttp && linkUri.Scheme != Uri.UriSchemeHttps))
+                {
+                    ShowError("Enter a valid web address, e.g. https://example.com. "
+                            + "For other URIs or commands, use the Shortcut type.");
+                    return;
+                }
+                target = linkUri.ToString();
                 kind = DockItemKind.WebLink;
                 break;
             default: // Shortcut: detect from the raw target

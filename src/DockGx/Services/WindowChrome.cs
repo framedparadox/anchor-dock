@@ -72,9 +72,12 @@ public static class WindowChrome
     }
 
     /// <summary>
-    /// Makes DWM render the window's frame/border to match the app theme and gives it an explicit
-    /// border color that blends into the glass. Without this, DWM paints a contrasting 1-2px rim
-    /// around a rounded backdrop window — a white line in dark mode, or a black line in light mode.
+    /// Removes the DWM border rim from the rounded backdrop window. By default DWM strokes a
+    /// 1-2px border whose color contrasts with the translucent glass (a light line in dark mode,
+    /// a dark line in light mode) — reading as an unwanted rectangle around the dock. Setting the
+    /// border to the COLOR_NONE sentinel suppresses it entirely in every theme, leaving just the
+    /// rounded glass. The immersive-dark-mode flag is still tracked to the theme so DWM renders
+    /// the window edge / corner anti-aliasing for the right background.
     /// </summary>
     public static void RemoveWindowBorder(nint hwnd, bool dark)
     {
@@ -82,11 +85,9 @@ public static class WindowChrome
         NativeMethods.DwmSetWindowAttribute(
             hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref immersiveDark, sizeof(int));
 
-        // COLORREF 0x00BBGGRR — a near-glass color so the rounded rim disappears into the
-        // backdrop: near-black for the dark taskbar glass, near-white for the light glass.
-        int border = dark ? 0x00161616 : 0x00F2F2F2;
+        int noBorder = unchecked((int)NativeMethods.DWMWA_COLOR_NONE);
         NativeMethods.DwmSetWindowAttribute(
-            hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref border, sizeof(int));
+            hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref noBorder, sizeof(int));
     }
 
     /// <summary>

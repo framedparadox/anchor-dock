@@ -12,6 +12,14 @@ using Windows.Graphics;
 
 namespace DockGx;
 
+/// <summary>
+/// The dock window: the always-on, borderless glass strip that holds the app/file/folder/link
+/// icons plus the settings gear. Owns window chrome and theming, the acrylic backdrop, the
+/// item layout (horizontal or, when side-snapped, vertical), drag-to-move / drag-to-reorder
+/// gestures, the per-item and background context menus, and persistence of items and settings.
+/// Snap + auto-hide behavior lives in the <see cref="DockWindow"/> partial in
+/// <c>DockWindow.AutoHide.cs</c>.
+/// </summary>
 public sealed partial class DockWindow : Window
 {
     private readonly nint _hwnd;
@@ -49,9 +57,9 @@ public sealed partial class DockWindow : Window
         _appWindow = AppWindow.GetFromWindowId(_windowId);
 
         // Dock-like chrome: borderless, topmost, off the taskbar & Alt-Tab, rounded corners.
-        // The DWM border color is theme-dependent, so it's applied later (ApplyWindowBorder)
-        // once the theme is known. It's re-asserted on every activation because DWM otherwise
-        // resets it back to the default (contrasting) rim.
+        // The DWM border is suppressed (and the immersive-dark-mode flag tracked to the theme) in
+        // ApplyWindowBorder, applied below once the theme is known and re-asserted on every
+        // activation because DWM otherwise restores the default (contrasting) rim.
         WindowChrome.MakeBorderlessToolWindow(_appWindow, _hwnd);
         WindowChrome.StripFrame(_hwnd);
         WindowChrome.SetRoundedCorners(_hwnd, small: false);
