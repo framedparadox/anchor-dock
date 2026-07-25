@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <!-- Name/Publisher are placeholders. Replace with the values from Partner Center ->
+       Product management -> Product identity after reserving the app name (see
+       docs/microsoft-store-deployment.md, section 3). PublisherDisplayName likewise. -->
+  <Identity Name="12345YourPublisher.Anchor"
+            Publisher="CN=ABCDEF01-2345-6789-ABCD-EF0123456789"
+            Version="1.0.0.0" />
+
+  <Properties>
+    <DisplayName>Anchor</DisplayName>
+    <PublisherDisplayName>Your Publisher Display Name</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop"
+                        MinVersion="10.0.17763.0"
+                        MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App" Executable="Anchor.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Anchor"
+        Description="A floating dock for Windows 11."
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"
+                         Square71x71Logo="Images\Square71x71Logo.png"
+                         Square310x310Logo="Images\Square310x310Logo.png" />
+        <uap:SplashScreen Image="Images\SplashScreen.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- The dock launches arbitrary programs, files and links (Services/Launcher.cs, ShellExecute). -->
+    <rescap:Capability Name="runFullTrust" />
+    <!-- IconService reads shell icons from arbitrary file-system paths via WinRT StorageFile.
+         Drop this only if IconService is refactored to Win32 icon extraction (SHGetFileInfo). -->
+    <rescap:Capability Name="broadFileSystemAccess" />
+  </Capabilities>
+</Package>

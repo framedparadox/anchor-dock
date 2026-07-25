@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/DockGx/DockGx.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/DockGx.Tests/DockGx.Tests.csproj" />
-  </Folder>
-</Solution>

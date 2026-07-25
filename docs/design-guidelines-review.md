@@ -1,6 +1,6 @@
-# DockGx — Windows App Design Guidelines Review
+# Anchor — Windows App Design Guidelines Review
 
-A review of DockGx against Microsoft's **Windows 11 Fluent Design System** and the
+A review of Anchor against Microsoft's **Windows 11 Fluent Design System** and the
 [Windows app design guidelines](https://learn.microsoft.com/windows/apps/design/). The
 project is a WinUI 3 / Windows App SDK desktop app, so it is held to the Fluent/WinUI bar.
 
@@ -41,7 +41,7 @@ addresses.
 | 10 | Accessibility | Keyboard-only users cannot *reach* the dock (no Alt-Tab, no hotkey) | High | **Recommendation** |
 | 11 | Motion | Timer-driven animations instead of Composition | Low | **Recommendation** |
 | 12 | Theming | Hardcoded colors don't follow the accent color | Low | **Recommendation** |
-| 13 | Project | No app icon / assembly product metadata | Low | **Recommendation** |
+| 13 | Project | No app icon / assembly product metadata | Low | **Fixed** |
 
 ---
 
@@ -174,7 +174,7 @@ state). Consider sourcing hover/pressed accents from `AccentFillColor*` theme re
 
 ### 13. App identity / metadata — Low priority
 
-`DockGx.csproj` has no `<ApplicationIcon>` and no product/version metadata (`<Product>`,
+`Anchor.csproj` has no `<ApplicationIcon>` and no product/version metadata (`<Product>`,
 `<Version>`, `<Company>`, `<Authors>`). A shipping Windows app should carry an icon and version
 resource. (The window is deliberately off the taskbar, so this is about the executable's
 properties and future packaging, not the dock UI.)
@@ -197,7 +197,7 @@ Windows before shipping.
 | 17 | Accessibility | Add-to-Dock's type-selector tiles (`ToggleButton` + icon/text `StackPanel` content) had no explicit `AutomationProperties.Name`, relying on the framework's plain-text-content fallback | Low | **Fixed** |
 | 18 | Input | The Add-to-Dock window had no `Escape`-to-cancel keyboard accelerator (a plain `Window` doesn't get this for free the way a light-dismiss `Flyout` does) | Low | **Fixed** |
 | 19 | Input | The Rename/Edit-target flyout text boxes didn't commit on `Enter` (only via the button click) | Low | **Fixed** |
-| 20 | Project identity | `DockGx.csproj` had no `<Product>`/`<Company>`/`<Version>`/`<Description>` metadata | Low | **Fixed (partial)** |
+| 20 | Project identity | `Anchor.csproj` had no `<Product>`/`<Company>`/`<Version>`/`<Description>` metadata | Low | **Fixed (partial)** |
 | 21 | Testing | No automated test coverage existed anywhere in the repo | Medium | **Fixed (partial)** |
 | 22 | Accessibility | Add-to-Dock's type selector is five independent `ToggleButton`s doing manual radio-group bookkeeping, not a `RadioButtons`/`SelectorItem`-backed control — Narrator announces each as an isolated toggle, not "1 of 5" group membership | Medium | **Recommendation** |
 | 23 | Feedback | Removing an item (context menu "Remove", or the Settings Apps-list trash button) is immediate and irreversible, with only a tooltip as a warning | Low | **Recommendation** |
@@ -253,16 +253,16 @@ test against.) Separately, the Rename/Edit-target flyouts' text boxes now commit
 dismisses on `Escape` natively.
 
 **#20 — Project/app identity.** Added `<Product>`, `<Company>`, `<Authors>`, `<Description>`,
-and version properties to `DockGx.csproj` — shown in the exe's Details tab and Task Manager, and
+and version properties to `Anchor.csproj` — shown in the exe's Details tab and Task Manager, and
 required verbatim-consistent metadata for a Store/installer submission (see
-`docs/microsoft-store-deployment.md`). This is a **partial** fix for recommendation #13: the app
-still has no `<ApplicationIcon>` / `.ico` asset, which needs actual visual design work (a source
-image to generate the icon from), not a code change — still open as a recommendation.
+`docs/microsoft-store-deployment.md`). This was a **partial** fix for recommendation #13 at the
+time: the app still had no `<ApplicationIcon>` / `.ico` asset, since that needed a source image to
+generate the icon from. Closed in full in Pass 3 below once one existed.
 
 ### 21. Test coverage added
 
-The repository had **no automated tests at all**. Added `tests/DockGx.Tests/` (referenced from
-`DockGx.slnx`), covering the parts of the app that are pure logic with no live shell/network/
+The repository had **no automated tests at all**. Added `tests/Anchor.Tests/` (referenced from
+`Anchor.slnx`), covering the parts of the app that are pure logic with no live shell/network/
 registry/XAML-tree dependency:
 
 - `Models/DockItemTests.cs` — `INotifyPropertyChanged` firing, the `Kind → Glyph` mapping, the
@@ -289,7 +289,7 @@ speculatively.
 **Not verified by actually building**: like Pass 1, this was written without access to a Windows
 / `dotnet` toolchain (this environment has neither), so the test project's configuration and the
 tests themselves have been checked carefully by hand but not compiled or run. Build and run
-`dotnet test DockGx.slnx` (or `Test Explorer` in Visual Studio) on Windows before relying on this
+`dotnet test Anchor.slnx` (or `Test Explorer` in Visual Studio) on Windows before relying on this
 as a regression gate.
 
 ### 22–23. Recommendations (not implemented here)
@@ -332,3 +332,18 @@ removals (e.g. Outlook's "Message moved. Undo").
   surface, and is also needed here so the content island receives pointer input.
 - **Tooltips & command affordances.** Every actionable element has a tooltip; menu commands that
   open a dialog use the "…" ellipsis.
+
+---
+
+## Pass 3 (2026-07-25) — Anchor rebrand + app icon
+
+The project was renamed from DockGx to **Anchor** (namespaces, assembly, AppData/registry/log
+identifiers, project and solution file names) and given a real source icon (`docs/anchor.png`).
+
+**Recommendation #13 — App icon — closed.** A multi-resolution `.ico` (16–256 px) generated from
+`docs/anchor.png` is now wired up via `<ApplicationIcon>Assets\Anchor.ico</ApplicationIcon>` in
+`Anchor.csproj`; the built `Anchor.exe` carries a real icon in Explorer, the taskbar, and Alt-Tab.
+The same source also produced the Microsoft Store MSIX tile/logo set (`src/Anchor/Images/`) — see
+`docs/microsoft-store-deployment.md`. Row 13 and #20 in the tables above are now fully **Fixed**;
+the only remaining identity gap is Partner Center's actual publisher identity, which is an account
+detail, not a code change.

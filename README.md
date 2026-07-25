@@ -1,4 +1,4 @@
-# DockGx
+# Anchor
 
 A floating dock for Windows 11, built with **WinUI 3 / Windows App SDK**. It floats a
 compact, glass "strip" above the taskbar that holds apps, files, folders, and web links —
@@ -75,7 +75,7 @@ the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (
   focus, Space/Enter to launch, focus visuals, and Narrator names. Context menus are reachable
   with the Menu key / Shift+F10; auto-hide honors the *reduced-motion* and *high-contrast*
   accessibility settings.
-- **Single instance** — launching DockGx a second time (e.g. from the Start menu while the
+- **Single instance** — launching Anchor a second time (e.g. from the Start menu while the
   "start with Windows" copy is already running) quietly exits rather than stacking a second dock.
 - **Persistent** — items, position, snap state and settings are saved to JSON and restored next launch.
 - **Out of the way** — borderless, always-on-top, hidden from the taskbar and Alt-Tab.
@@ -92,24 +92,24 @@ the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (
 
 ```powershell
 # from the repo root
-dotnet build src/DockGx/DockGx.csproj -c Release -p:Platform=x64
+dotnet build src/Anchor/Anchor.csproj -c Release -p:Platform=x64
 
 # run it
-./src/DockGx/bin/x64/Release/net10.0-windows10.0.19041.0/win-x64/DockGx.exe
+./src/Anchor/bin/x64/Release/net10.0-windows10.0.19041.0/win-x64/Anchor.exe
 ```
 
 > WinUI apps cannot target `AnyCPU`; always pass `-p:Platform=x64` (this machine's architecture)
-> for a single project. The whole solution builds with `dotnet build DockGx.slnx -c Release`
+> for a single project. The whole solution builds with `dotnet build Anchor.slnx -c Release`
 > (both projects are x64-only, so x64 is the default — don't add `-p:Platform=x64` at the
 > solution level, which trips MSBuild's solution-configuration mapping).
 
 ## Tests
 
 ```powershell
-dotnet test tests/DockGx.Tests/DockGx.Tests.csproj -p:Platform=x64
+dotnet test tests/Anchor.Tests/Anchor.Tests.csproj -p:Platform=x64
 ```
 
-`tests/DockGx.Tests/` covers the pure-logic pieces (`Models/`, `Services/DockItemFactory.cs`)
+`tests/Anchor.Tests/` covers the pure-logic pieces (`Models/`, `Services/DockItemFactory.cs`)
 with xUnit — the `Kind → Glyph` mapping and property-change notifications on `DockItem`, the
 first-run defaults and JSON round-trip of `DockConfig`, and `DockItemFactory` classification /
 name suggestion. It targets the same Windows-qualified TFM as the app (WinUI types like
@@ -134,7 +134,7 @@ onto the notch — to reveal it.
 
 ## Run / debug in VS Code
 
-Open the repo in VS Code and press **F5** (*Launch DockGx*), or run the **build** task
+Open the repo in VS Code and press **F5** (*Launch Anchor*), or run the **build** task
 (`Ctrl+Shift+B`). Both are configured in `.vscode/` for the required `x64` platform.
 
 ## Configuration
@@ -142,11 +142,11 @@ Open the repo in VS Code and press **F5** (*Launch DockGx*), or run the **build*
 All state is saved to a single JSON file:
 
 ```
-%AppData%\DockGx\dock.json
+%AppData%\Anchor\dock.json
 ```
 
 Delete this file to reset the dock to its seeded defaults. Downloaded favicons are cached
-separately under `%AppData%\DockGx\IconCache\` (one `<host>.ico` per site); deleting that folder
+separately under `%AppData%\Anchor\IconCache\` (one `<host>.ico` per site); deleting that folder
 just forces the icons to be re-fetched.
 
 The file is written atomically (write-to-temp then rename) so a crash mid-save can't corrupt it.
@@ -182,32 +182,32 @@ after an upgrade (a missing `Theme`, for instance, defaults back to `Dark`).
 }
 ```
 
-You can hand-edit this file while DockGx is closed. `LaunchAtStartup` is the app's view of the
-Windows startup entry; the source of truth is the `DockGx` value under
+You can hand-edit this file while Anchor is closed. `LaunchAtStartup` is the app's view of the
+Windows startup entry; the source of truth is the `Anchor` value under
 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, which the Settings toggle writes.
 
 </details>
 
 ## Privacy & data
 
-DockGx runs entirely on your PC. There are **no accounts, no telemetry, no analytics, and no ads**.
+Anchor runs entirely on your PC. There are **no accounts, no telemetry, no analytics, and no ads**.
 
-- **Your data stays local.** Items, layout and settings live in `%AppData%\DockGx\dock.json`
+- **Your data stays local.** Items, layout and settings live in `%AppData%\Anchor\dock.json`
   and never leave your device.
-- **Web-link icons are the only network access.** For a web link, DockGx fetches the site's
+- **Web-link icons are the only network access.** For a web link, Anchor fetches the site's
   favicon — first directly from the site (`https://<host>/favicon.ico`), and only if that fails,
   from DuckDuckGo's icon service (`https://icons.duckduckgo.com/ip3/<host>.ico`), which receives
   just the site's domain. Nothing else is sent, and downloaded icons are cached under
-  `%AppData%\DockGx\IconCache\` so a site is contacted at most once. If you never add a web link,
-  DockGx makes no network requests at all.
+  `%AppData%\Anchor\IconCache\` so a site is contacted at most once. If you never add a web link,
+  Anchor makes no network requests at all.
 - **Launching is a hand-off to Windows.** Opening an item hands it to the shell exactly as
-  double-clicking it in Explorer would; DockGx does not read your files' contents.
+  double-clicking it in Explorer would; Anchor does not read your files' contents.
 
 The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
 
 ## Security notes
 
-- **DockGx is a launcher, so it starts programs you pin.** Items are launched through
+- **Anchor is a launcher, so it starts programs you pin.** Items are launched through
   `ShellExecute` (`Process.Start` with `UseShellExecute=true`) — the same mechanism as an Explorer
   double-click. It only ever launches what *you* explicitly added (via the Add window or
   drag-and-drop) and persisted to your own user-profile config; it does not run undisclosed code.
@@ -224,7 +224,7 @@ The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
 
 ## Troubleshooting
 
-- **Diagnostic log.** DockGx writes a lightweight log to `%Temp%\dockgx.log` (truncated on each
+- **Diagnostic log.** Anchor writes a lightweight log to `%Temp%\anchor.log` (truncated on each
   start). It records launches, icon-resolution fallbacks, and any otherwise-unhandled exception —
   the first place to look if something misbehaves.
 - **An icon shows a globe/page glyph instead of a picture.** The shell thumbnail or favicon
@@ -233,13 +233,13 @@ The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
 - **The snapped dock seems to have vanished.** It auto-hid behind its edge — move the cursor to
   that screen edge (within the dock's span) or onto the small notch to reveal it. To stop it
   hiding, turn off **Settings ▸ Auto-hide when snapped**.
-- **Reset everything.** Close DockGx and delete `%AppData%\DockGx\dock.json`, or use
+- **Reset everything.** Close Anchor and delete `%AppData%\Anchor\dock.json`, or use
   **Settings ▸ General ▸ Reset dock to defaults** (which asks for confirmation first).
 
 ## Architecture
 
 ```
-src/DockGx/
+src/Anchor/
   App.xaml(.cs)              App entry point; single-instance guard; creates the single DockWindow.
   DockWindow.xaml(.cs)       The dock window: glass, chrome, layout, items, drag/reorder, menu.
   DockWindow.AutoHide.cs     Auto-hide controller (cursor polling, slide animation, hidden notch).
@@ -256,11 +256,15 @@ src/DockGx/
     DockItemFactory.cs         Classifies a target (app/file/folder/link) and suggests a name.
     StartupService.cs          Per-user "start with Windows" Run-key toggle.
     WindowChrome.cs            Borderless/topmost/tool-window, rounded corners, dialog sizing.
-    Diag.cs                    Lightweight file logger (%Temp%\dockgx.log).
+    Diag.cs                    Lightweight file logger (%Temp%\anchor.log).
   Interop/
     NativeMethods.cs           Win32/DWM P/Invoke (corners, Z-order, DPI, cursor, shell icons).
-tests/DockGx.Tests/            xUnit unit tests for the pure-logic Models/Services.
-docs/                          Screenshot, Store-deployment guide, design-guidelines review.
+  Assets/Anchor.ico            Win32 app icon (ApplicationIcon), generated from docs/anchor.png.
+  Images/                      MSIX tile/logo set (StorePackage=true builds only), same source.
+  Package.appxmanifest         MSIX manifest for Store packaging (placeholder identity).
+tests/Anchor.Tests/            xUnit unit tests for the pure-logic Models/Services.
+packaging/winget/manifests/    Staged winget-pkgs manifest templates (see docs/winget-deployment.md).
+docs/                          Screenshots, Store-deployment guide, winget guide, design review.
 ```
 
 ### Notes / design decisions
@@ -285,7 +289,7 @@ docs/                          Screenshot, Store-deployment guide, design-guidel
 - **Snap keeps its place.** The dropped position is remembered even while snapped, and the target
   monitor is resolved from that point (`DisplayArea.GetFromPoint`), so a snapped dock hides where
   you left it on the correct screen instead of re-centering.
-- **Single instance.** `App` acquires a session-scoped named mutex (`Local\DockGx.SingleInstance.v1`)
+- **Single instance.** `App` acquires a session-scoped named mutex (`Local\Anchor.SingleInstance.v1`)
   on launch; a second process finds it already held and exits before creating a window, so the
   "start with Windows" copy and a manual launch never produce two overlapping docks.
 - **`Window` has no `Resources`.** WinUI 3's `Window` is not a `FrameworkElement`, so shared XAML
@@ -297,7 +301,7 @@ docs/                          Screenshot, Store-deployment guide, design-guidel
 
 ## FAQ
 
-**How do I quit DockGx?** Right-click the dock background → *Quit DockGx*, or open Settings from
+**How do I quit Anchor?** Right-click the dock background → *Quit Anchor*, or open Settings from
 the gear. The dock is intentionally off the taskbar, so there's no taskbar close button.
 
 **Where did my dock go after I snapped it?** It auto-hides behind the edge. Reveal it by moving
@@ -309,20 +313,12 @@ you dropped it on. On an edge that borders another monitor it stays pinned and v
 sliding into the neighbor.
 
 **Can I use my own icon for an item?** Set `CustomIconPath` for that item in `dock.json` (while
-DockGx is closed) to point at an image file; it overrides the shell/favicon icon.
+Anchor is closed) to point at an image file; it overrides the shell/favicon icon.
 
 **Does it need admin rights?** No. Everything (including "start with Windows") is per-user.
 
-**Why is there no app icon on the .exe yet?** That's the one remaining shipping gap — see
-*Known limitations* and the Store guide.
-
 ## Known limitations / future work
 
-- **No app icon yet.** The executable has no `<ApplicationIcon>` and the Store package needs a
-  full logo set — both require an actual `.ico` / source image (visual-design work, not a code
-  change). This is the last blocker for a polished shipping/Store build; see
-  `docs/microsoft-store-deployment.md` and recommendation #13 in
-  `docs/design-guidelines-review.md`.
 - **No global hotkey.** Once focused, the dock is fully keyboard-operable, but a keyboard-only
   user still needs a mouse to *move focus onto it* the first time. A registered global hotkey is
   the natural fix (design-review recommendation #10).
@@ -333,15 +329,24 @@ DockGx is closed) to point at an image file; it overrides the shell/favicon icon
   `AppWindow.Move` per frame rather than a Composition animation; smooth today, a polish item.
 - **Web-link icons** fetch the site favicon (site `/favicon.ico`, then a favicon service),
   falling back to a globe glyph when a site has none or there's no connectivity.
+- **Grouping** to allow clubbing of apps, links or shortcuts.
 
 ## Publishing
 
-- **Microsoft Store** — see [`docs/microsoft-store-deployment.md`](docs/microsoft-store-deployment.md)
-  for an end-to-end guide (MSIX packaging, the manifest, restricted-capability justifications for
-  the launcher/icon behavior, Partner Center submission, and a no-repackaging EXE alternative).
-  In short: the app is deliberately **unpackaged** (`WindowsPackageType=None`) today, so a Store
-  submission means adding MSIX packaging + visual assets, and declaring/justifying `runFullTrust`
-  (it launches programs) and `broadFileSystemAccess` (it reads shell icons from arbitrary paths).
+The app is deliberately **unpackaged** (`WindowsPackageType=None`) for everyday `dotnet
+build`/`dotnet publish`. Store/winget packaging is opt-in and gated behind explicit build flags —
+see the guides below for what's already wired up versus what still needs your account/publisher
+details.
+
+- **Microsoft Store** — see [`docs/microsoft-store-deployment.md`](docs/microsoft-store-deployment.md).
+  MSIX packaging (manifest + full visual-asset set generated from `docs/anchor.png`) is already
+  implemented behind `-p:StorePackage=true`; what's left is a Partner Center account, swapping the
+  placeholder package identity in `src/Anchor/Package.appxmanifest` for real values, and the
+  submission itself. Covers restricted-capability justifications for the launcher/icon behavior
+  too (`runFullTrust`, `broadFileSystemAccess`), plus a no-repackaging EXE alternative.
+- **winget** — see [`docs/winget-deployment.md`](docs/winget-deployment.md) for building a release
+  zip, computing its hash, and the manifest templates under `packaging/winget/manifests/` staged
+  for submission to `microsoft/winget-pkgs`.
 - **Design review** — [`docs/design-guidelines-review.md`](docs/design-guidelines-review.md)
   tracks how the app measures up to the Windows 11 / Fluent design guidelines.
 
@@ -350,7 +355,7 @@ DockGx is closed) to point at an image file; it overrides the shell/favicon icon
 Contributions are welcome. A few things that keep the bar consistent:
 
 - Build with `-p:Platform=x64` (WinUI can't be `AnyCPU`) and keep the build **warning-free**.
-- Add or update tests under `tests/DockGx.Tests/` for any pure-logic change, and run
+- Add or update tests under `tests/Anchor.Tests/` for any pure-logic change, and run
   `dotnet test` before opening a PR.
 - Match the existing commenting style — explain *why*, not just *what*, especially around the
   Win32/DWM interop and the drag/auto-hide timing.
