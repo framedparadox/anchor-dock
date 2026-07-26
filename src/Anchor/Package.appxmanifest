@@ -8,13 +8,13 @@
   <!-- Name/Publisher are placeholders. Replace with the values from Partner Center ->
        Product management -> Product identity after reserving the app name (see
        docs/microsoft-store-deployment.md, section 3). PublisherDisplayName likewise. -->
-  <Identity Name="12345YourPublisher.Anchor"
-            Publisher="CN=ABCDEF01-2345-6789-ABCD-EF0123456789"
+  <Identity Name="44492ajaykontham.AnchorDock"
+            Publisher="CN=93C75305-77D7-448E-B1C4-591A0E9665E1"
             Version="1.0.0.0" />
 
   <Properties>
-    <DisplayName>Anchor</DisplayName>
-    <PublisherDisplayName>Your Publisher Display Name</PublisherDisplayName>
+    <DisplayName>Anchor Dock</DisplayName>
+    <PublisherDisplayName>ajaykontham</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
   </Properties>
 
@@ -45,9 +45,22 @@
   </Applications>
 
   <Capabilities>
-    <!-- The dock launches arbitrary programs, files and links (Services/Launcher.cs, ShellExecute). -->
+    <!-- runFullTrust: Anchor Dock is a Win32 desktop productivity app (a floating
+         application dock/launcher for Windows 11). It requires runFullTrust because
+         its core function is to launch arbitrary user-selected desktop applications,
+         files, and web links from the dock via Win32 APIs (ShellExecute) in
+         Services/Launcher.cs, which is not possible from an AppContainer-sandboxed
+         UWP process. Without full trust, the app's primary purpose (a customizable
+         launcher/dock) cannot function. -->
     <rescap:Capability Name="runFullTrust" />
-    <!-- IconService reads shell icons from arbitrary file-system paths via WinRT StorageFile.
+    <!-- broadFileSystemAccess: users can pin arbitrary files, folders, and shortcuts
+         from anywhere on their file system to the dock. To display an accurate icon
+         for each pinned item (matching File Explorer), Services/IconService.cs reads
+         shell icons for these user-chosen paths via WinRT StorageFile, which can
+         reside anywhere on local or removable drives, not just the limited set of
+         broker-accessible library folders. No files are read, modified, or
+         transmitted; the capability is used only for icon retrieval on paths the
+         user has explicitly added to their dock.
          Drop this only if IconService is refactored to Win32 icon extraction (SHGetFileInfo). -->
     <rescap:Capability Name="broadFileSystemAccess" />
   </Capabilities>
