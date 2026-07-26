@@ -47,8 +47,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
-    <AppxBundle>Never</AppxBundle>
+    <AppxBundle>Always</AppxBundle>
     <AppxAutoIncrementPackageRevision>false</AppxAutoIncrementPackageRevision>
+    <WinAppSdkCheckForPdbConversion>false</WinAppSdkCheckForPdbConversion>
+    <UapAppxPackageBuildMode>StoreUpload</UapAppxPackageBuildMode>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(StorePackage)' == 'true'">
