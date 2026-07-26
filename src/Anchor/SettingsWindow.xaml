@@ -283,22 +283,42 @@
                         <TextBlock Text="About" Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
 
-                        <!-- Identity -->
+                        <!-- Identity + developer -->
                         <Border Style="{StaticResource Card}">
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <Border Width="56" Height="56" CornerRadius="12"
-                                        Background="{ThemeResource AccentFillColorDefaultBrush}">
-                                    <FontIcon Glyph="&#xE71D;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                              FontSize="28" Foreground="White" />
-                                </Border>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Anchor" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                    <TextBlock x:Name="VersionText" Text="Version 1.0"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="A floating dock for Windows 11, built with WinUI 3."
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="16">
+                                    <!-- The real app logo, not a stand-in glyph. targetsize-256 is the
+                                         largest unpadded variant, so it stays crisp at 56px. -->
+                                    <Border Width="56" Height="56" CornerRadius="12">
+                                        <Image Source="ms-appx:///Images/Square44x44Logo.targetsize-256.png"
+                                               Width="56" Height="56" Stretch="UniformToFill" />
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="Anchor" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                        <TextBlock x:Name="VersionText" Text="Version 1.0"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="A floating dock for Windows 11, built with WinUI 3."
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock TextWrapping="Wrap"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text="Developed by framedparadox. Anchor is free and open source under the MIT License, and bug reports and feature requests are welcome on GitHub." />
+
+                                <!-- HyperlinkButton opens the URI with the default browser; no
+                                     code-behind needed. Margin trims the button's built-in padding
+                                     so the links line up with the text above. -->
+                                <StackPanel Orientation="Horizontal" Spacing="4" Margin="-12,0,0,0">
+                                    <HyperlinkButton Content="Source code"
+                                                     NavigateUri="https://github.com/framedparadox/dock-gx" />
+                                    <HyperlinkButton Content="Report an issue"
+                                                     NavigateUri="https://github.com/framedparadox/dock-gx/issues" />
+                                    <HyperlinkButton Content="License"
+                                                     NavigateUri="https://github.com/framedparadox/dock-gx/blob/main/LICENSE" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
