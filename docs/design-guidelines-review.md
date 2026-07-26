@@ -1,6 +1,6 @@
-# DockGx — Windows App Design Guidelines Review
+# Anchor — Windows App Design Guidelines Review
 
-A review of DockGx against Microsoft's **Windows 11 Fluent Design System** and the
+A review of Anchor against Microsoft's **Windows 11 Fluent Design System** and the
 [Windows app design guidelines](https://learn.microsoft.com/windows/apps/design/). The
 project is a WinUI 3 / Windows App SDK desktop app, so it is held to the Fluent/WinUI bar.
 
@@ -41,7 +41,7 @@ addresses.
 | 10 | Accessibility | Keyboard-only users cannot *reach* the dock (no Alt-Tab, no hotkey) | High | **Recommendation** |
 | 11 | Motion | Timer-driven animations instead of Composition | Low | **Recommendation** |
 | 12 | Theming | Hardcoded colors don't follow the accent color | Low | **Recommendation** |
-| 13 | Project | No app icon / assembly product metadata | Low | **Recommendation** |
+| 13 | Project | No app icon / assembly product metadata | Low | **Fixed** |
 
 ---
 
@@ -174,10 +174,145 @@ state). Consider sourcing hover/pressed accents from `AccentFillColor*` theme re
 
 ### 13. App identity / metadata — Low priority
 
-`DockGx.csproj` has no `<ApplicationIcon>` and no product/version metadata (`<Product>`,
+`Anchor.csproj` has no `<ApplicationIcon>` and no product/version metadata (`<Product>`,
 `<Version>`, `<Company>`, `<Authors>`). A shipping Windows app should carry an icon and version
 resource. (The window is deliberately off the taskbar, so this is about the executable's
 properties and future packaging, not the dock UI.)
+
+---
+
+## Pass 2 (2026-07-23) — delta review + test coverage
+
+A follow-up pass covering everything added since Pass 1 above: drag-and-drop add, the
+"Always on top" setting, the Settings "Apps & links" remove button, and a general re-audit for
+Fluent/Store compliance. As with Pass 1, this was authored without a Windows toolchain — changes
+are standard, narrowly-scoped WinUI XAML/C# patterns reviewed by hand; build and smoke-test on
+Windows before shipping.
+
+| # | Area | Finding | Severity | Status |
+|---|------|---------|----------|--------|
+| 14 | Iconography | The Settings "remove item" glyph was a raw PUA literal in `.cs` source (the exact anti-pattern #9 from Pass 1 fixed elsewhere, reintroduced here) | Low | **Fixed** |
+| 15 | Dialogs | "Reset dock to defaults" (wipes every pinned item, no undo) had no confirmation | Medium | **Fixed** |
+| 16 | Windowing | Settings / Add-to-Dock windows were unconditionally always-on-top, even when the dock itself is floating and not topmost | Low | **Fixed** |
+| 17 | Accessibility | Add-to-Dock's type-selector tiles (`ToggleButton` + icon/text `StackPanel` content) had no explicit `AutomationProperties.Name`, relying on the framework's plain-text-content fallback | Low | **Fixed** |
+| 18 | Input | The Add-to-Dock window had no `Escape`-to-cancel keyboard accelerator (a plain `Window` doesn't get this for free the way a light-dismiss `Flyout` does) | Low | **Fixed** |
+| 19 | Input | The Rename/Edit-target flyout text boxes didn't commit on `Enter` (only via the button click) | Low | **Fixed** |
+| 20 | Project identity | `Anchor.csproj` had no `<Product>`/`<Company>`/`<Version>`/`<Description>` metadata | Low | **Fixed (partial)** |
+| 21 | Testing | No automated test coverage existed anywhere in the repo | Medium | **Fixed (partial)** |
+| 22 | Accessibility | Add-to-Dock's type selector is five independent `ToggleButton`s doing manual radio-group bookkeeping, not a `RadioButtons`/`SelectorItem`-backed control — Narrator announces each as an isolated toggle, not "1 of 5" group membership | Medium | **Recommendation** |
+| 23 | Feedback | Removing an item (context menu "Remove", or the Settings Apps-list trash button) is immediate and irreversible, with only a tooltip as a warning | Low | **Recommendation** |
+
+### 14–20. Fixed in this pass
+
+**#14 — Iconography.** `SettingsWindow.xaml.cs`'s per-row "Remove from dock" button set
+`Glyph` to a raw non-ASCII Private-Use-Area character in source, the same fragility Pass 1
+already called out and fixed for `DockItem.Glyph` (recommendation #9: an editor/encoding change
+can silently corrupt an un-escaped PUA literal, and it's opaque to read in a diff). Changed to
+the explicit escape `"\uE74D"` (Segoe Fluent Icons "Delete"), matching the convention Pass 1
+established.
+
+**#15 — Confirm destructive actions.** Fluent guidance is to confirm actions that are hard to
+recover from
+([Dialogs and flyouts](https://learn.microsoft.com/windows/apps/design/controls/dialogs-and-flyouts/dialogs)).
+"Reset dock to defaults" clears every pinned item with no undo, but previously fired on a single
+click. It now shows a `ContentDialog` ("This removes every pinned app, file, folder and link
+you've added... This can't be undone.") with **Cancel as the default button**, so an accidental
+`Enter` press can't wipe the dock. Per-item "Remove" was deliberately left as-is: removing one
+easily-re-added item mirrors low-stakes platform conventions (Start menu "Unpin," taskbar "Unpin
+from taskbar" don't confirm either); only the bulk, harder-to-recover Reset warranted a dialog.
+
+**#16 — Don't be needlessly always-on-top.** `SettingsWindow` and `AddNewWindow` both
+unconditionally set `IsAlwaysOnTop = true` — reasonable when the dock itself is topmost (snapped,
+or floating with the user's "Always on top" setting on) so these windows can float above it, but
+otherwise it meant a plain Settings/Add dialog would outrank *every other app on the machine*
+(full-screen apps, video calls) for no reason, contrary to general Windows desktop UX practice of
+reserving always-on-top for windows that truly need it. Both windows now compute
+`dock.Config.Snapped || dock.Config.AlwaysOnTop` at open time instead of hardcoding `true`.
+(This is a snapshot taken when the window opens, not a live binding — matching the previous
+always-`true` behavior's own timing, just conditioned correctly. Making it track a later toggle
+of "Always on top" while Settings is already open is a possible future refinement.)
+
+**#17 — Robust accessible names.** The five type-selector tiles in Add-to-Dock are
+`ToggleButton`s whose `Content` is an icon + `TextBlock` subtree rather than a plain string.
+WinUI's default name-from-content fallback generally handles this correctly, but it's an
+implicit, easy-to-regress behavior; each tile now sets `AutomationProperties.Name` explicitly
+("App", "File", "Folder", "Web Link", "Shortcut") and marks its icon/label children
+`AccessibilityView="Raw"` (matching the pattern Pass 1 used for dock items), so Narrator's
+announcement doesn't depend on inference.
+
+**#18–19. Keyboard access for dialog-style windows.**
+[Keyboard interactions](https://learn.microsoft.com/windows/apps/design/input/keyboard-interactions)
+guidance expects `Esc` to dismiss a dialog-like surface. A `Flyout` gets this for free
+(light-dismiss), but Add-to-Dock is a real top-level `Window`, which does not — it now has a
+`KeyboardAccelerator Key="Escape"` on its Cancel button. (An `Enter`-submits accelerator on "Add
+to Dock" was deliberately **not** added: with a focused Cancel button, a global `Key="Enter"`
+accelerator elsewhere risks double-invoking both the accelerator and the focused button's own
+native Enter-activation — an ambiguity not worth taking on unverified without a Windows build to
+test against.) Separately, the Rename/Edit-target flyouts' text boxes now commit on `Enter`
+(matching their button); `Escape` for those was **not** touched because `Flyout` already
+dismisses on `Escape` natively.
+
+**#20 — Project/app identity.** Added `<Product>`, `<Company>`, `<Authors>`, `<Description>`,
+and version properties to `Anchor.csproj` — shown in the exe's Details tab and Task Manager, and
+required verbatim-consistent metadata for a Store/installer submission (see
+`docs/microsoft-store-deployment.md`). This was a **partial** fix for recommendation #13 at the
+time: the app still had no `<ApplicationIcon>` / `.ico` asset, since that needed a source image to
+generate the icon from. Closed in full in Pass 3 below once one existed.
+
+### 21. Test coverage added
+
+The repository had **no automated tests at all**. Added `tests/Anchor.Tests/` (referenced from
+`Anchor.slnx`), covering the parts of the app that are pure logic with no live shell/network/
+registry/XAML-tree dependency:
+
+- `Models/DockItemTests.cs` — `INotifyPropertyChanged` firing, the `Kind → Glyph` mapping, the
+  `IconImage`-null → glyph-visible / image-hidden visibility contract, `IsSeparator`, `Id`
+  uniqueness, and property defaults.
+- `Models/DockConfigTests.cs` — default settings values (what a first-run dock starts with).
+- `Services/DockItemFactoryTests.cs` — `Classify()` (folder / http(s) / launchable-extension /
+  generic-file branches) and `SuggestName()` (URL host, path-based name, trailing-separator
+  trimming).
+
+**Deliberately not covered**, and why: `IconService` (shell thumbnails + a real HTTP favicon
+fetch), `Launcher` (`ShellExecute`), `WindowChrome`/`NativeMethods` (Win32/DWM interop),
+`StartupService` (the real per-user registry `Run` key), and `DockStore` (real `%AppData%` I/O)
+are integration-shaped — they talk to real OS/network resources and the app currently has no
+seams (no injectable filesystem/registry/HTTP abstraction) to fake them out. `DockWindow`,
+`SettingsWindow`, and `AddNewWindow` are UI classes that need a live `Application` + window +
+dispatcher to construct at all, so interaction behavior (drag/reorder, auto-hide, snap, the
+dialogs above) is still verified only by manual testing, per the README's "Using it" section.
+Introducing DI seams for the OS-facing services so they *can* be unit-tested (e.g. an
+`IFileSystem`/`IShellLauncher` abstraction) would be a reasonable next step but is a larger
+refactor than this review pass, and is called out here as scope for a follow-up rather than done
+speculatively.
+
+**Not verified by actually building**: like Pass 1, this was written without access to a Windows
+/ `dotnet` toolchain (this environment has neither), so the test project's configuration and the
+tests themselves have been checked carefully by hand but not compiled or run. Build and run
+`dotnet test Anchor.slnx` (or `Test Explorer` in Visual Studio) on Windows before relying on this
+as a regression gate.
+
+### 22–23. Recommendations (not implemented here)
+
+**#22 — True radio-group semantics for the type selector — Medium priority.** Add-to-Dock's
+"What are you adding?" tiles are five independently-toggled `ToggleButton`s with hand-rolled
+mutual-exclusion logic (`SelectType` unchecks the other four). Narrator therefore announces each
+as a standalone toggle ("App, toggle button, on") rather than as a member of a group ("App, 1 of
+5"), and there's no `RadioButtons`/`ListView SelectionMode="Single"` selection pattern backing it.
+The Fluent-correct control for "choose exactly one from a small set"
+([Radio buttons](https://learn.microsoft.com/windows/apps/design/controls/radio-button)) is
+`RadioButtons`, which can host arbitrary item content (including an icon+label tile) via a custom
+`ItemTemplate`/style. Left as a recommendation rather than done here because it's a real
+structural/visual change to a working, already-reasonably-accessible control (#17 above) that
+should be verified interactively on Windows, not guessed at blind.
+
+**#23 — Consider a lightweight undo affordance for "Remove" — Low priority.** Per-item removal
+(context-menu "Remove", Settings Apps-list trash button) is immediate with no confirmation or
+undo, relying only on the tooltip/accessible name to convey what will happen. This matches
+platform convention closely enough that it wasn't escalated to a confirmation dialog (see #15),
+but a `Snackbar`/`InfoBar`-style "Removed 'X' — Undo" affordance for a few seconds after removal
+would be a nice, low-risk polish item consistent with how Windows itself softens single-item
+removals (e.g. Outlook's "Message moved. Undo").
 
 ---
 
@@ -197,3 +332,18 @@ properties and future packaging, not the dock UI.)
   surface, and is also needed here so the content island receives pointer input.
 - **Tooltips & command affordances.** Every actionable element has a tooltip; menu commands that
   open a dialog use the "…" ellipsis.
+
+---
+
+## Pass 3 (2026-07-25) — Anchor rebrand + app icon
+
+The project was renamed from DockGx to **Anchor** (namespaces, assembly, AppData/registry/log
+identifiers, project and solution file names) and given a real source icon (`docs/anchor.png`).
+
+**Recommendation #13 — App icon — closed.** A multi-resolution `.ico` (16–256 px) generated from
+`docs/anchor.png` is now wired up via `<ApplicationIcon>Assets\Anchor.ico</ApplicationIcon>` in
+`Anchor.csproj`; the built `Anchor.exe` carries a real icon in Explorer, the taskbar, and Alt-Tab.
+The same source also produced the Microsoft Store MSIX tile/logo set (`src/Anchor/Images/`) — see
+`docs/microsoft-store-deployment.md`. Row 13 and #20 in the tables above are now fully **Fixed**;
+the only remaining identity gap is Partner Center's actual publisher identity, which is an account
+detail, not a code change.
