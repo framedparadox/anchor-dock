@@ -33,18 +33,24 @@ public sealed partial class AddNewWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(_hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
 
-        Title = "Add to Dock";
+        Title = Loc.Get("Add.Title");
         SystemBackdrop = new MicaBackdrop();
 
-        // Match the dock's chosen Light/Dark/System theme so this window reads the same, and keep
-        // the caption buttons in step if the OS theme changes while System mode is on.
-        ApplyTheme(dock.Config.Theme);
-        RootGrid.ActualThemeChanged += (_, _) => ApplyCaptionButtonTheme();
-
         // Extend the Mica backdrop under the caption so the title bar matches a native Windows 11
-        // window instead of showing an opaque strip.
+        // window instead of showing an opaque strip. Must happen before the chrome theming below:
+        // ExtendsContentIntoTitleBar re-extends the DWM frame into the client area, which resets
+        // any border color already applied — set it any later and HideWindowBorder's effect
+        // gets silently clobbered, leaving the default rim visible along the top edge.
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+
+        // Match the dock's chosen Light/Dark/System theme so this window reads the same, and keep
+        // the caption buttons and window frame in step if the OS theme changes while System mode
+        // is on.
+        ApplyTheme(dock.Config.Theme);
+        RootGrid.ActualThemeChanged += (_, _) => ApplyChromeTheme();
+        // Re-assert on activation: DWM otherwise restores its default rim on some state changes.
+        Activated += (_, _) => ApplyChromeTheme();
 
         if (_appWindow.Presenter is OverlappedPresenter p)
         {
@@ -58,7 +64,8 @@ public sealed partial class AddNewWindow : Window
         }
         _appWindow.IsShownInSwitchers = true;
 
-        WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 600, 560);
+        // Wide enough for the five type tiles at their translated widths (see AddNewWindow.xaml).
+        WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 640, 580);
         WindowChrome.CenterOnCursor(_appWindow, windowId);
 
         // Track manual edits to the name so an auto-suggested name doesn't clobber user input.
@@ -72,15 +79,25 @@ public sealed partial class AddNewWindow : Window
     }
 
     /// <summary>Applies the given app theme to this window's root (called on open and whenever
-    /// the choice changes while this window is open), and re-themes the caption buttons to match.</summary>
+    /// the choice changes while this window is open), and re-themes the chrome to match.</summary>
     internal void ApplyTheme(DockTheme theme)
     {
         RootGrid.RequestedTheme = DockWindow.ResolveTheme(theme);
-        ApplyCaptionButtonTheme();
+        ApplyChromeTheme();
     }
 
-    private void ApplyCaptionButtonTheme() =>
-        WindowChrome.SetTitleBarTheme(_appWindow, dark: RootGrid.ActualTheme != ElementTheme.Light);
+    /// <summary>
+    /// Tracks the caption buttons to the effective theme, and hides the DWM window rim by painting
+    /// it this theme's surface color — this window extends its content into the title bar, so the
+    /// rim survives only along the top edge, where anything that doesn't match the surface reads
+    /// as a stray line above the title bar (see <see cref="WindowChrome.HideWindowBorder"/>).
+    /// </summary>
+    private void ApplyChromeTheme()
+    {
+        bool dark = RootGrid.ActualTheme != ElementTheme.Light;
+        WindowChrome.SetTitleBarTheme(_appWindow, dark);
+        WindowChrome.HideWindowBorder(_hwnd, dark);
+    }
 
     // ---- Type selection ----------------------------------------------------
 
@@ -109,19 +126,18 @@ public sealed partial class AddNewWindow : Window
         BrowseButton.Visibility = canBrowse ? Visibility.Visible : Visibility.Collapsed;
         ArgsPanel.Visibility = kind == AddKind.App ? Visibility.Visible : Visibility.Collapsed;
 
-        (TargetLabel.Text, TargetBox.PlaceholderText, TargetHint.Text) = kind switch
+        // Label / placeholder / hint all come from one "Add.<Kind>.*" family in the string table.
+        string prefix = "Add." + kind switch
         {
-            AddKind.App => ("Application", "Path to an .exe or .lnk",
-                "Pick an application to launch. Shortcuts (.lnk) are resolved automatically."),
-            AddKind.File => ("File", "Path to a file",
-                "Any file — it opens with its default app."),
-            AddKind.Folder => ("Folder", "Path to a folder",
-                "Opens the folder in File Explorer."),
-            AddKind.Link => ("Web address", "https://example.com",
-                "Opens in your default browser. https:// is added if you omit it."),
-            _ => ("Target or command", "e.g. ms-settings: or shell:RecycleBinFolder",
-                "Any path, URI or shell command. The type is detected automatically."),
+            AddKind.App => "App",
+            AddKind.File => "File",
+            AddKind.Folder => "Folder",
+            AddKind.Link => "Link",
+            _ => "Shortcut",
         };
+        TargetLabel.Text = Loc.Get(prefix + ".Label");
+        TargetBox.PlaceholderText = Loc.Get(prefix + ".Placeholder");
+        TargetHint.Text = Loc.Get(prefix + ".Hint");
 
         HideError();
     }
@@ -165,7 +181,7 @@ public sealed partial class AddNewWindow : Window
         }
         catch (Exception ex)
         {
-            ShowError("Couldn't open the picker: " + ex.Message);
+            ShowError(Loc.Format("Add.Error.Picker", ex.Message));
         }
     }
 
@@ -192,7 +208,7 @@ public sealed partial class AddNewWindow : Window
         var target = TargetBox.Text.Trim();
         if (target.Length == 0)
         {
-            ShowError("Enter or choose a target first.");
+            ShowError(Loc.Get("Add.Error.NoTarget"));
             return;
         }
 
@@ -217,8 +233,7 @@ public sealed partial class AddNewWindow : Window
                 if (!Uri.TryCreate(target, UriKind.Absolute, out var linkUri) ||
                     (linkUri.Scheme != Uri.UriSchemeHttp && linkUri.Scheme != Uri.UriSchemeHttps))
                 {
-                    ShowError("Enter a valid web address, e.g. https://example.com. "
-                            + "For other URIs or commands, use the Shortcut type.");
+                    ShowError(Loc.Get("Add.Error.BadUrl"));
                     return;
                 }
                 target = linkUri.ToString();

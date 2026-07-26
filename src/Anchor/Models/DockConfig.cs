@@ -73,6 +73,24 @@ public sealed class DockConfig
     public bool VerticalWhenSideSnapped { get; set; }
 
     /// <summary>
+    /// The language Anchor's own UI uses, as a BCP-47 code from <c>Loc.Available</c> (e.g.
+    /// <c>"de"</c>, <c>"zh-Hans"</c>). Empty — the default — follows the Windows display language.
+    /// </summary>
+    public string Language { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The system-wide shortcut that brings the dock to the front, in the readable form
+    /// <c>HotkeyGesture</c> parses (e.g. <c>"Ctrl+Alt+A"</c>). Empty means no shortcut. Kept as a
+    /// string so a hand-edited config stays legible, and so an unparseable value degrades to
+    /// "no shortcut" instead of failing to load the whole config.
+    /// </summary>
+    public string Hotkey { get; set; } = HotkeyGesture.Default.ToString();
+
+    /// <summary>Whether <see cref="Hotkey"/> is registered with Windows. Lets the user switch the
+    /// shortcut off without losing the combination they had chosen.</summary>
+    public bool HotkeyEnabled { get; set; } = true;
+
+    /// <summary>
     /// True once the default items have been seeded (first run). Prevents re-seeding after the
     /// user has intentionally emptied the dock — an empty dock then persists and shows the
     /// "+ Add New" affordance instead of springing the defaults back.

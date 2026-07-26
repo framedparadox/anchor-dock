@@ -41,8 +41,50 @@ public partial class App : Application
             return;
         }
 
+        // Load the string table before any window is constructed: XAML resolves its
+        // {loc:Localize} bindings as it loads, so the language has to be settled first.
+        Loc.Initialize(DockStore.Load().Language);
+
         Dock = new DockWindow();
         Dock.Activate();
+    }
+
+    /// <summary>
+    /// Relaunches Anchor and exits this instance — the way a language change is applied to
+    /// windows (the dock strip above all) whose XAML has already been loaded. The instance mutex
+    /// is released first so the replacement process doesn't mistake us for a second launch and
+    /// bow out.
+    /// </summary>
+    public static void Restart()
+    {
+        var exe = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(exe))
+        {
+            Diag.Log("Restart: no process path — staying put.");
+            return;
+        }
+
+        try
+        {
+            // Drop the tray icon and the global shortcut before the replacement starts, so the
+            // two processes never briefly show two icons or fight over the same hotkey.
+            Dock?.ReleaseShellIntegration();
+            _instanceMutex?.Dispose();
+            _instanceMutex = null;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            // Failed to spawn the replacement: better to keep running (with the old language)
+            // than to exit and leave the user with no dock at all.
+            Diag.Log("Restart failed: " + ex.Message);
+            return;
+        }
+
+        Current.Exit();
     }
 
     /// <summary>

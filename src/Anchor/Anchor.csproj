@@ -69,4 +69,10 @@
     <Content Include="Images\**\*.png" />
   </ItemGroup>
 
+  <!-- UI translations. Embedded (not Content) so a single-file publish carries every language
+       with no loose files to lose; Services/Loc.cs reads them back by resource name. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Anchor.Strings.%(Filename).json" />
+  </ItemGroup>
+
 </Project>

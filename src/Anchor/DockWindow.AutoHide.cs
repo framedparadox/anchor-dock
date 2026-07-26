@@ -159,6 +159,26 @@ public sealed partial class DockWindow
             UpdateNotch();
     }
 
+    /// <summary>
+    /// Pulls the dock fully into view right now — used when it is summoned from the tray or by
+    /// the global shortcut. If it can auto-hide it slides back out and gets the usual settle
+    /// grace period (so it doesn't tuck away again the instant the cursor is elsewhere);
+    /// otherwise it is simply snapped back to its shown position.
+    /// </summary>
+    partial void RevealNow()
+    {
+        if (CanHide)
+        {
+            EnsureStarted();
+            ArmSettleDelay();
+        }
+        else
+        {
+            _currentCoord = ShownCoord;
+            MoveWindowCoord(ShownCoord);
+        }
+    }
+
     partial void PauseAutoHideForDrag()
     {
         _pollTimer?.Stop();
