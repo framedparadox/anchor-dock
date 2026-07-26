@@ -113,6 +113,11 @@ public sealed partial class DockWindow : Window
             new PointerEventHandler(Dock_PointerPressed), handledEventsToo: true);
         RootGrid.Loaded += (_, _) => QueueRelayout();
 
+        // The dock is a tool window with no taskbar button, so the tray icon is the only always-
+        // available handle on a running Anchor — and, with the global shortcut, the way back to a
+        // dock that is tucked behind a screen edge.
+        SetUpTrayAndHotkey();
+
         if (firstRun)
             SaveConfig(); // materialize the default dock on disk
         Closed += (_, _) =>
@@ -121,6 +126,7 @@ public sealed partial class DockWindow : Window
             _slideTimer?.Stop();
             _dragTimer?.Stop();
             _backdrop?.Dispose();
+            ReleaseShellIntegration();
         };
 
         // Modest initial size so the first frame isn't full-screen before relayout.
@@ -198,7 +204,7 @@ public sealed partial class DockWindow : Window
             e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
             if (e.DragUIOverride is { } ui)
             {
-                ui.Caption = "Add to dock";
+                ui.Caption = Loc.Get("Dock.DropCaption");
                 ui.IsCaptionVisible = true;
                 ui.IsGlyphVisible = true;
             }
@@ -369,7 +375,12 @@ public sealed partial class DockWindow : Window
     internal const double DividerLength = 24; // Divider Rectangle length (long side)
     internal const double StripPadX = 8;      // DockStrip Padding (left/right)
     internal const double StripPadY = 6;      // DockStrip Padding (top/bottom)
-    internal const double AddNewWidth = 116;  // "+ Add New" empty-state pill width
+    internal const double AddNewWidth = 116;  // "+ Add New" empty-state pill: minimum width
+
+    // The pill's actual width. Measured rather than fixed at AddNewWidth because its caption is
+    // translated, and "Hinzufügen" or "डॉक में जोड़ें" is wider than the English "Add New" that
+    // constant was sized for — a fixed width would clip them.
+    private double _addNewWidth = AddNewWidth;
 
     /// <summary>
     /// True when the dock should lay out vertically: the "vertical when side-snapped" option is
@@ -402,9 +413,18 @@ public sealed partial class DockWindow : Window
     private void UpdateEmptyState()
     {
         bool empty = Items.Count == 0;
-        AddNewButton.Width = AddNewWidth;
         AddNewButton.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
         ItemsHost.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
+        if (!empty)
+            return;
+
+        // Measure at natural size (a Collapsed element measures to zero, hence the early return
+        // above), then pin the pill to that so the window sizing below has an exact number.
+        AddNewButton.Width = double.NaN;
+        AddNewButton.Measure(new Windows.Foundation.Size(
+            double.PositiveInfinity, double.PositiveInfinity));
+        _addNewWidth = Math.Max(AddNewWidth, Math.Ceiling(AddNewButton.DesiredSize.Width));
+        AddNewButton.Width = _addNewWidth;
     }
 
     private void UpdateSizeAndPosition()
@@ -422,7 +442,7 @@ public sealed partial class DockWindow : Window
         // Along the strip's flow: [items OR add-new] [gap] [divider] [gap] [gear cell].
         // Across it: a single cell. Which of these is the window's width vs. height depends on
         // whether the dock is laid out vertically.
-        double coreMain = empty ? AddNewWidth : n * CellSize + (n - 1) * CellSpacing;
+        double coreMain = empty ? _addNewWidth : n * CellSize + (n - 1) * CellSpacing;
         double contentMain = coreMain + CellSpacing + DividerWidth + CellSpacing + CellSize;
         double dipW = vertical ? CellSize + 2 * StripPadX : contentMain + 2 * StripPadX;
         double dipH = vertical ? contentMain + 2 * StripPadY : CellSize + 2 * StripPadY;
@@ -541,22 +561,22 @@ public sealed partial class DockWindow : Window
         int index = Items.IndexOf(item);
         var menu = new MenuFlyout();
 
-        menu.Items.Add(Mi("Open", () => Launcher.Launch(item)));
-        menu.Items.Add(Mi("Edit…", () => ShowEditFlyout(target, item)));
-        menu.Items.Add(Mi("Rename…", () => ShowRenameFlyout(target, item)));
+        menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => Launcher.Launch(item)));
+        menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditFlyout(target, item)));
+        menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameFlyout(target, item)));
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        var moveLeft = Mi("Move left", () => MoveItem(item, -1));
+        var moveLeft = Mi(Loc.Get("Menu.MoveLeft"), () => MoveItem(item, -1));
         moveLeft.IsEnabled = index > 0;
         menu.Items.Add(moveLeft);
 
-        var moveRight = Mi("Move right", () => MoveItem(item, +1));
+        var moveRight = Mi(Loc.Get("Menu.MoveRight"), () => MoveItem(item, +1));
         moveRight.IsEnabled = index >= 0 && index < Items.Count - 1;
         menu.Items.Add(moveRight);
 
         menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(Mi("Hide", () => SetItemHidden(item, true)));
-        menu.Items.Add(Mi("Remove", () => RemoveDockItem(item)));
+        menu.Items.Add(Mi(Loc.Get("Menu.Hide"), () => SetItemHidden(item, true)));
+        menu.Items.Add(Mi(Loc.Get("Menu.Remove"), () => RemoveDockItem(item)));
 
         if (e.TryGetPosition(target, out var pos))
             menu.ShowAt(target, pos);
@@ -587,9 +607,13 @@ public sealed partial class DockWindow : Window
     private void ShowRenameFlyout(FrameworkElement target, DockItem item)
     {
         var box = new TextBox { Text = item.DisplayName, Width = 240 };
-        var ok = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Right };
+        var ok = new Button
+        {
+            Content = Loc.Get("Flyout.Rename"),
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
         var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(FlyoutHeader("Rename"));
+        panel.Children.Add(FlyoutHeader(Loc.Get("Flyout.Rename")));
         panel.Children.Add(box);
         panel.Children.Add(ok);
 
@@ -627,9 +651,13 @@ public sealed partial class DockWindow : Window
     private void ShowEditFlyout(FrameworkElement target, DockItem item)
     {
         var box = new TextBox { Text = item.Target, Width = 320 };
-        var ok = new Button { Content = "Save", HorizontalAlignment = HorizontalAlignment.Right };
+        var ok = new Button
+        {
+            Content = Loc.Get("Common.Save"),
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
         var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(FlyoutHeader("Edit target"));
+        panel.Children.Add(FlyoutHeader(Loc.Get("Flyout.EditTarget")));
         panel.Children.Add(box);
         panel.Children.Add(ok);
 
@@ -688,22 +716,22 @@ public sealed partial class DockWindow : Window
     {
         var menu = new MenuFlyout();
 
-        menu.Items.Add(MenuItem("Add New…", OpenAddNew));
-        menu.Items.Add(MenuItem("Settings…", OpenSettings));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.AddNew"), OpenAddNew));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.Settings"), OpenSettings));
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        var snap = new MenuFlyoutSubItem { Text = "Snap to edge" };
-        snap.Items.Add(SnapItem("Bottom", DockEdge.Bottom));
-        snap.Items.Add(SnapItem("Top", DockEdge.Top));
-        snap.Items.Add(SnapItem("Left", DockEdge.Left));
-        snap.Items.Add(SnapItem("Right", DockEdge.Right));
+        var snap = new MenuFlyoutSubItem { Text = Loc.Get("Menu.SnapToEdge") };
+        snap.Items.Add(SnapItem(Loc.Get("Edge.Bottom"), DockEdge.Bottom));
+        snap.Items.Add(SnapItem(Loc.Get("Edge.Top"), DockEdge.Top));
+        snap.Items.Add(SnapItem(Loc.Get("Edge.Left"), DockEdge.Left));
+        snap.Items.Add(SnapItem(Loc.Get("Edge.Right"), DockEdge.Right));
         menu.Items.Add(snap);
-        menu.Items.Add(MenuItem("Float (unsnap)", () => SetSnap(null)));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.Float"), () => SetSnap(null)));
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        menu.Items.Add(MenuItem("Quit Anchor", () => Application.Current.Exit()));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.Quit"), Quit));
 
         menu.ShowAt(target, at);
 
@@ -820,7 +848,7 @@ public sealed partial class DockWindow : Window
 
     /// <summary>Re-colors the rounded DWM border to blend into the current (light or dark) glass.</summary>
     private void ApplyWindowBorder() =>
-        WindowChrome.RemoveWindowBorder(_hwnd, dark: RootGrid.ActualTheme != ElementTheme.Light);
+        WindowChrome.HideWindowBorder(_hwnd, dark: RootGrid.ActualTheme != ElementTheme.Light);
 
     /// <summary>Persists the chosen theme and applies it to the dock and any open child windows.</summary>
     public void SetTheme(DockTheme theme)

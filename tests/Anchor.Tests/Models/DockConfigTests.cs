@@ -28,6 +28,42 @@ public class DockConfigTests
         Assert.Equal(DockTheme.Dark, cfg.Theme);
         Assert.False(cfg.VerticalWhenSideSnapped);
         Assert.False(cfg.Seeded);
+        Assert.Equal(string.Empty, cfg.Language); // follow the Windows display language
+        Assert.True(cfg.HotkeyEnabled);
+        Assert.Equal("Ctrl+Alt+A", cfg.Hotkey);
+    }
+
+    [Fact]
+    public void Config_saved_before_the_language_and_hotkey_options_still_loads()
+    {
+        // Upgrading users have a config file with neither field. The language must stay "follow
+        // Windows" and — since JSON omission means "take the property initializer" — the default
+        // shortcut comes along, so the feature is on for them without a re-save.
+        var cfg = JsonSerializer.Deserialize<DockConfig>("{ \"Seeded\": true }", Options);
+
+        Assert.NotNull(cfg);
+        Assert.Equal(string.Empty, cfg!.Language);
+        Assert.Equal("Ctrl+Alt+A", cfg.Hotkey);
+        Assert.True(cfg.HotkeyEnabled);
+    }
+
+    [Fact]
+    public void The_default_hotkey_string_is_one_the_gesture_parser_accepts()
+    {
+        // DockConfig stores the shortcut as text; if the two ever drift, Anchor would ship with
+        // a shortcut that silently fails to register.
+        Assert.True(HotkeyGesture.TryParse(new DockConfig().Hotkey, out var gesture));
+        Assert.True(gesture.IsValid);
+    }
+
+    [Fact]
+    public void An_unparseable_hotkey_does_not_stop_the_config_loading()
+    {
+        // Hand-edited nonsense degrades to "no shortcut", not to a lost dock.
+        var cfg = JsonSerializer.Deserialize<DockConfig>("{ \"Hotkey\": \"Ctrl+Nonsense\" }", Options);
+
+        Assert.NotNull(cfg);
+        Assert.False(HotkeyGesture.TryParse(cfg!.Hotkey, out _));
     }
 
     [Fact]

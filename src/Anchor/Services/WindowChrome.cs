@@ -63,6 +63,21 @@ public static class WindowChrome
         appWindow.TitleBar.PreferredTheme = dark ? TitleBarTheme.Dark : TitleBarTheme.Light;
     }
 
+    /// <summary>
+    /// Tells DWM which theme to draw the window's non-client frame for.
+    /// <para>
+    /// This is a separate thing from <see cref="SetTitleBarTheme"/>, which only colors the caption
+    /// buttons. Note it does <b>not</b> govern the 1px window rim — that is
+    /// <see cref="HideWindowBorder"/>.
+    /// </para>
+    /// </summary>
+    public static void SetFrameTheme(nint hwnd, bool dark)
+    {
+        int immersiveDark = dark ? 1 : 0;
+        NativeMethods.DwmSetWindowAttribute(
+            hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref immersiveDark, sizeof(int));
+    }
+
     /// <summary>Applies the Windows 11 rounded-corner treatment to the window.</summary>
     public static void SetRoundedCorners(nint hwnd, bool small = false)
     {
@@ -71,23 +86,53 @@ public static class WindowChrome
             hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
     }
 
-    /// <summary>
-    /// Removes the DWM border rim from the rounded backdrop window. By default DWM strokes a
-    /// 1-2px border whose color contrasts with the translucent glass (a light line in dark mode,
-    /// a dark line in light mode) — reading as an unwanted rectangle around the dock. Setting the
-    /// border to the COLOR_NONE sentinel suppresses it entirely in every theme, leaving just the
-    /// rounded glass. The immersive-dark-mode flag is still tracked to the theme so DWM renders
-    /// the window edge / corner anti-aliasing for the right background.
-    /// </summary>
-    public static void RemoveWindowBorder(nint hwnd, bool dark)
-    {
-        int immersiveDark = dark ? 1 : 0;
-        NativeMethods.DwmSetWindowAttribute(
-            hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref immersiveDark, sizeof(int));
+    // The window surface each theme's rim is painted to match, as COLORREFs (0x00BBGGRR). These
+    // are WinUI's SolidBackgroundFillColorBase — the color Mica is built on and falls back to —
+    // so the rim reads as more window rather than as an edge drawn around it.
+    private const int SurfaceLight = 0x00F3F3F3;
+    private const int SurfaceDark = 0x00202020;
 
-        int noBorder = unchecked((int)NativeMethods.DWMWA_COLOR_NONE);
+    /// <summary>
+    /// Makes the DWM window rim invisible by painting it the window's own surface color for the
+    /// current theme. The immersive-dark-mode flag is tracked to the theme too (see
+    /// <see cref="SetFrameTheme"/>) so DWM renders the window edge / corner anti-aliasing for the
+    /// right background.
+    /// <para>
+    /// Used by every Anchor window. On the dock it hides a rim that would otherwise read as a
+    /// rectangle drawn around the rounded glass strip. On the Mica dialogs it hides the one piece
+    /// of rim those windows still show: they extend their content into the title bar, so the top
+    /// edge is all that is left of the frame, and anything that doesn't match the surface reads as
+    /// a stray line above the title bar.
+    /// </para>
+    /// <para>
+    /// Painting it is the only option — a rim of zero width is not something DWM offers.
+    /// <c>DWMWA_VISIBLE_FRAME_BORDER_THICKNESS</c> is retrieve-only and rejects a set with
+    /// <c>E_INVALIDARG</c>, and the <c>DWMWA_COLOR_NONE</c> sentinel does not mean "draw nothing"
+    /// here: on a window whose content is extended into the title bar it renders the top edge as
+    /// flat white or flat black, following the immersive-dark-mode flag. That is worse than the
+    /// default rim, and it is what put a hard white line above a light window and a hard black one
+    /// above a dark window — the "residual border" this replaces. Measured, not inferred: with the
+    /// sentinel the top row of the frame comes back <c>#FFFFFF</c> in light and <c>#000000</c> in
+    /// dark, against Mica surfaces of roughly <c>#F9F0F4</c> and <c>#271C22</c>.
+    /// </para>
+    /// <para>
+    /// An explicit color is also the only one of the two that survives a theme switch: DWM
+    /// re-composes the frame for it immediately, with no move, resize or re-activation needed and
+    /// nothing left over from the previous theme.
+    /// </para>
+    /// <para>
+    /// A flat COLORREF is all the attribute accepts, while Mica is a blur of the wallpaper and so
+    /// varies across the width of the window. The match is therefore very close rather than exact
+    /// — single digits per channel, against the tens-to-hundreds that made the old rim obvious.
+    /// </para>
+    /// </summary>
+    public static void HideWindowBorder(nint hwnd, bool dark)
+    {
+        SetFrameTheme(hwnd, dark);
+
+        int surface = dark ? SurfaceDark : SurfaceLight;
         NativeMethods.DwmSetWindowAttribute(
-            hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref noBorder, sizeof(int));
+            hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref surface, sizeof(int));
     }
 
     /// <summary>
