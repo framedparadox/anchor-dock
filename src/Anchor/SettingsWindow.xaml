@@ -307,18 +307,18 @@
                                 <TextBlock TextWrapping="Wrap"
                                            Style="{ThemeResource CaptionTextBlockStyle}"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           Text="Developed by framedparadox. Anchor is free and open source under the MIT License, and bug reports and feature requests are welcome on GitHub." />
+                                           Text="Developed by ajaykontham. Anchor is free and open source under the MIT License, and bug reports and feature requests are welcome on GitHub." />
 
                                 <!-- HyperlinkButton opens the URI with the default browser; no
                                      code-behind needed. Margin trims the button's built-in padding
                                      so the links line up with the text above. -->
                                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="-12,0,0,0">
                                     <HyperlinkButton Content="Source code"
-                                                     NavigateUri="https://github.com/framedparadox/dock-gx" />
+                                                     NavigateUri="https://github.com/framedparadox/anchor-dock" />
                                     <HyperlinkButton Content="Report an issue"
-                                                     NavigateUri="https://github.com/framedparadox/dock-gx/issues" />
+                                                     NavigateUri="https://github.com/framedparadox/anchor-dock/issues" />
                                     <HyperlinkButton Content="License"
-                                                     NavigateUri="https://github.com/framedparadox/dock-gx/blob/main/LICENSE" />
+                                                     NavigateUri="https://github.com/framedparadox/anchor-dock/blob/main/LICENSE" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>

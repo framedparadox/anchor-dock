@@ -7,9 +7,10 @@ certification review — you submit a manifest (plain YAML) to Microsoft's publi
 yourself (a GitHub Release is the usual choice).
 
 > TL;DR: manifest templates already exist in this repo under
-> `packaging/winget/manifests/f/framedparadox/Anchor/1.0.0/`, referencing
-> `framedparadox.Anchor` as the package identifier. What's **left**: cut a real GitHub Release with
-> `scripts/package-release.ps1`'s zip, drop the real URL/SHA256 into the installer manifest, and
+> `packaging/winget/manifests/a/ajaykontham/Anchor/1.0.0/`, referencing
+> `ajaykontham.Anchor` as the package identifier. The `InstallerSha256` is already filled in for
+> `dist\Anchor-win-x64-1.0.0.zip` (built by `scripts/package-release.ps1`). What's **left**: cut a
+> real GitHub Release, drop that zip in as the asset and its URL into the installer manifest, and
 > open a PR against `microsoft/winget-pkgs`.
 
 ---
@@ -43,43 +44,46 @@ yourself (a GitHub Release is the usual choice).
    This publishes a self-contained Release build and writes
    `dist\Anchor-win-x64-1.0.0.zip`, printing its **SHA256**.
 2. Create a GitHub Release (tag `v1.0.0` to match `PackageVersion`) on
-   `https://github.com/framedparadox/dock-gx/releases/new` and attach the zip as a release asset.
+   `https://github.com/framedparadox/anchor-dock/releases/new` and attach the zip as a release asset.
 3. Copy the asset's download URL — GitHub Releases URLs are stable and follow the pattern
    `https://github.com/<owner>/<repo>/releases/download/<tag>/<asset-file-name>`.
 
 ## 4. Fill in the manifest templates
 
-Edit `packaging/winget/manifests/f/framedparadox/Anchor/1.0.0/framedparadox.Anchor.installer.yaml`:
+Edit `packaging/winget/manifests/a/ajaykontham/Anchor/1.0.0/ajaykontham.Anchor.installer.yaml`:
 
 - `InstallerUrl` → the real Release asset URL from §3.
-- `InstallerSha256` → the SHA256 the packaging script printed (uppercase or lowercase both work).
+- `InstallerSha256` → already set to the hash of `dist\Anchor-win-x64-1.0.0.zip`; re-run the
+  packaging script and update it only if you rebuild the zip.
 
-The other two manifest files
-(`framedparadox.Anchor.yaml`, `framedparadox.Anchor.locale.en-US.yaml`) need no changes for a
-first submission — review them once for accuracy (description, tags, URLs) since they're your
-Store-facing copy on `winget show`.
+The other two manifest files (`ajaykontham.Anchor.yaml`, `ajaykontham.Anchor.locale.en-US.yaml`)
+already point their `PackageUrl` / `LicenseUrl` / support URLs at `github.com/framedparadox/anchor-dock`,
+the intended release repo — so they need no edits **once that repo exists** (the working remote is
+currently `framedparadox/dock-gx`; rename it to `anchor-dock` or create it, so these URLs and the
+`InstallerUrl` resolve). These are your Store-facing copy on `winget show`, and a `LicenseUrl` /
+`PackageUrl` that 404s fails validation.
 
-> **Renaming the publisher/package identifier:** the templates use `framedparadox.Anchor`
-> (`framedparadox` is this repo's current GitHub org/owner). If you publish under a different
-> GitHub handle or organization, rename the identifier throughout all three files *and* move the
-> folder to match winget-pkgs' required path convention:
-> `manifests/<lowercase-first-letter-of-publisher>/<Publisher>/<Package>/<Version>/`.
+> **Publisher/package identifier:** the manifests use `ajaykontham.Anchor`, so they live at
+> `manifests/a/ajaykontham/Anchor/1.0.0/` — winget-pkgs requires the folder to match the
+> identifier: `manifests/<lowercase-first-letter-of-publisher>/<Publisher>/<Package>/<Version>/`.
+> If you publish under a different publisher, rename the identifier in all three files, rename the
+> three files to `<Publisher>.Anchor.*.yaml`, and move the folder to match.
 
 ## 5. Validate locally, then submit
 
 ```powershell
 # From the repo root, on Windows with winget installed:
-winget validate packaging\winget\manifests\f\framedparadox\Anchor\1.0.0
+winget validate packaging\winget\manifests\a\ajaykontham\Anchor\1.0.0
 
 # Optional: actually install from the local manifest to smoke-test it end-to-end.
-winget install --manifest packaging\winget\manifests\f\framedparadox\Anchor\1.0.0
+winget install --manifest packaging\winget\manifests\a\ajaykontham\Anchor\1.0.0
 ```
 
 Once validation and the local install both work:
 
 1. Fork [`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs).
-2. Copy `packaging/winget/manifests/f/framedparadox/Anchor/1.0.0/` into the fork at the identical
-   path: `manifests/f/framedparadox/Anchor/1.0.0/`.
+2. Copy `packaging/winget/manifests/a/ajaykontham/Anchor/1.0.0/` into the fork at the identical
+   path: `manifests/a/ajaykontham/Anchor/1.0.0/`.
 3. Commit, push, and open a PR against `microsoft/winget-pkgs` (the repo's PR template and
    automated checks — `winget-manifest-verification`, install/uninstall testing in a sandbox —
    walk you through the rest). Or use `wingetcreate submit` to automate steps 1–3.
@@ -92,7 +96,7 @@ Once validation and the local install both work:
 2. `pwsh scripts/package-release.ps1 -Version 1.1.0`, publish a new GitHub Release, update
    `InstallerUrl`/`InstallerSha256`.
 3. `winget validate`, then a new PR to `winget-pkgs` (a new version folder, not an edit to
-   `1.0.0/`) — or `wingetcreate update framedparadox.Anchor -v 1.1.0 -u <url> -s <path>` to
+   `1.0.0/`) — or `wingetcreate update ajaykontham.Anchor -v 1.1.0 -u <url> -s <path>` to
    generate the bump automatically.
 
 ## 7. Alternative: ship the MSIX instead of a zip
@@ -107,7 +111,7 @@ cert, so a properly signed cert from a CA is friendlier). That trades the zip/po
 InstallerType: msix
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/framedparadox/dock-gx/releases/download/v1.0.0/Anchor_1.0.0.0_x64.msix
+    InstallerUrl: https://github.com/framedparadox/anchor-dock/releases/download/v1.0.0/Anchor_1.0.0.0_x64.msix
     InstallerSha256: <sha256 of the .msix>
     SignatureSha256: <sha256 of the certificate's public key, if signed — see winget-pkgs docs>
 ```
