@@ -176,10 +176,10 @@ public sealed class DockManager
     /// </summary>
     public DockWindow AddDock(int? displayIndex = null)
     {
-        var profile = new DockProfile
-        {
-            Name = Loc.Format("Docks.DefaultName", Config.Docks.Count + 1),
-        };
+        // Name is left empty rather than baked in here: LabelFor derives the positional fallback
+        // ("Dock 2") on demand, so it keeps renumbering correctly as other docks are added or
+        // removed. Stamping the computed name in now would freeze it as if the user had typed it.
+        var profile = new DockProfile();
         PlaceOnDisplay(profile, displayIndex ?? DisplayIndexUnderCursor());
 
         Config.Docks.Add(profile);
