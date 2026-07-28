@@ -9,9 +9,21 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Anchor.ico</ApplicationIcon>
 
-    <!-- WinUI apps cannot be AnyCPU; this machine is x64. -->
-    <Platforms>x64</Platforms>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- WinUI apps cannot be AnyCPU, so every build names an architecture. Pass
+         -p:Platform=ARM64 to build natively for Windows-on-ARM; x64 stays the default so an
+         un-parameterized `dotnet build` behaves exactly as it always has. The RID is derived
+         from the platform rather than hard-coded, so the two can never drift apart (a win-x64
+         RID under an ARM64 Platform silently produces an emulated binary).
+
+         It goes through AnchorArchitecture rather than reading $(Platform) directly because a
+         solution build passes Platform=AnyCPU as a *global* property, and a global property
+         cannot be overridden by a <Platform> element here — that route yields "win-anycpu" and
+         fails the build. Normalizing into our own property sidesteps that: ARM64 maps to arm64,
+         and anything else (x64, AnyCPU, unset) maps to x64. -->
+    <Platforms>x64;ARM64</Platforms>
+    <AnchorArchitecture Condition="'$(Platform)' == 'ARM64'">arm64</AnchorArchitecture>
+    <AnchorArchitecture Condition="'$(AnchorArchitecture)' == ''">x64</AnchorArchitecture>
+    <RuntimeIdentifier>win-$(AnchorArchitecture)</RuntimeIdentifier>
 
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
@@ -19,8 +31,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <!-- Unpackaged (no MSIX) so it runs like a normal desktop utility. -->
+    <!-- Unpackaged (no MSIX) so it runs like a normal desktop utility.
+         EnableMsixTooling is still required even unpackaged: it is what brings in the targets
+         that generate the app's resource index (Anchor.pri), which is where the compiled XAML
+         lives. Without it `dotnet build` still produced one but `dotnet publish` did not copy
+         it, so a published Anchor.exe died on its first window with
+         "Cannot locate resource from 'ms-appx:///DockWindow.xaml'". -->
     <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
     <!-- Self-contained so no separate Windows App Runtime install is required. -->
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
@@ -65,8 +83,12 @@
     <PackageReference Include="System.Drawing.Common" Version="10.0.10" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(StorePackage)' == 'true'">
-    <Content Include="Images\**\*.png" />
+  <!-- App logos. Needed by the MSIX manifest for its tiles, but also by the app itself: the
+       About page shows the real logo via ms-appx:///Images/…, which resolves out of the app
+       folder. Included unconditionally (it used to be Store-only) so an unpackaged build ships
+       them too — without them About rendered an empty 56px box. -->
+  <ItemGroup>
+    <Content Include="Images\**\*.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- UI translations. Embedded (not Content) so a single-file publish carries every language

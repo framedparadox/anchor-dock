@@ -136,6 +136,35 @@ public static class WindowChrome
     }
 
     /// <summary>
+    /// Paints the rim an explicit color, for a window whose surface the caller knows better than
+    /// this class does. Only the dock uses it.
+    /// <para>
+    /// <see cref="HideWindowBorder"/>'s constants are the right answer for a window whose surface
+    /// <em>is</em> the theme's surface color, which the Mica dialogs are. The dock is not: its
+    /// glass is translucent, so what it renders is its tint diluted by however much of the desktop
+    /// the frostiness setting lets through, and light mode's #F3F3F3 drew a hard white outline
+    /// around a dock that was actually rendering mid-grey. The dock therefore derives its own rim
+    /// from the recipe its backdrop is running (see <c>DockWindow.ApplyWindowBorder</c>).
+    /// </para>
+    /// <para>
+    /// And it must be <em>some</em> color: <c>DWMWA_COLOR_NONE</c> is no more "draw nothing" on the
+    /// dock than it is on the dialogs. Tried and measured on the dock specifically, on the theory
+    /// that <see cref="StripFrame"/> leaves no frame for the sentinel to paint — it removes the
+    /// left, right and bottom edges and then draws the top one flat white in light mode, which is
+    /// the same failure the dialogs saw and is worse than a rim that merely doesn't match.
+    /// </para>
+    /// </summary>
+    public static void SetWindowBorderColor(nint hwnd, bool dark, Windows.UI.Color color)
+    {
+        SetFrameTheme(hwnd, dark);
+
+        // DWM wants a COLORREF: 0x00BBGGRR, the opposite byte order from the Color we are handed.
+        int colorRef = color.R | (color.G << 8) | (color.B << 16);
+        NativeMethods.DwmSetWindowAttribute(
+            hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref colorRef, sizeof(int));
+    }
+
+    /// <summary>
     /// Strips the non-client window frame (caption / resize border) so the client area — and
     /// our glass — extends all the way to the window edge. This removes the ~3px frame whose
     /// inner highlight shows up as a white line around a rounded backdrop window.

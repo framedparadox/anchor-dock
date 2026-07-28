@@ -44,7 +44,7 @@ public sealed partial class DockWindow
     private const double NotchThickness = 10;      // the tab's short side (into the screen)
 
     // Whether snapped edges actually hide (vs. staying pinned flush and visible).
-    private bool AutoHideEnabled => _config.Snapped && _config.AutoHide;
+    private bool AutoHideEnabled => _profile.Snapped && _profile.AutoHide;
 
     // True when another monitor sits immediately beyond the snapped edge (an interior / shared
     // edge). Recomputed on each relayout so it costs nothing per poll tick.
@@ -62,7 +62,7 @@ public sealed partial class DockWindow
 
         int midX = _shownRect.X + _shownRect.Width / 2;
         int midY = _shownRect.Y + _shownRect.Height / 2;
-        var probe = _config.Edge switch
+        var probe = _profile.Edge switch
         {
             DockEdge.Bottom => new PointInt32(midX, _outer.Y + _outer.Height + 2),
             DockEdge.Top => new PointInt32(midX, _outer.Y - 2),
@@ -83,14 +83,14 @@ public sealed partial class DockWindow
     }
 
     // The dock hides along Y for top/bottom, along X for left/right.
-    private bool HideIsVertical => _config.Edge is DockEdge.Bottom or DockEdge.Top;
+    private bool HideIsVertical => _profile.Edge is DockEdge.Bottom or DockEdge.Top;
 
     private int ShownCoord => HideIsVertical ? _shownRect.Y : _shownRect.X;
 
     // The dock hides against the OUTER (physical screen) edge, not the work-area edge, so a
     // bottom-snapped dock slides all the way down behind the taskbar and the notch peeks out
     // over it. (For edges with no taskbar the outer and work edges coincide.)
-    private int HiddenCoord => _config.Edge switch
+    private int HiddenCoord => _profile.Edge switch
     {
         DockEdge.Bottom => _outer.Y + _outer.Height - Peek,
         DockEdge.Top => _outer.Y - _shownRect.Height + Peek,
@@ -105,7 +105,7 @@ public sealed partial class DockWindow
     // Called after every reposition (from UpdateSizeAndPosition).
     partial void OnRelayoutApplied()
     {
-        _edgeHasNeighbor = _config.Snapped && ComputeEdgeHasNeighbor();
+        _edgeHasNeighbor = _profile.Snapped && ComputeEdgeHasNeighbor();
         _currentCoord = ShownCoord;
         if (CanHide)
         {
@@ -125,7 +125,7 @@ public sealed partial class DockWindow
     // Called when snap state changes (drag-drop, menu, settings).
     partial void ApplyAutoHide()
     {
-        _edgeHasNeighbor = _config.Snapped && ComputeEdgeHasNeighbor();
+        _edgeHasNeighbor = _profile.Snapped && ComputeEdgeHasNeighbor();
         if (CanHide)
         {
             EnsureStarted();
@@ -243,7 +243,7 @@ public sealed partial class DockWindow
 
         // Reveal from the physical screen edge (so moving the cursor onto the notch over the
         // taskbar reveals the dock), matching where it hides.
-        bool atHotZone = _config.Edge switch
+        bool atHotZone = _profile.Edge switch
         {
             DockEdge.Bottom => inX && p.Y >= _outer.Y + _outer.Height - HotZone,
             DockEdge.Top => inX && p.Y <= _outer.Y + HotZone,
@@ -302,7 +302,7 @@ public sealed partial class DockWindow
         if (!show)
             return;
 
-        switch (_config.Edge)
+        switch (_profile.Edge)
         {
             case DockEdge.Bottom: // window pushed down; visible band is at the TOP of the window
                 Notch.HorizontalAlignment = HorizontalAlignment.Center;
@@ -338,12 +338,35 @@ public sealed partial class DockWindow
         catch { return false; }
     }
 
+    // ---- The slide --------------------------------------------------------
+    //
+    // Driven by a timer rather than by a Composition animation, and that is a constraint rather
+    // than a choice: hiding means moving the WINDOW off the screen edge, and Composition animates
+    // content inside a window — it has no way to animate an HWND's position. Keeping the window
+    // still and sliding its content instead would leave a full-size, invisible window sitting over
+    // the screen edge swallowing every click aimed at what is behind it.
+    //
+    // What the timer does is time-based rather than per-frame proportional, which is the part that
+    // actually shows: the old "move 28% of the remaining distance each tick" is a different
+    // duration for every travel distance (a tall dock took visibly longer to hide than a short
+    // one) and never quite arrives, so it ended on a snap. This runs a fixed duration through a
+    // cubic ease-out and lands exactly on the target.
+
+    private const double SlideDurationMs = 220;
+    private DateTime _slideStart;
+    private double _slideFrom;
+
     private void StartSlide()
     {
+        _slideStart = DateTime.UtcNow;
+        _slideFrom = _currentCoord;
+
         if (_slideTimer is null)
         {
             _slideTimer = DispatcherQueue.CreateTimer();
-            _slideTimer.Interval = TimeSpan.FromMilliseconds(15);
+            // ~120Hz: fine enough that a high-refresh display doesn't show steps, and cheap —
+            // each tick is one MoveWindow on a window a few hundred pixels across.
+            _slideTimer.Interval = TimeSpan.FromMilliseconds(8);
             _slideTimer.Tick += (_, _) => SlideTick();
         }
         if (!_slideTimer.IsRunning)
@@ -352,15 +375,19 @@ public sealed partial class DockWindow
 
     private void SlideTick()
     {
-        double diff = _targetCoord - _currentCoord;
-        if (Math.Abs(diff) <= 1)
+        double progress = (DateTime.UtcNow - _slideStart).TotalMilliseconds / SlideDurationMs;
+        if (progress >= 1)
         {
             _currentCoord = _targetCoord;
             MoveWindowCoord(_targetCoord);
             _slideTimer?.Stop();
             return;
         }
-        _currentCoord += diff * 0.28; // exponential ease-out
+
+        // Cubic ease-out: quick off the mark, settling into the edge — the curve the shell's own
+        // fly-outs use, and the one that reads as "it slid" rather than "it moved".
+        double eased = 1 - Math.Pow(1 - progress, 3);
+        _currentCoord = _slideFrom + (_targetCoord - _slideFrom) * eased;
         MoveWindowCoord((int)Math.Round(_currentCoord));
     }
 }

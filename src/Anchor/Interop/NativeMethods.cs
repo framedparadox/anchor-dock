@@ -283,6 +283,67 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool ShowWindow(nint hwnd, int cmdShow);
 
+    // ---- Top-level window / process enumeration (running-app indicators) ---
+    //
+    // "Is this pinned app running?" is answered the same way the taskbar answers it: walk the
+    // visible top-level windows, map each back to the process that owns it, and compare that
+    // process's image path with the item's target. There is no cheaper API for it — a process
+    // name alone is ambiguous (two "Update.exe" in different folders are different apps) and
+    // Process.GetProcesses() can't tell a background service from something with a window.
+
+    public delegate bool EnumWindowsProc(nint hwnd, nint lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EnumWindows(EnumWindowsProc callback, nint lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindow(nint hwnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindowVisible(nint hwnd);
+
+    /// <summary>True when the window is minimized — it must be restored before it can be focused.</summary>
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsIconic(nint hwnd);
+
+    /// <summary>GetWindow relationship: the window's owner (zero for a true top-level window).</summary>
+    public const uint GW_OWNER = 4;
+
+    [DllImport("user32.dll")]
+    public static extern nint GetWindow(nint hwnd, uint command);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowTextLength(nint hwnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(nint hwnd, System.Text.StringBuilder className, int maxCount);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint GetWindowThreadProcessId(nint hwnd, out uint processId);
+
+    /// <summary>Enough access to read a process's image path, and grantable without elevation.</summary>
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern nint OpenProcess(
+        uint access, [MarshalAs(UnmanagedType.Bool)] bool inheritHandle, uint processId);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool QueryFullProcessImageName(
+        nint process, uint flags, System.Text.StringBuilder exeName, ref uint size);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool CloseHandle(nint handle);
+
+    /// <summary>ShowWindow command: restore a minimized window to its previous size and position.</summary>
+    public const int SW_RESTORE = 9;
+
     // ---- Global hotkeys ----------------------------------------------------
 
     /// <summary>Ask Windows not to auto-repeat a held-down hotkey.</summary>

@@ -13,12 +13,17 @@ using Windows.Graphics;
 namespace Anchor;
 
 /// <summary>
-/// The dock window: the always-on, borderless glass strip that holds the app/file/folder/link
+/// One dock strip: the always-on, borderless glass window that holds the app/file/folder/link
 /// icons plus the settings gear. Owns window chrome and theming, the acrylic backdrop, the
 /// item layout (horizontal or, when side-snapped, vertical), drag-to-move / drag-to-reorder
-/// gestures, the per-item and background context menus, and persistence of items and settings.
-/// Snap + auto-hide behavior lives in the <see cref="DockWindow"/> partial in
-/// <c>DockWindow.AutoHide.cs</c>.
+/// gestures, the per-item and background context menus, and its own placement. Snap + auto-hide
+/// behavior lives in the <see cref="DockWindow"/> partial in <c>DockWindow.AutoHide.cs</c>, and
+/// groups in <c>DockWindow.Groups.cs</c>.
+/// <para>
+/// Anchor can show several of these at once. Everything app-wide — the config file, the tray
+/// icon, the global shortcut, the running-app poll, the Settings and Add windows — belongs to
+/// <see cref="DockManager"/>; this class knows only about its own <see cref="DockProfile"/>.
+/// </para>
 /// </summary>
 public sealed partial class DockWindow : Window
 {
@@ -26,7 +31,8 @@ public sealed partial class DockWindow : Window
     private readonly WindowId _windowId;
     private readonly AppWindow _appWindow;
     private readonly AcrylicBackdropManager? _backdrop;
-    private readonly DockConfig _config;
+    private readonly DockManager _manager;
+    private readonly DockProfile _profile;
 
     /// <summary>The visible items rendered on the dock (a projection of the master list that
     /// excludes hidden items). Reordering operates on this collection.</summary>
@@ -34,17 +40,30 @@ public sealed partial class DockWindow : Window
 
     /// <summary>The full, ordered item list (including hidden items) — the persisted source
     /// of truth, surfaced to the Settings window.</summary>
-    public IReadOnlyList<DockItem> AllItems => _config.Items;
+    public IReadOnlyList<DockItem> AllItems => _profile.Items;
 
-    public DockConfig Config => _config;
+    /// <summary>This strip's persisted state: its items, edge, placement and hide behavior.</summary>
+    public DockProfile Profile => _profile;
 
-    /// <summary>Raised whenever the item set changes (add / remove / hide / reorder) so an open
-    /// Settings window can refresh its Apps list.</summary>
-    public event Action? ItemsChanged;
+    /// <summary>App-wide settings, shared with every other dock.</summary>
+    public DockConfig Config => _manager.Config;
 
-    public DockWindow()
+    public DockManager Manager => _manager;
+
+    /// <summary>
+    /// The dock window's title. It never appears in a caption (the dock is borderless) or in the
+    /// taskbar, but it is the top-level window's UI Automation name — which is how the UI smoke
+    /// tests find the dock, and how it shows up in Spy++ / Task Manager.
+    /// </summary>
+    internal const string WindowTitle = "Anchor Dock";
+
+    public DockWindow(DockManager manager, DockProfile profile, bool seedDefaults)
     {
+        _manager = manager;
+        _profile = profile;
+
         InitializeComponent();
+        Title = WindowTitle;
 
         // Content fills the whole window (no reserved title bar). This also makes WinUI
         // size the content island's INPUT site to the full client area — without it, a
@@ -65,14 +84,10 @@ public sealed partial class DockWindow : Window
         WindowChrome.SetRoundedCorners(_hwnd, small: false);
         Activated += (_, _) => ApplyWindowBorder();
 
-        // Load persisted items/settings first so the chosen theme can be applied as the window's
-        // chrome is set up (seed defaults only on the very first run — never after the user has
-        // intentionally emptied the dock).
-        _config = DockStore.Load();
-        bool firstRun = !_config.Seeded;
-        if (firstRun && _config.Items.Count == 0)
+        // Seed the starter items only on the very first run — never after the user has
+        // intentionally emptied the dock, and never for a dock they added themselves.
+        if (seedDefaults)
             SeedDefaults();
-        _config.Seeded = true;
 
         // Apply the chosen Light/Dark/System theme to the dock's root. A High Contrast theme
         // always wins (ApplyTheme resolves to ElementTheme.Default), in which case the acrylic
@@ -98,10 +113,15 @@ public sealed partial class DockWindow : Window
             // ActualThemeChanged subscription, so a later SetTheme re-tints it automatically.
             _backdrop = new AcrylicBackdropManager(this);
             _backdrop.TryApply();
+            ApplyGlass(); // the user's frostiness / accent-tint choice on top of the base recipe
         }
 
         ItemsHost.ItemsSource = Items;
         RebuildVisible();
+        ApplyMetrics();
+        // One subscription for the life of the window: it drives the cell highlight always, and
+        // the magnify swell when that setting is on (see DockWindow.Magnify.cs).
+        HookStripPointer();
 
         // ContextRequested (rather than RightTapped) so the dock menu is reachable by the
         // keyboard too (Menu key / Shift+F10), not only by right-click.
@@ -113,20 +133,13 @@ public sealed partial class DockWindow : Window
             new PointerEventHandler(Dock_PointerPressed), handledEventsToo: true);
         RootGrid.Loaded += (_, _) => QueueRelayout();
 
-        // The dock is a tool window with no taskbar button, so the tray icon is the only always-
-        // available handle on a running Anchor — and, with the global shortcut, the way back to a
-        // dock that is tucked behind a screen edge.
-        SetUpTrayAndHotkey();
-
-        if (firstRun)
-            SaveConfig(); // materialize the default dock on disk
         Closed += (_, _) =>
         {
             _pollTimer?.Stop();
             _slideTimer?.Stop();
             _dragTimer?.Stop();
+            _dragOutTimer?.Stop();
             _backdrop?.Dispose();
-            ReleaseShellIntegration();
         };
 
         // Modest initial size so the first frame isn't full-screen before relayout.
@@ -141,7 +154,7 @@ public sealed partial class DockWindow : Window
     private void RebuildVisible()
     {
         Items.Clear();
-        foreach (var it in _config.Items)
+        foreach (var it in _profile.Items)
             if (!it.Hidden)
                 Items.Add(it);
     }
@@ -154,16 +167,16 @@ public sealed partial class DockWindow : Window
     private void SyncMasterFromVisible()
     {
         var q = new Queue<DockItem>(Items);
-        for (int i = 0; i < _config.Items.Count && q.Count > 0; i++)
-            if (!_config.Items[i].Hidden)
-                _config.Items[i] = q.Dequeue();
+        for (int i = 0; i < _profile.Items.Count && q.Count > 0; i++)
+            if (!_profile.Items[i].Hidden)
+                _profile.Items[i] = q.Dequeue();
     }
 
     // ---- Public API (used by the Settings / Add windows) ------------------
 
     public void AddDockItem(DockItem item)
     {
-        _config.Items.Add(item);
+        _profile.Items.Add(item);
         if (!item.Hidden)
             Items.Add(item);
         PersistAndRelayout();
@@ -173,7 +186,7 @@ public sealed partial class DockWindow : Window
 
     public void RemoveDockItem(DockItem item)
     {
-        _config.Items.Remove(item);
+        _profile.Items.Remove(item);
         Items.Remove(item);
         PersistAndRelayout();
         RaiseItemsChanged();
@@ -280,34 +293,12 @@ public sealed partial class DockWindow : Window
         });
     }
 
-    public void OpenAddNew()
-    {
-        if (_addNewWindow is not null)
-        {
-            _addNewWindow.Activate();
-            return;
-        }
-        _addNewWindow = new AddNewWindow(this);
-        _addNewWindow.Closed += (_, _) => _addNewWindow = null;
-        _addNewWindow.Activate();
-    }
+    /// <summary>Opens the Add window targeting <em>this</em> dock, whichever one it is.</summary>
+    public void OpenAddNew() => _manager.OpenAddNew(this);
 
-    public void OpenSettings()
-    {
-        if (_settingsWindow is not null)
-        {
-            _settingsWindow.Activate();
-            return;
-        }
-        _settingsWindow = new SettingsWindow(this);
-        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
-        _settingsWindow.Activate();
-    }
+    public void OpenSettings() => _manager.OpenSettings();
 
-    private AddNewWindow? _addNewWindow;
-    private SettingsWindow? _settingsWindow;
-
-    private void RaiseItemsChanged() => ItemsChanged?.Invoke();
+    private void RaiseItemsChanged() => _manager.NotifyItemsChanged();
 
     private void PersistAndRelayout()
     {
@@ -330,18 +321,23 @@ public sealed partial class DockWindow : Window
         Add(DockItemKind.WebLink, "WinUI Gallery", "https://github.com/microsoft/WinUI-Gallery");
 
         void Add(DockItemKind kind, string name, string target) =>
-            _config.Items.Add(new DockItem { Kind = kind, DisplayName = name, Target = target });
+            _profile.Items.Add(new DockItem { Kind = kind, DisplayName = name, Target = target });
     }
 
-    private void SaveConfig() => DockStore.Save(_config);
+    /// <summary>Persists the whole configuration — every dock shares one file.</summary>
+    private void SaveConfig() => _manager.Save();
 
+    /// <summary>
+    /// Resolves every item's icon, groups included: a group's children never appear on the strip
+    /// but do appear in its fly-out, so they need icons too.
+    /// </summary>
     private async Task LoadIconsAsync()
     {
-        foreach (var item in _config.Items.ToArray())
+        foreach (var item in _profile.Items.ToArray())
         {
-            var icon = await IconService.LoadIconAsync(item);
-            if (icon is not null)
-                item.IconImage = icon;
+            await LoadOneIconAsync(item);
+            foreach (var child in item.Children.ToArray())
+                await LoadOneIconAsync(child);
         }
     }
 
@@ -369,13 +365,48 @@ public sealed partial class DockWindow : Window
     }
 
     // Dock metrics — keep in sync with the item template, Strip and DockStrip in DockWindow.xaml.
-    internal const double CellSize = 40;      // item/gear Grid Width/Height (taskbar-ish)
+    // Per-item cell sizes are NOT here: they vary by kind (a separator is a narrow slot), so they
+    // live on DockItem.CellExtent, which the sizing and reorder math below both read.
+    //
+    // The two that scale with the density setting are properties over DockMetrics rather than
+    // constants, so a density change moves the gear cell and the divider with the items instead
+    // of leaving the window sized for the old geometry.
+    internal static double CellSize => DockMetrics.Cell;          // gear cell (taskbar-ish)
+    internal static double DividerLength => DockMetrics.DividerLength; // Divider long side
     internal const double CellSpacing = 4;    // StackLayout + Strip Spacing
     internal const double DividerWidth = 1;   // Divider Rectangle thickness (short side)
-    internal const double DividerLength = 24; // Divider Rectangle length (long side)
     internal const double StripPadX = 8;      // DockStrip Padding (left/right)
     internal const double StripPadY = 6;      // DockStrip Padding (top/bottom)
     internal const double AddNewWidth = 116;  // "+ Add New" empty-state pill: minimum width
+
+    /// <summary>
+    /// Pushes the current <see cref="DockMetrics"/> geometry onto the parts of the strip that are
+    /// plain XAML rather than item bindings — the gear cell and the empty-state pill — and asks
+    /// every item to re-read its own. Called at construction and whenever the density changes.
+    /// </summary>
+    private void ApplyMetrics()
+    {
+        SettingsButton.Width = DockMetrics.Cell;
+        SettingsButton.Height = DockMetrics.Cell;
+        SettingsButton.CornerRadius = new CornerRadius(DockMetrics.CellCorner);
+        SettingsGlyph.FontSize = DockMetrics.Glyph;
+        AddNewButton.Height = DockMetrics.Cell;
+
+        foreach (var item in _profile.Items)
+        {
+            item.RefreshMetrics();
+            foreach (var child in item.Children)
+                child.RefreshMetrics();
+        }
+    }
+
+    /// <summary>Re-applies the density (and re-sizes the window for it). Called by
+    /// <see cref="DockManager.SetDensity"/> on every dock, since density is app-wide.</summary>
+    public void ApplyDensity()
+    {
+        ApplyMetrics();
+        QueueRelayout();
+    }
 
     // The pill's actual width. Measured rather than fixed at AddNewWidth because its caption is
     // translated, and "Hinzufügen" or "डॉक में जोड़ें" is wider than the English "Add New" that
@@ -388,9 +419,9 @@ public sealed partial class DockWindow : Window
     /// empty-state "+ Add New" pill is always horizontal). Top/bottom and floating stay horizontal.
     /// </summary>
     private bool IsVertical =>
-        _config.VerticalWhenSideSnapped &&
-        _config.Snapped &&
-        _config.Edge is DockEdge.Left or DockEdge.Right &&
+        _profile.VerticalWhenSideSnapped &&
+        _profile.Snapped &&
+        _profile.Edge is DockEdge.Left or DockEdge.Right &&
         Items.Count > 0;
 
     /// <summary>Flips the strip, the item layout and the divider between horizontal and vertical.</summary>
@@ -399,6 +430,11 @@ public sealed partial class DockWindow : Window
         Strip.Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal;
         if (ItemsHost.Layout is StackLayout stack)
             stack.Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal;
+
+        // Cell sizes are per-item template bindings (a separator's slot is narrow along the flow
+        // and full-width across it), so the orientation has to reach the items themselves.
+        foreach (var item in Items)
+            item.SetFlowVertical(vertical);
 
         // The divider is a thin line laid across the strip's flow, so its long/short sides swap
         // with the orientation (a vertical bar between horizontal items, a horizontal bar between
@@ -441,8 +477,9 @@ public sealed partial class DockWindow : Window
 
         // Along the strip's flow: [items OR add-new] [gap] [divider] [gap] [gear cell].
         // Across it: a single cell. Which of these is the window's width vs. height depends on
-        // whether the dock is laid out vertically.
-        double coreMain = empty ? _addNewWidth : n * CellSize + (n - 1) * CellSpacing;
+        // whether the dock is laid out vertically. Cells are summed rather than multiplied out:
+        // they are not all the same size (a separator takes a narrow slot).
+        double coreMain = empty ? _addNewWidth : ItemsExtent() + (n - 1) * CellSpacing;
         double contentMain = coreMain + CellSpacing + DividerWidth + CellSpacing + CellSize;
         double dipW = vertical ? CellSize + 2 * StripPadX : contentMain + 2 * StripPadX;
         double dipH = vertical ? contentMain + 2 * StripPadY : CellSize + 2 * StripPadY;
@@ -460,11 +497,11 @@ public sealed partial class DockWindow : Window
         int margin = (int)Math.Round(8 * scale);
         int x, y;
 
-        if (_config.Snapped)
+        if (_profile.Snapped)
         {
             // Flush to the snapped edge; along the edge, keep the position the user placed it at
             // (falling back to centered only if it has never been positioned).
-            (x, y) = _config.Edge switch
+            (x, y) = _profile.Edge switch
             {
                 DockEdge.Top => (AlongX(work, w), work.Y),
                 DockEdge.Left => (work.X, AlongY(work, h)),
@@ -472,7 +509,7 @@ public sealed partial class DockWindow : Window
                 _ => (AlongX(work, w), work.Y + work.Height - h), // Bottom
             };
         }
-        else if (_config.FreeX is int fx && _config.FreeY is int fy)
+        else if (_profile.FreeX is int fx && _profile.FreeY is int fy)
         {
             x = Math.Clamp(fx, work.X, work.X + work.Width - w);
             y = Math.Clamp(fy, work.Y, work.Y + work.Height - h);
@@ -491,14 +528,23 @@ public sealed partial class DockWindow : Window
         OnRelayoutApplied();
     }
 
+    /// <summary>Total DIPs the visible cells occupy along the strip's flow (gaps excluded).</summary>
+    private double ItemsExtent()
+    {
+        double total = 0;
+        foreach (var item in Items)
+            total += item.CellExtent;
+        return total;
+    }
+
     // Along-edge coordinates derived from the stored placement, clamped to the work area.
     private int AlongX(RectInt32 work, int w) =>
-        _config.FreeX is int fx
+        _profile.FreeX is int fx
             ? Math.Clamp(fx, work.X, work.X + Math.Max(0, work.Width - w))
             : work.X + (work.Width - w) / 2;
 
     private int AlongY(RectInt32 work, int h) =>
-        _config.FreeY is int fy
+        _profile.FreeY is int fy
             ? Math.Clamp(fy, work.Y, work.Y + Math.Max(0, work.Height - h))
             : work.Y + (work.Height - h) / 2;
 
@@ -506,7 +552,7 @@ public sealed partial class DockWindow : Window
     private DisplayArea ResolveDisplay(int w, int h)
     {
         DisplayArea? da = null;
-        if (_config.FreeX is int fx && _config.FreeY is int fy)
+        if (_profile.FreeX is int fx && _profile.FreeY is int fy)
         {
             var center = new PointInt32(fx + w / 2, fy + h / 2);
             da = DisplayArea.GetFromPoint(center, DisplayAreaFallback.Nearest);
@@ -532,8 +578,10 @@ public sealed partial class DockWindow : Window
 
     // NOTE: ItemsRepeater does NOT set FrameworkElement.DataContext on realized items
     // (x:Bind resolves via generated code, not DataContext). We stash the item in Tag via
-    // Tag="{x:Bind}" in the template and read it back here.
-    private static DockItem? ItemOf(object sender) => (sender as FrameworkElement)?.Tag as DockItem;
+    // Tag="{x:Bind}" on the template's cell Grid and read it back here — walking up from the
+    // sender, because the element that raised the event (the launch Button) is a child of the
+    // cell that carries the Tag.
+    private static DockItem? ItemOf(object sender) => FindItemFromSource(sender);
 
     // Button.Click fires for a pointer click AND a keyboard invoke (Space/Enter), so this one
     // handler covers mouse, touch and keyboard. Suppressed after a drag gesture.
@@ -546,8 +594,38 @@ public sealed partial class DockWindow : Window
         }
         var item = ItemOf(sender);
         Diag.Log($"Item_Click: tag={(item is null ? "NULL" : item.DisplayName)}");
-        if (item is not null)
-            Launcher.Launch(item);
+        if (item is null)
+            return;
+
+        // A group has nothing to launch: it opens its fly-out over the icon that was clicked.
+        if (item.IsGroup)
+        {
+            ShowGroupFlyout((FrameworkElement)sender, item);
+            return;
+        }
+
+        // A folder set to "show contents" opens the same bar over its own contents instead of
+        // handing the folder to Explorer.
+        if (item.Kind == DockItemKind.Folder && item.FolderFlyout)
+        {
+            ShowFolderFlyout((FrameworkElement)sender, item.Target);
+            return;
+        }
+
+        LaunchOrFocus(item);
+    }
+
+    /// <summary>
+    /// Opens an item: brings an already-running app's window forward if there is one, otherwise
+    /// launches it. Holding Shift forces a fresh instance the way the Windows 11 taskbar does.
+    /// Shared by the dock strip and the fly-out bars.
+    /// </summary>
+    private void LaunchOrFocus(DockItem item)
+    {
+        // Read the modifier from the keyboard rather than the event args: Button.Click carries no
+        // modifier state, and fires for keyboard invokes too.
+        bool forceNewInstance = (NativeMethods.GetAsyncKeyState(NativeMethods.VK_SHIFT) & 0x8000) != 0;
+        _manager.LaunchOrFocus(item, forceNewInstance);
     }
 
     // ContextRequested fires for right-click and for the keyboard context-menu gesture
@@ -561,10 +639,56 @@ public sealed partial class DockWindow : Window
         int index = Items.IndexOf(item);
         var menu = new MenuFlyout();
 
-        menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => Launcher.Launch(item)));
-        menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditFlyout(target, item)));
-        menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameFlyout(target, item)));
-        menu.Items.Add(new MenuFlyoutSeparator());
+        // A separator has no target to open or edit, no name to rename and no icon to change, so
+        // its menu is just the placement/removal commands below. A group has a name and an icon
+        // but no target, so it gets everything except "Edit…" — plus "Ungroup".
+        if (!item.IsSeparator)
+        {
+            if (item.IsGroup)
+            {
+                menu.Items.Add(Mi(Loc.Get("Menu.OpenGroup"), () => ShowGroupFlyout(target, item)));
+            }
+            else
+            {
+                menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => LaunchOrFocus(item)));
+                menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditFlyout(target, item)));
+            }
+
+            menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameFlyout(target, item)));
+            menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () => ShowIconPicker(target, sel => ApplyIconSelection(item, sel))));
+            if (item.HasCustomIcon)
+                menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(item, null)));
+
+            if (item.IsGroup)
+            {
+                menu.Items.Add(Mi(Loc.Get("Menu.Ungroup"), () => Ungroup(item)));
+            }
+            else
+            {
+                // A folder can either hand itself to Explorer or open a stack of its contents.
+                // A check mark rather than two commands: it is one setting with two states, and
+                // the menu should say which one is in force.
+                if (item.Kind == DockItemKind.Folder)
+                {
+                    var stack = new ToggleMenuFlyoutItem
+                    {
+                        Text = Loc.Get("Menu.ShowFolderContents"),
+                        IsChecked = item.FolderFlyout,
+                    };
+                    stack.Click += (_, _) => SetFolderFlyout(item, stack.IsChecked);
+                    menu.Items.Add(stack);
+                }
+
+                menu.Items.Add(BuildMoveToGroupMenu(target, item));
+                menu.Items.Add(BuildMoveToDockMenu(item));
+                // Groups are excluded: a shortcut fires with the dock hidden and possibly
+                // off-screen, and a group has nothing to do except open a fly-out that would have
+                // nowhere to appear.
+                menu.Items.Add(BuildItemHotkeyMenu(target, item));
+            }
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+        }
 
         var moveLeft = Mi(Loc.Get("Menu.MoveLeft"), () => MoveItem(item, -1));
         moveLeft.IsEnabled = index > 0;
@@ -717,6 +841,11 @@ public sealed partial class DockWindow : Window
         var menu = new MenuFlyout();
 
         menu.Items.Add(MenuItem(Loc.Get("Menu.AddNew"), OpenAddNew));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.AddSeparator"), AddSeparator));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.NewGroup"), () => ShowNewGroupDialog(target, null)));
+        // Search has no shortcut until the user assigns one, so the dock's own menu is the other
+        // way in — the tray menu alone would leave it undiscoverable from the dock itself.
+        menu.Items.Add(MenuItem(Loc.Get("Menu.Search"), _manager.OpenSearch));
         menu.Items.Add(MenuItem(Loc.Get("Menu.Settings"), OpenSettings));
 
         menu.Items.Add(new MenuFlyoutSeparator());
@@ -731,7 +860,15 @@ public sealed partial class DockWindow : Window
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        menu.Items.Add(MenuItem(Loc.Get("Menu.Quit"), Quit));
+        // Only offer to remove this strip when there would still be one left; Anchor with no
+        // dock at all is a tray icon and no obvious way back.
+        if (_manager.Config.Docks.Count > 1)
+            menu.Items.Add(MenuItem(Loc.Get("Menu.RemoveDock"), () => _manager.RemoveDock(_profile)));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.AddDock"), () => _manager.AddDock()));
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        menu.Items.Add(MenuItem(Loc.Get("Menu.Quit"), _manager.Quit));
 
         menu.ShowAt(target, at);
 
@@ -771,25 +908,76 @@ public sealed partial class DockWindow : Window
             item.IconImage = icon;
     }
 
+    // ---- Separators & custom icons ----------------------------------------
+
+    /// <summary>Appends a divider to the end of the dock (dock menu, Settings, Add window).</summary>
+    public void AddSeparator() => AddDockItem(new DockItem
+    {
+        Kind = DockItemKind.Separator,
+        DisplayName = Loc.Get("Kind.Separator"),
+    });
+
+    /// <summary>
+    /// Pins a user-supplied image onto an item, or clears it (null) so the shell/favicon icon
+    /// comes back. The old bitmap is dropped first so the glyph shows while the new one loads.
+    /// Clears any picked <see cref="DockItem.CustomGlyph"/> too — the two are mutually exclusive.
+    /// </summary>
+    public void SetCustomIcon(DockItem item, string? path)
+    {
+        item.CustomIconPath = string.IsNullOrWhiteSpace(path) ? null : path;
+        item.CustomGlyph = null;
+        item.IconImage = null;
+        SaveConfig();
+        RaiseItemsChanged();
+        _ = LoadOneIconAsync(item);
+    }
+
+    /// <summary>
+    /// Switches a folder between opening in Explorer and opening a fly-out of its contents.
+    /// </summary>
+    public void SetFolderFlyout(DockItem item, bool on)
+    {
+        if (item.Kind != DockItemKind.Folder || item.FolderFlyout == on)
+            return;
+        item.FolderFlyout = on;
+        SaveConfig();
+        RaiseItemsChanged();
+    }
+
+    /// <summary>
+    /// Pins a built-in glyph (from the icon picker) onto an item, or clears it (null) so the
+    /// kind's default glyph comes back. Clears any custom image path too — mutually exclusive
+    /// with <see cref="DockItem.CustomIconPath"/>. Needs no async resolution: the glyph renders
+    /// the moment it's set.
+    /// </summary>
+    public void SetCustomGlyph(DockItem item, string? glyph)
+    {
+        item.CustomGlyph = string.IsNullOrWhiteSpace(glyph) ? null : glyph;
+        item.CustomIconPath = null;
+        item.IconImage = null;
+        SaveConfig();
+        RaiseItemsChanged();
+    }
+
     // ---- Snap / free positioning -----------------------------------------
 
     public void SetSnap(DockEdge? edge)
     {
         if (edge is DockEdge e)
         {
-            _config.Snapped = true;
-            _config.Edge = e;
+            _profile.Snapped = true;
+            _profile.Edge = e;
             // Keep the current on-screen position as the placement anchor so it snaps flush
             // without jumping to the screen center.
-            _config.FreeX = _shownRect.X;
-            _config.FreeY = _shownRect.Y;
+            _profile.FreeX = _shownRect.X;
+            _profile.FreeY = _shownRect.Y;
         }
         else
         {
             // Unsnap: leave it visible where it currently shows.
-            _config.Snapped = false;
-            _config.FreeX = _shownRect.X;
-            _config.FreeY = _shownRect.Y;
+            _profile.Snapped = false;
+            _profile.FreeX = _shownRect.X;
+            _profile.FreeY = _shownRect.Y;
         }
         SaveConfig();
         // Reposition (snap flush or clamp free) FIRST so _shownRect/_outer reflect the new
@@ -803,7 +991,7 @@ public sealed partial class DockWindow : Window
 
     public void SetAutoHide(bool on)
     {
-        _config.AutoHide = on;
+        _profile.AutoHide = on;
         SaveConfig();
         UpdateSizeAndPosition();
         ApplyAutoHide();
@@ -811,14 +999,14 @@ public sealed partial class DockWindow : Window
 
     public void SetAlwaysOnTop(bool on)
     {
-        _config.AlwaysOnTop = on;
+        _profile.AlwaysOnTop = on;
         SaveConfig();
         ApplyTopmost();
     }
 
     public void SetVerticalWhenSideSnapped(bool on)
     {
-        _config.VerticalWhenSideSnapped = on;
+        _profile.VerticalWhenSideSnapped = on;
         SaveConfig();
         QueueRelayout(); // re-orient (and re-size) if the dock is currently snapped to a side
     }
@@ -843,26 +1031,42 @@ public sealed partial class DockWindow : Window
     }
 
     /// <summary>Applies the configured theme to the dock's root. The acrylic backdrop re-tints
-    /// itself via its own <c>ActualThemeChanged</c> subscription.</summary>
-    private void ApplyTheme() => RootGrid.RequestedTheme = ResolveTheme(_config.Theme);
+    /// itself via its own <c>ActualThemeChanged</c> subscription. Called by
+    /// <see cref="DockManager.SetTheme"/> on every dock, since the theme is app-wide.</summary>
+    public void ApplyTheme() => RootGrid.RequestedTheme = ResolveTheme(_manager.Config.Theme);
 
-    /// <summary>Re-colors the rounded DWM border to blend into the current (light or dark) glass.</summary>
-    private void ApplyWindowBorder() =>
-        WindowChrome.HideWindowBorder(_hwnd, dark: RootGrid.ActualTheme != ElementTheme.Light);
-
-    /// <summary>Persists the chosen theme and applies it to the dock and any open child windows.</summary>
-    public void SetTheme(DockTheme theme)
+    /// <summary>
+    /// Re-colors the rounded DWM rim to disappear into the dock's glass. The color is the glass's
+    /// own tint dimmed by how much of the desktop the frostiness setting lets through, so it
+    /// tracks the theme, the accent-tint option and the frostiness slider together: at full
+    /// frostiness the glass really is the tint and the rim matches it exactly, and as the glass
+    /// clears the rim darkens with it instead of staying a bright ring around a translucent strip
+    /// (which is what light mode's fixed surface color used to draw).
+    /// <para>
+    /// Erring dark is deliberate. The rim cannot be right for every wallpaper — the glass's
+    /// rendered color depends on what is behind the window, which is unknowable from here — and a
+    /// rim slightly darker than the glass reads as the shadow under a rounded edge, while one
+    /// slightly brighter reads as an outline drawn around the dock.
+    /// </para>
+    /// </summary>
+    private void ApplyWindowBorder()
     {
-        _config.Theme = theme;
-        SaveConfig();
-        ApplyTheme();
-        _settingsWindow?.ApplyTheme(theme);
-        _addNewWindow?.ApplyTheme(theme);
+        bool dark = RootGrid.ActualTheme != ElementTheme.Light;
+        var tint = _backdrop?.Current.Tint ?? (dark ? Rgb(0x20, 0x20, 0x20) : Rgb(0xF3, 0xF3, 0xF3));
+        double lit = Math.Clamp(_manager.Config.GlassOpacity, 0.3, 1.0);
+
+        WindowChrome.SetWindowBorderColor(_hwnd, dark, Rgb(
+            (byte)Math.Round(tint.R * lit),
+            (byte)Math.Round(tint.G * lit),
+            (byte)Math.Round(tint.B * lit)));
+
+        static Windows.UI.Color Rgb(byte r, byte g, byte b) =>
+            Windows.UI.Color.FromArgb(255, r, g, b);
     }
 
     // The dock is topmost while snapped (so the auto-hide reveal shows over other windows), and
     // while floating only when the user has opted into "always on top".
-    private bool ShouldBeTopmost => _config.Snapped || _config.AlwaysOnTop;
+    private bool ShouldBeTopmost => _profile.Snapped || _profile.AlwaysOnTop;
 
     private void ApplyTopmost()
     {
@@ -875,21 +1079,71 @@ public sealed partial class DockWindow : Window
             WindowChrome.SetNotTopmost(_hwnd);
     }
 
-    public void SetLaunchAtStartup(bool on)
+    /// <summary>
+    /// Re-places this dock after something outside the window moved it — a monitor change from
+    /// Settings, say — so the new coordinates are honored and auto-hide re-computed for the edge
+    /// it now sits on.
+    /// </summary>
+    public void RelayoutAfterExternalMove()
     {
-        _config.LaunchAtStartup = on;
-        StartupService.SetEnabled(on);
-        SaveConfig();
+        UpdateSizeAndPosition();
+        ApplyAutoHide();
     }
+
+    // ---- Visibility (driven by the tray menu, via DockManager) -------------
+
+    /// <summary>Hides this dock until it is explicitly summoned back (tray "Hide dock").</summary>
+    public void HideByUser()
+    {
+        // Stop the auto-hide controller first: it polls the cursor and would otherwise keep
+        // moving (and re-showing) a window the user has asked to be rid of.
+        PauseAutoHideForDrag();
+        _appWindow.Hide();
+    }
+
+    /// <summary>Puts a user-hidden dock back on screen, without stealing focus.</summary>
+    public void ShowAfterUserHide()
+    {
+        _appWindow.Show(activateWindow: false);
+        UpdateSizeAndPosition();
+        ApplyAutoHide();
+    }
+
+    /// <summary>
+    /// Brings this dock into view and to the front: cancels an auto-hide slide (and holds it out
+    /// for the usual settle period) and re-asserts top-most Z-order. With
+    /// <paramref name="takeFocus"/> it also becomes the foreground window — only one dock can, so
+    /// <see cref="DockManager.BringToFront"/> passes true for just one of them.
+    /// </summary>
+    public void BringToFront(bool takeFocus = true)
+    {
+        try
+        {
+            RevealNow();
+            WindowChrome.EnsureTopmost(_hwnd);
+            if (!takeFocus)
+                return;
+            NativeMethods.SetForegroundWindow(_hwnd);
+            Activate();
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("BringToFront failed: " + ex);
+        }
+    }
+
+    /// <summary>Pulls the dock fully back into view immediately. Implemented in the auto-hide
+    /// partial, which owns the slide state.</summary>
+    partial void RevealNow();
 
     /// <summary>Clears the dock, re-seeds the default items and returns to a floating position.</summary>
     public void ResetToDefaults()
     {
-        _config.Items.Clear();
+        _profile.Items.Clear();
         SeedDefaults();
-        _config.Snapped = false;
-        _config.FreeX = null;
-        _config.FreeY = null;
+        _profile.Snapped = false;
+        _profile.FreeX = null;
+        _profile.FreeY = null;
         RebuildVisible();
         SaveConfig();
         UpdateSizeAndPosition();
@@ -915,7 +1169,7 @@ public sealed partial class DockWindow : Window
     private PointInt32 _dragStartWindow;
     private DockItem? _reorderItem; // non-null while a press started on an item
     private double _reorderOriginPx; // screen px of the item host's leading edge along the flow axis
-    private double _reorderPitchPx;
+    private double _reorderScale;    // physical px per DIP, captured at gesture start
     private bool _reorderVertical;   // captured at gesture start so mid-drag stays consistent
     private const int DragThreshold = 12;
 
@@ -971,9 +1225,12 @@ public sealed partial class DockWindow : Window
 
             if (_reorderItem is not null)
             {
+                var dragged = _reorderItem;
                 _reorderItem = null;
                 if (wasDragging)
-                    EndItemReorder();
+                    EndItemReorder(dragged);
+                else
+                    SetDropTarget(null);
                 return;
             }
 
@@ -1026,23 +1283,30 @@ public sealed partial class DockWindow : Window
 
     private void BeginItemReorder()
     {
-        double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
         // The window is stationary during a reorder, so the strip's screen geometry is fixed:
-        // capture the item host's leading edge and per-cell pitch once, in physical pixels. When
-        // the dock is vertical the items flow down the Y axis, so track Y instead of X.
+        // capture the item host's leading edge and the DPI scale once. When the dock is vertical
+        // the items flow down the Y axis, so track Y instead of X.
         _reorderVertical = IsVertical;
+        _reorderScale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
         var origin = ItemsHost.TransformToVisual(RootGrid)
             .TransformPoint(new Windows.Foundation.Point(0, 0));
         _reorderOriginPx = _reorderVertical
-            ? _appWindow.Position.Y + origin.Y * scale
-            : _appWindow.Position.X + origin.X * scale;
-        _reorderPitchPx = (CellSize + CellSpacing) * scale;
+            ? _appWindow.Position.Y + origin.Y * _reorderScale
+            : _appWindow.Position.X + origin.X * _reorderScale;
     }
 
+    /// <summary>
+    /// Maps the cursor onto the slot the dragged item should occupy. Cells are not a uniform
+    /// pitch (a separator is a narrow slot), so this walks the strip accumulating each cell's own
+    /// extent. It measures against the layout of the <b>other</b> items — the dragged item
+    /// excluded — and inserts where the cursor passes each one's midpoint: those midpoints don't
+    /// move as the dragged item is re-inserted around them, so the result is stable instead of
+    /// oscillating between two slots whenever a wide icon crosses a narrow separator.
+    /// </summary>
     private void UpdateItemReorder(int cursorScreenX, int cursorScreenY)
     {
         int count = Items.Count;
-        if (count < 2 || _reorderItem is null || _reorderPitchPx <= 0)
+        if (count < 2 || _reorderItem is null || _reorderScale <= 0)
             return;
 
         int from = Items.IndexOf(_reorderItem);
@@ -1050,18 +1314,55 @@ public sealed partial class DockWindow : Window
             return;
 
         double coord = _reorderVertical ? cursorScreenY : cursorScreenX;
-        double rel = coord - _reorderOriginPx;
-        int target = (int)Math.Floor(rel / _reorderPitchPx);
+        double rel = (coord - _reorderOriginPx) / _reorderScale; // back into DIPs
+
+        int target = 0;
+        double edge = 0;
+        DockItem? overGroup = null;
+        foreach (var item in Items)
+        {
+            if (ReferenceEquals(item, _reorderItem))
+                continue;
+
+            // Hovering the middle of a GROUP means "file it in here" rather than "put it beside
+            // here". Only the central band counts, so the outer thirds of a group's cell still
+            // reorder past it — otherwise a group would be impossible to move an item across.
+            if (item.IsGroup && CanBeGrouped(_reorderItem) &&
+                rel > edge + item.CellExtent * 0.25 && rel < edge + item.CellExtent * 0.75)
+                overGroup = item;
+
+            if (rel > edge + item.CellExtent / 2)
+                target++;
+            edge += item.CellExtent + CellSpacing;
+        }
+
+        SetDropTarget(overGroup);
+        if (overGroup is not null)
+            return; // the drop will file it into the group; don't shuffle the strip underneath
+
         target = Math.Clamp(target, 0, count - 1);
         if (target != from)
             Items.Move(from, target);
     }
 
-    private void EndItemReorder()
+    private void EndItemReorder(DockItem? dragged)
     {
-        SyncMasterFromVisible();
-        SaveConfig();
-        RaiseItemsChanged();
+        // Dropped onto a group: file it in there instead of committing the reorder. Read and
+        // cleared before anything else, so an early return below can't leave a cell swelled.
+        var group = _dropTarget;
+        SetDropTarget(null);
+
+        if (group is not null && dragged is not null && !ReferenceEquals(group, dragged))
+        {
+            MoveItemToGroup(dragged, group);
+        }
+        else
+        {
+            SyncMasterFromVisible();
+            SaveConfig();
+            RaiseItemsChanged();
+        }
+
         ResumeAutoHideAfterDrag();
         DispatcherQueue.TryEnqueue(
             Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => _dragOccurred = false);
@@ -1085,20 +1386,20 @@ public sealed partial class DockWindow : Window
 
         // Remember exactly where it was dropped: this anchors the snapped position along the
         // edge (so it hides where you left it) and identifies the monitor it lives on.
-        _config.FreeX = pos.X;
-        _config.FreeY = pos.Y;
+        _profile.FreeX = pos.X;
+        _profile.FreeY = pos.Y;
 
         if (min <= snapThreshold)
         {
-            _config.Snapped = true;
-            _config.Edge = min == dBottom ? DockEdge.Bottom
+            _profile.Snapped = true;
+            _profile.Edge = min == dBottom ? DockEdge.Bottom
                          : min == dTop ? DockEdge.Top
                          : min == dLeft ? DockEdge.Left
                          : DockEdge.Right;
         }
         else
         {
-            _config.Snapped = false;
+            _profile.Snapped = false;
         }
 
         SaveConfig();

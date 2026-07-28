@@ -5,29 +5,29 @@ using Anchor.Models;
 namespace Anchor.Services;
 
 /// <summary>
-/// Registers Anchor's one system-wide shortcut with Windows and raises <see cref="Pressed"/> when
-/// it's used. Windows delivers <c>WM_HOTKEY</c> to a window, so this rides on the same hidden
-/// <see cref="MessageWindow"/> the tray icon uses.
+/// Registers Anchor's system-wide shortcuts with Windows and raises <see cref="Pressed"/> with the
+/// id of whichever one was used. Windows delivers <c>WM_HOTKEY</c> to a window, so this rides on
+/// the same hidden <see cref="MessageWindow"/> the tray icon uses.
 /// <para>
-/// Only one hotkey is live at a time: <see cref="Register"/> replaces whatever was registered
-/// before, and reports false (without throwing) when another app already owns the combination —
-/// the caller surfaces that as a "pick a different one" message rather than failing silently.
+/// Several shortcuts can be live at once — the one that summons the docks, the one that opens
+/// quick-launch search, and one per item that has been given one. Each is keyed by a caller-chosen
+/// id (see <c>DockManager</c>, which allocates them), and <c>WM_HOTKEY</c> is routed on the same
+/// id, which arrives in <c>wParam</c>.
+/// </para>
+/// <para>
+/// Registering an id that is already registered replaces it, and a combination Windows refuses —
+/// almost always because another application already owns it — reports false without throwing, so
+/// the caller can surface a "pick a different one" message instead of failing silently.
 /// </para>
 /// </summary>
 public sealed class HotkeyService : IDisposable
 {
-    // Any process-unique id in [0x0000, 0xBFFF] will do; Anchor only ever registers one.
-    private const int HotkeyId = 0x4143; // 'A','C'
-
     private readonly MessageWindow _window;
-    private bool _registered;
+    private readonly Dictionary<int, HotkeyGesture> _registered = new();
     private bool _disposed;
 
-    /// <summary>Raised on the UI thread each time the registered shortcut is pressed.</summary>
-    public event Action? Pressed;
-
-    /// <summary>The gesture currently registered with Windows, if any.</summary>
-    public HotkeyGesture? Current { get; private set; }
+    /// <summary>Raised on the UI thread with the id of the shortcut that was pressed.</summary>
+    public event Action<int>? Pressed;
 
     public HotkeyService(MessageWindow window)
     {
@@ -37,44 +37,55 @@ public sealed class HotkeyService : IDisposable
 
     private void OnMessage(uint msg, nint wParam, nint lParam)
     {
-        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HotkeyId)
-            Pressed?.Invoke();
+        if (msg != NativeMethods.WM_HOTKEY)
+            return;
+        int id = wParam.ToInt32();
+        if (_registered.ContainsKey(id))
+            Pressed?.Invoke(id);
     }
 
+    /// <summary>The gesture registered under <paramref name="id"/>, if any.</summary>
+    public HotkeyGesture? Current(int id) =>
+        _registered.TryGetValue(id, out var gesture) ? gesture : null;
+
     /// <summary>
-    /// Makes <paramref name="gesture"/> the live shortcut, replacing any previous one. Passing
-    /// null (or an invalid gesture) just unregisters.
+    /// Makes <paramref name="gesture"/> the live shortcut for <paramref name="id"/>, replacing any
+    /// previous one. Passing null (or an invalid gesture) just unregisters that id.
     /// </summary>
     /// <returns>True if the shortcut is now registered; false if Windows refused it — almost
     /// always because another application already holds that combination.</returns>
-    public bool Register(HotkeyGesture? gesture)
+    public bool Register(int id, HotkeyGesture? gesture)
     {
-        Unregister();
+        Unregister(id);
 
         if (_window.Handle == nint.Zero || gesture is null || !gesture.IsValid)
             return false;
 
-        // MOD_NOREPEAT so holding the keys down brings the dock forward once rather than
-        // hammering the reveal on every auto-repeat.
+        // MOD_NOREPEAT so holding the keys down fires once rather than hammering the action on
+        // every auto-repeat.
         uint modifiers = (uint)gesture.Modifiers | NativeMethods.MOD_NOREPEAT;
-        if (!NativeMethods.RegisterHotKey(_window.Handle, HotkeyId, modifiers, gesture.Key))
+        if (!NativeMethods.RegisterHotKey(_window.Handle, id, modifiers, gesture.Key))
         {
-            Diag.Log($"Hotkey: RegisterHotKey({gesture}) failed ({Marshal.GetLastWin32Error()})");
+            Diag.Log($"Hotkey: RegisterHotKey({gesture}) for id {id} failed ({Marshal.GetLastWin32Error()})");
             return false;
         }
 
-        _registered = true;
-        Current = gesture;
+        _registered[id] = gesture;
         return true;
     }
 
-    /// <summary>Releases the shortcut back to the system. Safe to call when nothing is registered.</summary>
-    public void Unregister()
+    /// <summary>Releases one shortcut back to the system. Safe when nothing is registered for it.</summary>
+    public void Unregister(int id)
     {
-        if (_registered && _window.Handle != nint.Zero)
-            NativeMethods.UnregisterHotKey(_window.Handle, HotkeyId);
-        _registered = false;
-        Current = null;
+        if (_registered.Remove(id) && _window.Handle != nint.Zero)
+            NativeMethods.UnregisterHotKey(_window.Handle, id);
+    }
+
+    /// <summary>Releases every shortcut this service holds.</summary>
+    public void UnregisterAll()
+    {
+        foreach (var id in _registered.Keys.ToList())
+            Unregister(id);
     }
 
     public void Dispose()
@@ -83,6 +94,6 @@ public sealed class HotkeyService : IDisposable
             return;
         _disposed = true;
         _window.MessageReceived -= OnMessage;
-        Unregister();
+        UnregisterAll();
     }
 }

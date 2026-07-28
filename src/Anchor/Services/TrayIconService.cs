@@ -27,6 +27,8 @@ public sealed class TrayIconService : IDisposable
     private const uint CmdAddNew = 2;
     private const uint CmdSettings = 3;
     private const uint CmdQuit = 4;
+    private const uint CmdSearch = 5;
+    private const uint CmdUpdate = 6;
 
     private readonly MessageWindow _window;
     private readonly uint _taskbarCreated;
@@ -53,11 +55,24 @@ public sealed class TrayIconService : IDisposable
     /// <summary>Menu: quit Anchor.</summary>
     public event Action? QuitRequested;
 
+    /// <summary>Menu: open quick-launch search.</summary>
+    public event Action? SearchRequested;
+
+    /// <summary>Menu: an update was found; show what it is.</summary>
+    public event Action? UpdateRequested;
+
     /// <summary>
     /// Supplies the show/hide item's label each time the menu opens, so it reads "Hide dock"
     /// while the dock is visible and "Show dock" while it isn't.
     /// </summary>
     public Func<bool>? IsDockVisible { get; set; }
+
+    /// <summary>
+    /// True while a newer release has been found and not yet dismissed. The startup update check
+    /// deliberately raises nothing on screen — an app that interrupts you as it starts is worse
+    /// than one that is a version behind — so this menu entry is how the result surfaces.
+    /// </summary>
+    public Func<bool>? HasUpdate { get; set; }
 
     public TrayIconService(MessageWindow window)
     {
@@ -195,9 +210,19 @@ public sealed class TrayIconService : IDisposable
             bool visible = IsDockVisible?.Invoke() ?? true;
             NativeMethods.AppendMenu(menu, NativeMethods.MF_STRING, CmdShowHide,
                 Loc.Get(visible ? "Tray.HideDock" : "Tray.Show"));
+            NativeMethods.AppendMenu(menu, NativeMethods.MF_STRING, CmdSearch, Loc.Get("Tray.Search"));
             NativeMethods.AppendMenu(menu, NativeMethods.MF_SEPARATOR, 0, null);
             NativeMethods.AppendMenu(menu, NativeMethods.MF_STRING, CmdAddNew, Loc.Get("Tray.AddNew"));
             NativeMethods.AppendMenu(menu, NativeMethods.MF_STRING, CmdSettings, Loc.Get("Tray.Settings"));
+
+            // Only present when there is actually something to report, so the menu doesn't carry
+            // a permanent "check for updates" entry for a feature that is off by default.
+            if (HasUpdate?.Invoke() == true)
+            {
+                NativeMethods.AppendMenu(menu, NativeMethods.MF_SEPARATOR, 0, null);
+                NativeMethods.AppendMenu(menu, NativeMethods.MF_STRING, CmdUpdate, Loc.Get("Tray.Update"));
+            }
+
             NativeMethods.AppendMenu(menu, NativeMethods.MF_SEPARATOR, 0, null);
             NativeMethods.AppendMenu(menu, NativeMethods.MF_STRING, CmdQuit, Loc.Get("Tray.Quit"));
 
@@ -223,6 +248,12 @@ public sealed class TrayIconService : IDisposable
                     break;
                 case CmdSettings:
                     SettingsRequested?.Invoke();
+                    break;
+                case CmdSearch:
+                    SearchRequested?.Invoke();
+                    break;
+                case CmdUpdate:
+                    UpdateRequested?.Invoke();
                     break;
                 case CmdQuit:
                     QuitRequested?.Invoke();

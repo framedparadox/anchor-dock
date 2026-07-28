@@ -40,6 +40,17 @@ public sealed class AcrylicBackdropManager : IDisposable
         LuminosityOpacity: 0.90,
         Fallback: Rgb(0xF3, 0xF3, 0xF3));
 
+    /// <summary>
+    /// The recipe currently in force — whichever of <see cref="Dark"/> / <see cref="Light"/> the
+    /// window's effective theme selects, personalization already folded in. Exposed so anything
+    /// that has to paint the same glass <em>outside</em> this window can read the one recipe
+    /// rather than keep a second copy of it: a group's fly-out bar opens in its own popup window,
+    /// which a system backdrop cannot reach, so it mixes a XAML acrylic from these numbers
+    /// instead (see <c>DockWindow.BarBackground</c>).
+    /// </summary>
+    public AcrylicRecipe Current =>
+        (_themeRoot?.ActualTheme ?? ElementTheme.Dark) == ElementTheme.Light ? Light : Dark;
+
     /// <returns>true if acrylic was applied; false if the OS/GPU can't support it.</returns>
     public bool TryApply()
     {
@@ -68,6 +79,54 @@ public sealed class AcrylicBackdropManager : IDisposable
     }
 
     private void OnThemeChanged(FrameworkElement sender, object args) => UpdateTheme();
+
+    /// <summary>
+    /// Re-applies the current recipes. <see cref="Dark"/> and <see cref="Light"/> are plain
+    /// properties, so assigning one changes what the <em>next</em> theme update would use but
+    /// leaves the live controller alone; the personalization settings (glass opacity, accent
+    /// tint) need it to take effect now.
+    /// </summary>
+    public void Refresh() => UpdateTheme();
+
+    /// <summary>
+    /// Re-tints both recipes for the given personalization settings, and applies them.
+    /// </summary>
+    /// <param name="luminosityOpacity">How frosted the glass is (0.3–1.0).</param>
+    /// <param name="accentTint">Tint with the Windows accent color rather than the neutral grey
+    /// the taskbar uses. The accent is darkened for the dark recipe and lightened for the light
+    /// one, because the raw accent at full strength overwhelms a 40px strip of icons.</param>
+    public void Personalize(double luminosityOpacity, bool accentTint)
+    {
+        double luminosity = Math.Clamp(luminosityOpacity, 0.3, 1.0);
+        var darkTint = accentTint ? Blend(AccentColor(), Rgb(0x00, 0x00, 0x00), 0.55) : Rgb(0x1C, 0x1C, 0x1C);
+        var lightTint = accentTint ? Blend(AccentColor(), Rgb(0xFF, 0xFF, 0xFF), 0.60) : Rgb(0xF2, 0xF2, 0xF2);
+
+        Dark = Dark with { Tint = darkTint, LuminosityOpacity = luminosity };
+        Light = Light with { Tint = lightTint, LuminosityOpacity = luminosity };
+        Refresh();
+    }
+
+    /// <summary>The Windows accent color, or Anchor's fallback blue if it can't be read.</summary>
+    private static Color AccentColor()
+    {
+        try
+        {
+            return new Windows.UI.ViewManagement.UISettings()
+                .GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent);
+        }
+        catch
+        {
+            return Rgb(0x00, 0x78, 0xD4);
+        }
+    }
+
+    /// <summary>Mixes <paramref name="color"/> toward <paramref name="toward"/> by
+    /// <paramref name="amount"/> (0 = unchanged, 1 = fully the other color).</summary>
+    private static Color Blend(Color color, Color toward, double amount)
+    {
+        byte Mix(byte a, byte b) => (byte)Math.Round(a + (b - a) * amount);
+        return Color.FromArgb(255, Mix(color.R, toward.R), Mix(color.G, toward.G), Mix(color.B, toward.B));
+    }
 
     private void UpdateTheme()
     {

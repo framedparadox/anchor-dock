@@ -23,8 +23,9 @@ public static class IconService
     // reject "no user agent" requests.
     private static readonly HttpClient Http = CreateClient();
 
-    private static readonly string CacheDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Anchor", "IconCache");
+    // Alongside dock.json, so an override of Anchor's data directory takes the cache with it
+    // rather than leaving downloaded favicons in the real profile (see DockStore.DataDirectory).
+    private static readonly string CacheDir = Path.Combine(DockStore.DataDirectory, "IconCache");
 
     private static HttpClient CreateClient()
     {
@@ -39,9 +40,22 @@ public static class IconService
     {
         try
         {
-            // 1. Explicit user-supplied icon wins.
+            // 0. A built-in glyph the user picked from the icon picker is final — it needs no
+            // resolution at all, and must not be raced by a shell/favicon fetch that would
+            // silently overwrite the user's choice with a bitmap once it lands.
+            if (!string.IsNullOrEmpty(item.CustomGlyph))
+                return null;
+
+            // 1. Explicit user-supplied icon wins — but only if it actually decodes. A path that
+            // has since been deleted, or an image the XAML stack can't read, falls through to the
+            // normal resolution below rather than leaving the item blank.
             if (!string.IsNullOrWhiteSpace(item.CustomIconPath) && File.Exists(item.CustomIconPath))
-                return await FromFileAsync(item.CustomIconPath!);
+            {
+                var custom = await FromFileAsync(item.CustomIconPath!);
+                if (custom is not null)
+                    return custom;
+                Diag.Log($"IconService: custom icon '{item.CustomIconPath}' didn't decode — using the default");
+            }
 
             // 2. Kind-specific resolution.
             switch (item.Kind)
@@ -124,13 +138,36 @@ public static class IconService
         return bmp;
     }
 
+    /// <summary>
+    /// Decodes an image file the user pointed at. The WinRT Storage pipeline is tried first (it
+    /// streams, so a large PNG never lands in memory whole), but it can deny arbitrary paths for
+    /// an unpackaged app — and a custom icon is by definition an arbitrary path the user chose —
+    /// so a plain file read is the fallback. Returns null if neither yields a decodable image.
+    /// </summary>
     private static async Task<ImageSource?> FromFileAsync(string path)
     {
-        var file = await StorageFile.GetFileFromPathAsync(path);
-        using var stream = await file.OpenReadAsync();
-        var bmp = new BitmapImage();
-        await bmp.SetSourceAsync(stream);
-        return bmp;
+        try
+        {
+            var file = await StorageFile.GetFileFromPathAsync(path);
+            using var stream = await file.OpenReadAsync();
+            var bmp = new BitmapImage();
+            await bmp.SetSourceAsync(stream);
+            return bmp;
+        }
+        catch (Exception ex)
+        {
+            Diag.Log($"IconService: Storage read failed for '{path}' ({ex.GetType().Name}) — reading the file directly");
+        }
+
+        try
+        {
+            return await DecodeAsync(await File.ReadAllBytesAsync(path));
+        }
+        catch (Exception ex)
+        {
+            Diag.Log($"IconService: direct read failed for '{path}': {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
     }
 
     // ---- Favicons ---------------------------------------------------------

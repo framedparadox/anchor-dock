@@ -13,6 +13,7 @@ public enum DockItemKind
     Folder,
     WebLink,
     Separator,
+    Group, // holds Children instead of a target; opens a fly-out rather than launching
 }
 
 /// <summary>
@@ -38,14 +39,63 @@ public sealed class DockItem : INotifyPropertyChanged
     /// <summary>Optional command-line arguments (apps only).</summary>
     public string? Arguments { get; set; }
 
-    /// <summary>Optional path to a user-supplied icon overriding the shell icon.</summary>
+    /// <summary>
+    /// Optional path to a user-supplied icon overriding the shell/favicon icon. Set from the
+    /// item's right-click menu ("Change icon…"); cleared by "Use the default icon". Mutually
+    /// exclusive with <see cref="CustomGlyph"/> — the icon picker sets one and clears the other,
+    /// since only one can be shown at a time.
+    /// </summary>
     public string? CustomIconPath { get; set; }
+
+    private string? _customGlyph;
+
+    /// <summary>
+    /// Optional built-in glyph (a Segoe Fluent Icons character, chosen from the icon picker's
+    /// swatch grid) overriding the kind's default <see cref="Glyph"/>. Unlike
+    /// <see cref="CustomIconPath"/> this needs no network/shell resolution, so it renders
+    /// immediately and is never touched by <c>IconService</c>.
+    /// </summary>
+    public string? CustomGlyph
+    {
+        get => _customGlyph;
+        set
+        {
+            if (_customGlyph == value)
+                return;
+            _customGlyph = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Glyph));
+            OnPropertyChanged(nameof(HasCustomIcon));
+        }
+    }
 
     /// <summary>
     /// When true the item stays in the config (and in the Settings ▸ Apps list) but is not
     /// rendered on the dock. Toggled from the Settings window's per-app show/hide switch.
     /// </summary>
     public bool Hidden { get; set; }
+
+    /// <summary>
+    /// The entries inside a <see cref="DockItemKind.Group"/>, in the order its fly-out shows
+    /// them. Empty for every other kind — a group holds children <em>instead of</em> a target.
+    /// Groups don't nest: a child is always a leaf.
+    /// </summary>
+    public List<DockItem> Children { get; set; } = new();
+
+    /// <summary>
+    /// An optional per-item system-wide shortcut, in the readable form <c>HotkeyGesture</c>
+    /// parses (e.g. <c>"Ctrl+Alt+1"</c>). Empty means none. Kept as a string for the same reason
+    /// <see cref="DockConfig.Hotkey"/> is: a hand-edited config stays legible, and a combination
+    /// that no longer parses degrades to "no shortcut" rather than failing the whole load.
+    /// </summary>
+    public string? Hotkey { get; set; }
+
+    /// <summary>
+    /// For a <see cref="DockItemKind.Folder"/>: open a fly-out listing the folder's contents
+    /// instead of handing the folder to Explorer. Off by default, so a folder keeps behaving the
+    /// way it always has until the user asks for the stack.
+    /// </summary>
+    public bool FolderFlyout { get; set; }
 
     // ---- Runtime-only visual state (never serialized) ----------------------
 
@@ -64,12 +114,52 @@ public sealed class DockItem : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Fallback Segoe Fluent glyph shown when no bitmap icon is available.</summary>
+    // ---- Running-app state (runtime-only, refreshed on a poll) -------------
+
+    private bool _isRunning;
+    private string _runningStatusText = "";
+
+    /// <summary>True while an instance of this item's app has an open window.</summary>
     [JsonIgnore]
-    public string Glyph => Kind switch
+    public bool IsRunning => _isRunning;
+
+    /// <summary>
+    /// Updates the running state. The localized status text is passed in rather than looked up
+    /// here so the model stays free of the string table — the dock owns that.
+    /// </summary>
+    public void SetRunning(bool running, string statusText)
+    {
+        if (_isRunning == running && _runningStatusText == statusText)
+            return;
+        _isRunning = running;
+        _runningStatusText = statusText;
+        OnPropertyChanged(nameof(IsRunning));
+        OnPropertyChanged(nameof(RunningIndicatorVisibility));
+        OnPropertyChanged(nameof(RunningStatus));
+    }
+
+    /// <summary>The dot under the icon: only for a running, launchable item.</summary>
+    [JsonIgnore]
+    public Visibility RunningIndicatorVisibility =>
+        _isRunning && !IsSeparator && !IsGroup ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// Announced by Narrator alongside the item's name (AutomationProperties.ItemStatus), so the
+    /// dot conveys the same thing to assistive technology as it does visually.
+    /// </summary>
+    [JsonIgnore]
+    public string RunningStatus => _isRunning ? _runningStatusText : "";
+
+    /// <summary>
+    /// The glyph shown when no bitmap icon is available: <see cref="CustomGlyph"/> if the user
+    /// picked one from the icon picker, otherwise a fallback that depends on <see cref="Kind"/>.
+    /// </summary>
+    [JsonIgnore]
+    public string Glyph => !string.IsNullOrEmpty(CustomGlyph) ? CustomGlyph : Kind switch
     {
         DockItemKind.WebLink => "\uE774",   // Globe
         DockItemKind.Folder => "\uE8B7",    // Folder
+        DockItemKind.Group => "\uE838",     // FolderOpen \u2014 a group "opens" to reveal its contents
         DockItemKind.Separator => "",
         _ => "\uE7C3",                       // Page (generic file/app fallback)
     };
@@ -82,6 +172,155 @@ public sealed class DockItem : INotifyPropertyChanged
 
     [JsonIgnore]
     public bool IsSeparator => Kind == DockItemKind.Separator;
+
+    /// <summary>True for a fly-out group, which holds <see cref="Children"/> instead of a target.</summary>
+    [JsonIgnore]
+    public bool IsGroup => Kind == DockItemKind.Group;
+
+    /// <summary>True when the user has pinned an icon of their own onto this item — either a
+    /// custom image file or a built-in glyph chosen from the icon picker.</summary>
+    [JsonIgnore]
+    public bool HasCustomIcon =>
+        !string.IsNullOrWhiteSpace(CustomIconPath) || !string.IsNullOrEmpty(CustomGlyph);
+
+    /// <summary>
+    /// How much room this item takes along the strip's flow, in DIPs. A separator is a thin
+    /// divider rather than a launchable cell, so it gets a much narrower slot than the
+    /// taskbar-sized icons around it. Used both to size the dock window (see
+    /// <c>DockWindow.UpdateSizeAndPosition</c>) and to map a drag position onto a slot while
+    /// reordering, so the two can never disagree about where a cell starts.
+    /// </summary>
+    [JsonIgnore]
+    public double CellExtent => IsSeparator ? DockMetrics.SeparatorExtent : DockMetrics.Cell;
+
+    /// <summary>The rounded corner on this cell's hover/press chrome.</summary>
+    [JsonIgnore]
+    public CornerRadius CellCorner => new(DockMetrics.CellCorner);
+
+    // ---- Hover (runtime-only) ----------------------------------------------
+
+    private bool _hovered;
+
+    /// <summary>
+    /// Marks this cell as the one the cursor is in, which is what draws its highlight. Set from
+    /// the strip's own pointer tracking (see <c>DockWindow.TrackStripPointer</c>) rather than from
+    /// the cell's <c>Button</c>, whose <c>PointerOver</c> state does not arrive on a repeater-
+    /// realized cell — which is why dock items had no hover cue at all.
+    /// </summary>
+    public void SetHovered(bool hovered)
+    {
+        if (_hovered == hovered)
+            return;
+        _hovered = hovered;
+        OnPropertyChanged(nameof(HoverOpacity));
+    }
+
+    /// <summary>
+    /// The highlight's opacity: on or off, nothing in between. A separator never lights up — it is
+    /// a divider, not something to click.
+    /// <para>
+    /// Opacity rather than swapping the brush, so the brush itself stays a <c>ThemeResource</c>
+    /// resolved in the dock's visual tree. The dock's theme is its own (a Light dock under a Dark
+    /// app is a supported combination), and a brush looked up from here would be resolved against
+    /// the wrong one.
+    /// </para>
+    /// </summary>
+    [JsonIgnore]
+    public double HoverOpacity => _hovered && !IsSeparator ? 1 : 0;
+
+    // ---- Magnification (runtime-only) --------------------------------------
+
+    private double _magnify = 1;
+
+    /// <summary>
+    /// Scales this item's icon within its (fixed-size) cell as the cursor passes over the strip —
+    /// the macOS-dock swell, kept inside the cell so the window itself never has to resize.
+    /// 1.0 is the resting size; <see cref="RenderIconSize"/> caps how far it can actually grow.
+    /// </summary>
+    public void SetMagnification(double scale)
+    {
+        if (Math.Abs(_magnify - scale) < 0.001)
+            return;
+        _magnify = scale;
+        OnPropertyChanged(nameof(RenderIconSize));
+        OnPropertyChanged(nameof(RenderGlyphSize));
+    }
+
+    /// <summary>
+    /// The icon's drawn size: the density's icon size, swelled by any magnification, but never
+    /// past the cell it lives in (a cell is fixed, so an unbounded swell would just clip).
+    /// </summary>
+    [JsonIgnore]
+    public double RenderIconSize => Math.Min(DockMetrics.Icon * _magnify, DockMetrics.Cell - 2);
+
+    /// <summary>The fallback glyph's size, magnified on the same curve as <see cref="RenderIconSize"/>.</summary>
+    [JsonIgnore]
+    public double RenderGlyphSize => Math.Min(DockMetrics.Glyph * _magnify, (DockMetrics.Cell - 2) * 0.72);
+
+    /// <summary>The running-app indicator's length, which tracks the density.</summary>
+    [JsonIgnore]
+    public double IndicatorLength => DockMetrics.IndicatorLength;
+
+    /// <summary>
+    /// Re-reads every geometry-derived property after the app-wide density changed. The dock
+    /// calls this on each of its items rather than every item subscribing to
+    /// <see cref="DockMetrics.Changed"/> itself — items outlive no window, but a static event
+    /// they never unsubscribe from would keep every removed item alive forever.
+    /// </summary>
+    public void RefreshMetrics()
+    {
+        OnPropertyChanged(nameof(CellWidth));
+        OnPropertyChanged(nameof(CellHeight));
+        OnPropertyChanged(nameof(CellCorner));
+        OnPropertyChanged(nameof(RenderIconSize));
+        OnPropertyChanged(nameof(RenderGlyphSize));
+        OnPropertyChanged(nameof(IndicatorLength));
+        OnPropertyChanged(nameof(SeparatorLineWidth));
+        OnPropertyChanged(nameof(SeparatorLineHeight));
+    }
+
+    /// <summary>The launch button is shown for everything except a separator.</summary>
+    [JsonIgnore]
+    public Visibility ButtonVisibility => IsSeparator ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>The thin divider line is shown only for a separator.</summary>
+    [JsonIgnore]
+    public Visibility SeparatorVisibility => IsSeparator ? Visibility.Visible : Visibility.Collapsed;
+
+    // Whether the strip currently flows top-to-bottom rather than left-to-right. Orientation is
+    // a dock-wide property, but the cell sizes below are per-item template bindings, so the dock
+    // pushes it down onto every item (see DockWindow.ApplyOrientation) rather than the template
+    // reaching back up for it.
+    private bool _flowVertical;
+
+    /// <summary>Re-orients this item's cell. No-op when the orientation is unchanged.</summary>
+    public void SetFlowVertical(bool vertical)
+    {
+        if (_flowVertical == vertical)
+            return;
+        _flowVertical = vertical;
+        OnPropertyChanged(nameof(CellWidth));
+        OnPropertyChanged(nameof(CellHeight));
+        OnPropertyChanged(nameof(SeparatorLineWidth));
+        OnPropertyChanged(nameof(SeparatorLineHeight));
+    }
+
+    /// <summary>Cell width: the narrow side only when a separator sits in a horizontal strip.</summary>
+    [JsonIgnore]
+    public double CellWidth =>
+        IsSeparator && !_flowVertical ? DockMetrics.SeparatorExtent : DockMetrics.Cell;
+
+    /// <summary>Cell height: the narrow side only when a separator sits in a vertical strip.</summary>
+    [JsonIgnore]
+    public double CellHeight =>
+        IsSeparator && _flowVertical ? DockMetrics.SeparatorExtent : DockMetrics.Cell;
+
+    /// <summary>A separator's hairline lies across the flow, so its sides swap with orientation.</summary>
+    [JsonIgnore]
+    public double SeparatorLineWidth => _flowVertical ? DockMetrics.DividerLength : 1;
+
+    [JsonIgnore]
+    public double SeparatorLineHeight => _flowVertical ? 1 : DockMetrics.DividerLength;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
