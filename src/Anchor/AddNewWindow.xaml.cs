@@ -69,7 +69,7 @@ public sealed partial class AddNewWindow : Window
         }
         _appWindow.IsShownInSwitchers = true;
 
-        // Wide enough for the six type tiles at their translated widths (see AddNewWindow.xaml).
+        // Wide enough for the seven type tiles at their translated widths (see AddNewWindow.xaml).
         WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 740, 580);
         WindowChrome.CenterOnCursor(_appWindow, windowId);
 
