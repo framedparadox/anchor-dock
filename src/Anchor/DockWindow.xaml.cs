@@ -330,15 +330,19 @@ public sealed partial class DockWindow : Window
     /// <summary>
     /// Resolves every item's icon, groups included: a group's children never appear on the strip
     /// but do appear in its fly-out, so they need icons too.
+    /// <para>
+    /// Resolved concurrently rather than one at a time: each icon is independent (a shell
+    /// thumbnail lookup or a favicon fetch with its own timeout), and awaiting them in sequence
+    /// means one slow or unreachable web link holds up every icon after it — on a dock with
+    /// several web links and no connectivity, that is several times ten seconds before the last
+    /// icon even starts resolving.
+    /// </para>
     /// </summary>
-    private async Task LoadIconsAsync()
+    private Task LoadIconsAsync()
     {
-        foreach (var item in _profile.Items.ToArray())
-        {
-            await LoadOneIconAsync(item);
-            foreach (var child in item.Children.ToArray())
-                await LoadOneIconAsync(child);
-        }
+        var items = _profile.Items.ToArray()
+            .SelectMany(item => item.Children.ToArray().Prepend(item));
+        return Task.WhenAll(items.Select(LoadOneIconAsync));
     }
 
     // ---- Size & position (bottom-center, above the taskbar) ---------------

@@ -98,9 +98,9 @@ public sealed partial class DockWindow
         }
     }
 
-    private static async Task LoadFolderIconsAsync(List<DockItem> entries)
-    {
-        foreach (var entry in entries)
-            await LoadOneIconAsync(entry);
-    }
+    // Resolved concurrently rather than one at a time (see DockWindow.LoadIconsAsync): each
+    // entry's icon is an independent shell-thumbnail lookup, and a folder bar can hold up to
+    // FolderListing.MaxEntries of them.
+    private static Task LoadFolderIconsAsync(List<DockItem> entries) =>
+        Task.WhenAll(entries.Select(LoadOneIconAsync));
 }

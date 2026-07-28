@@ -278,7 +278,7 @@
                 Visibility="Collapsed"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Top"
-                Width="64"
+                Width="62"
                 Height="10"
                 CornerRadius="5"
                 Background="{ThemeResource AccentFillColorDefaultBrush}"
