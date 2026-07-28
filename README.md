@@ -80,6 +80,8 @@ other thing that ever could (an update check) is off until you switch it on (see
   snapped to. Fill a group by **dragging an icon onto it**, or with *Move to group* on an item's
   right-click menu; drag a cell sideways out of an open bar to put it back on the strip. A group's
   own menu offers *Ungroup*.
+
+  ![A group's fly-out bar opened above the dock](docs/group-flyout.png)
 - **Folder fly-outs** — turn on *Show folder contents* for a folder and it lists what's inside it
   in the same bar instead of opening Explorer, macOS-stack style. Click a subfolder to drill in,
   right-click an entry to pin it to the dock, and the last cell always opens the real folder in
@@ -122,6 +124,8 @@ other thing that ever could (an update check) is off until you switch it on (see
   switch and a remove button, and an **About** page (version + a plain-language privacy summary).
 - **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
   link / shortcut / separator / group**, with a type picker, Browse, and auto-suggested names.
+
+  ![The Add to Dock window's type picker](docs/add-to-dock.png)
 - **Automatic icons** — apps, files and folders use the Windows shell icon (the same icon
   Explorer shows); web links auto-fetch the site's **favicon**, cached to disk so it downloads
   once and still shows offline.
@@ -154,9 +158,15 @@ other thing that ever could (an update check) is off until you switch it on (see
 - **Persistent** — items, position, snap state and settings are saved to JSON and restored next launch.
 - **Out of the way** — borderless, always-on-top, hidden from the taskbar and Alt-Tab.
 
-The Settings window (Mica, Windows-Settings-style navigation):
+The Settings window (Mica, Windows-Settings-style left navigation) has six pages:
 
-![Settings](docs/AnchorDock_Settings.png)
+| General | Appearance | Shortcuts |
+|---|---|---|
+| ![Settings ▸ General](docs/settings-general.png) | ![Settings ▸ Appearance](docs/settings-appearance.png) | ![Settings ▸ Shortcuts](docs/settings-shortcuts.png) |
+
+| Docks | Apps & links | About |
+|---|---|---|
+| ![Settings ▸ Docks](docs/settings-docks.png) | ![Settings ▸ Apps & links](docs/settings-apps.png) | ![Settings ▸ About](docs/settings-about.png) |
 
 ## Install
 
