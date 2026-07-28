@@ -181,6 +181,7 @@
                                         AutomationProperties.Name="{x:Bind DisplayName, Mode=OneWay}"
                                         AutomationProperties.ItemStatus="{x:Bind RunningStatus, Mode=OneWay}"
                                         ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}"
+                                        ToolTipService.Placement="Top"
                                         Click="Item_Click">
                                     <Grid>
                                         <!-- The icon's size is OneWay because it moves twice over:

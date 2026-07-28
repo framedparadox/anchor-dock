@@ -107,35 +107,6 @@
                                    Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
 
-                        <!-- Appearance / theme -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE771;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Theme}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.ThemeDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ComboBox x:Name="ThemeChoice" Grid.Column="2" MinWidth="170"
-                                          VerticalAlignment="Center" HorizontalAlignment="Right"
-                                          AutomationProperties.Name="{loc:Localize Key=Settings.Theme}"
-                                          SelectionChanged="ThemeChoice_SelectionChanged">
-                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Light}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Dark}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Theme.System}" />
-                                </ComboBox>
-                            </Grid>
-                        </Border>
-
                         <!-- Language. The list itself is built in code-behind from Loc.Available so
                              the languages Anchor ships are declared in exactly one place. Changing
                              it takes effect immediately: every window is rebuilt in place, which
@@ -157,7 +128,7 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <ComboBox x:Name="LanguageChoice" Grid.Column="2" MinWidth="190"
+                                <ComboBox x:Name="LanguageChoice" Grid.Column="2" MinWidth="170" Width="170"
                                           VerticalAlignment="Center" HorizontalAlignment="Right"
                                           AutomationProperties.Name="{loc:Localize Key=Settings.Language}"
                                           SelectionChanged="LanguageChoice_SelectionChanged" />
@@ -215,45 +186,6 @@
                                               AutomationProperties.Name="{loc:Localize Key=Settings.Startup}"
                                               Toggled="StartupSwitch_Toggled" />
                             </Grid>
-                        </Border>
-
-                        <!-- Update check. Off by default and the only thing on this page that
-                             would ever contact the network (see About ▸ Privacy). -->
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel Spacing="12">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Grid.Column="0" Glyph="&#xE895;"
-                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{loc:Localize Key=Settings.Updates}"
-                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="{loc:Localize Key=Settings.UpdatesDesc}"
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Center"
-                                                HorizontalAlignment="Right">
-                                        <ToggleSwitch x:Name="UpdatesSwitch"
-                                                      OnContent="" OffContent="" MinWidth="0"
-                                                      HorizontalAlignment="Right"
-                                                      AutomationProperties.Name="{loc:Localize Key=Settings.Updates}"
-                                                      Toggled="UpdatesSwitch_Toggled" />
-                                        <Button x:Name="CheckUpdatesButton" MinWidth="150"
-                                                HorizontalAlignment="Right"
-                                                Content="{loc:Localize Key=Update.CheckNow}"
-                                                Click="CheckUpdates_Click" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <muxc:InfoBar x:Name="UpdateBar" IsOpen="False" IsClosable="False"
-                                              Severity="Informational" />
-                            </StackPanel>
                         </Border>
 
                         <!-- Backup: export the whole configuration, or restore one. -->
@@ -324,6 +256,35 @@
                         <TextBlock Text="{loc:Localize Key=Nav.Appearance}"
                                    Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
+
+                        <!-- Theme -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE771;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Theme}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.ThemeDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ComboBox x:Name="ThemeChoice" Grid.Column="2" MinWidth="170" Width="170"
+                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                          AutomationProperties.Name="{loc:Localize Key=Settings.Theme}"
+                                          SelectionChanged="ThemeChoice_SelectionChanged">
+                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Light}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Dark}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=Theme.System}" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
 
                         <!-- Icon size / density -->
                         <Border Style="{StaticResource Card}">
@@ -663,6 +624,45 @@
                                     <HyperlinkButton Content="{loc:Localize Key=About.License}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock/blob/main/LICENSE" />
                                 </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Update check. Off by default and the only thing on this page that
+                             would ever contact the network (see Privacy, below). -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE895;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{loc:Localize Key=Settings.Updates}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=Settings.UpdatesDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Center"
+                                                HorizontalAlignment="Right">
+                                        <ToggleSwitch x:Name="UpdatesSwitch"
+                                                      OnContent="" OffContent="" MinWidth="0"
+                                                      HorizontalAlignment="Right"
+                                                      AutomationProperties.Name="{loc:Localize Key=Settings.Updates}"
+                                                      Toggled="UpdatesSwitch_Toggled" />
+                                        <Button x:Name="CheckUpdatesButton" MinWidth="150"
+                                                HorizontalAlignment="Right"
+                                                Content="{loc:Localize Key=Update.CheckNow}"
+                                                Click="CheckUpdates_Click" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <muxc:InfoBar x:Name="UpdateBar" IsOpen="False" IsClosable="False"
+                                              Severity="Informational" />
                             </StackPanel>
                         </Border>
 

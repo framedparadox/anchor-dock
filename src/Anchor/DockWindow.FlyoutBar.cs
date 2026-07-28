@@ -44,7 +44,7 @@ public sealed partial class DockWindow
     /// much. Measuring from the window edge instead means the two never touch, whatever the
     /// density or padding.
     /// </summary>
-    private const double BarGap = 8;
+    private const double BarGap = 4;
 
     /// <summary>
     /// How long the bar may grow before it scrolls. A group holds what the user put in it, but a

@@ -3,9 +3,9 @@ name: CI
 # Anchor is a Windows-only WinUI 3 app, so every job here runs on a Windows runner.
 on:
   push:
-    branches: [main, develop]
+    branches: [release]
   pull_request:
-    branches: [main, develop]
+    branches: [release]
   workflow_dispatch:
 
 jobs:
