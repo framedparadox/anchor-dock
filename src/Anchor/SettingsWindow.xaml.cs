@@ -217,8 +217,18 @@ public sealed partial class SettingsWindow : Window
         HotkeySwitch.IsOn = cfg.HotkeyEnabled;
 
         RunningIndicatorsSwitch.IsOn = cfg.ShowRunningIndicators;
-        StartupSwitch.IsOn = StartupService.IsEnabled();
         UpdatesSwitch.IsOn = cfg.CheckForUpdates;
+
+        // The Store build updates through the Store; there is nothing here for the user to decide,
+        // so the whole card goes rather than sitting there switched off.
+        UpdateCard.Visibility = DockManager.UpdateChecksSupported
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        // Asked of Windows rather than read from the config, because the user can change it
+        // outside Anchor (Task Manager ▸ Startup apps) — and on the packaged build that answer is
+        // an async WinRT call, so the switch settles just after the page rather than with it.
+        _ = RefreshStartupSwitchAsync();
 
         DensityChoice.SelectedIndex = cfg.Density switch
         {
@@ -316,11 +326,39 @@ public sealed partial class SettingsWindow : Window
         _manager.SetShowRunningIndicators(RunningIndicatorsSwitch.IsOn);
     }
 
-    private void StartupSwitch_Toggled(object sender, RoutedEventArgs e)
+    private async void StartupSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_initializing)
             return;
-        _manager.SetLaunchAtStartup(StartupSwitch.IsOn);
+
+        var state = await _manager.SetLaunchAtStartupAsync(StartupSwitch.IsOn);
+
+        // Windows refuses to let an app re-enable a startup entry its user turned off, so a switch
+        // left showing "on" would be a lie. Put it back and name the place they can undo it.
+        bool blocked = state is StartupService.StartupState.BlockedByUser
+                            or StartupService.StartupState.BlockedByPolicy;
+        StartupBlockedBar.IsOpen = blocked;
+        if (blocked)
+            SetStartupSwitchSilently(false);
+    }
+
+    /// <summary>Reads the real startup state back from Windows and shows it, without the write-back
+    /// that setting the switch would otherwise trigger.</summary>
+    private async Task RefreshStartupSwitchAsync()
+    {
+        bool enabled = await StartupService.IsEnabledAsync();
+        SetStartupSwitchSilently(enabled);
+    }
+
+    /// <summary>Moves the startup switch to match reality. <see cref="_initializing"/> is saved and
+    /// restored rather than simply cleared: this also runs from inside
+    /// <see cref="LoadGeneral"/>'s initializing block, which is not finished with it.</summary>
+    private void SetStartupSwitchSilently(bool on)
+    {
+        bool wasInitializing = _initializing;
+        _initializing = true;
+        StartupSwitch.IsOn = on;
+        _initializing = wasInitializing;
     }
 
     // ---- Shortcuts page ----------------------------------------------------

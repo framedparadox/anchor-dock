@@ -112,6 +112,7 @@ internal static partial class NativeMethods
 
     public const uint SHGFI_ICON = 0x100;
     public const uint SHGFI_LARGEICON = 0x0;
+    public const uint SHGFI_SYSICONINDEX = 0x4000;
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     public static extern nint SHGetFileInfo(
@@ -120,6 +121,56 @@ internal static partial class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool DestroyIcon(nint hIcon);
+
+    // ---- Jumbo (256x256) shell icons (SHGetImageList) ----------------------
+    // The crisp, Explorer-matching icon source for IconService: SHGetFileInfo with
+    // SHGFI_SYSICONINDEX resolves a path to its index in the shell's system image list, and
+    // SHGetImageList(SHIL_JUMBO, ...) hands back that list at its largest (256x256) resolution.
+    // This is pure Win32 — no WinRT Storage broker involved — so it works for any path a
+    // full-trust process can see, without needing the broadFileSystemAccess capability.
+    public const int SHIL_JUMBO = 0x4;
+    public const int ILD_TRANSPARENT = 0x1;
+
+    public static readonly Guid IID_IImageList = new("46EB5926-582E-4017-9FDF-E8998DAA0950");
+
+    [ComImport]
+    [Guid("46EB5926-582E-4017-9FDF-E8998DAA0950")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IImageList
+    {
+        [PreserveSig] int Add(nint hbmImage, nint hbmMask, out int pi);
+        [PreserveSig] int ReplaceIcon(int i, nint hicon, out int pi);
+        [PreserveSig] int SetOverlayImage(int iImage, int iOverlay);
+        [PreserveSig] int Replace(int i, nint hbmImage, nint hbmMask);
+        [PreserveSig] int AddMasked(nint hbmImage, int crMask, out int pi);
+        [PreserveSig] int Draw(nint pimldp);
+        [PreserveSig] int Remove(int i);
+        [PreserveSig] int GetIcon(int i, int flags, out nint picon);
+        [PreserveSig] int GetImageInfo(int i, nint pImageInfo);
+        [PreserveSig] int Copy(int iDst, IImageList punkSrc, int iSrc, int uFlags);
+        [PreserveSig] int Merge(int i1, IImageList punk2, int i2, int dx, int dy, ref Guid riid, out nint ppv);
+        [PreserveSig] int Clone(ref Guid riid, out nint ppv);
+        [PreserveSig] int GetImageRect(int i, nint prc);
+        [PreserveSig] int GetIconSize(out int cx, out int cy);
+        [PreserveSig] int SetIconSize(int cx, int cy);
+        [PreserveSig] int GetImageCount(out int pi);
+        [PreserveSig] int SetImageCount(int uNewCount);
+        [PreserveSig] int SetBkColor(int clrBk, out int pclr);
+        [PreserveSig] int GetBkColor(out int pclr);
+        [PreserveSig] int BeginDrag(int iTrack, int dxHotspot, int dyHotspot);
+        [PreserveSig] int EndDrag();
+        [PreserveSig] int DragEnter(nint hwndLock, int x, int y);
+        [PreserveSig] int DragLeave(nint hwndLock);
+        [PreserveSig] int DragMove(int x, int y);
+        [PreserveSig] int SetDragCursorImage(IImageList punk, int iDrag, int dxHotspot, int dyHotspot);
+        [PreserveSig] int DragShowNolock(int fShow);
+        [PreserveSig] int GetDragImage(nint ppt, nint pptHotspot, ref Guid riid, out nint ppv);
+        [PreserveSig] int GetItemFlags(int i, out int dwFlags);
+        [PreserveSig] int GetOverlayImage(int iOverlay, out int piIndex);
+    }
+
+    [DllImport("shell32.dll")]
+    public static extern int SHGetImageList(int iImageList, ref Guid riid, out IImageList ppv);
 
     // ---- Hidden helper window (tray callbacks + global hotkeys) ------------
     //
@@ -356,4 +407,22 @@ internal static partial class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool UnregisterHotKey(nint hwnd, int id);
+
+    // ---- Package identity --------------------------------------------------
+    //
+    // The one reliable way to ask "am I running from an MSIX package?" without throwing: the
+    // WinRT alternative (Package.Current) raises an exception when there is no package, and an
+    // exception is a poor answer to a question this is asked at startup. Called with a zero
+    // length and no buffer it does no work at all — it only reports which of the two error codes
+    // below applies.
+
+    /// <summary>The process has no package identity — i.e. it is a plain unpackaged exe.</summary>
+    public const int APPMODEL_ERROR_NO_PACKAGE = 15700;
+
+    /// <summary>There is a package, and its name didn't fit the (deliberately empty) buffer.</summary>
+    public const int ERROR_INSUFFICIENT_BUFFER = 122;
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    public static extern int GetCurrentPackageFullName(
+        ref uint packageFullNameLength, [Out] char[]? packageFullName);
 }

@@ -148,6 +148,7 @@
 
   "Settings.Startup": "Windows के साथ शुरू करें",
   "Settings.StartupDesc": "साइन इन करते ही Anchor अपने आप शुरू हो जाए।",
+  "Settings.StartupBlocked": "Windows, Anchor को साइन इन पर शुरू होने से रोक रहा है। इसे टास्क मैनेजर या Windows सेटिंग्स में स्टार्टअप ऐप्स के अंतर्गत फिर से चालू करें।",
 
   "Settings.Updates": "अपडेट देखें",
   "Settings.UpdatesDesc": "GitHub से पूछें कि Anchor का नया संस्करण आया है या नहीं। डिफ़ॉल्ट रूप से बंद — वेब लिंक के आइकन के अलावा यही एक चीज़ है जो इंटरनेट से संपर्क करती है, और आपके लिए कभी कुछ डाउनलोड या इंस्टॉल नहीं किया जाता।",
@@ -198,6 +199,7 @@
   "About.SourceCode": "सोर्स कोड",
   "About.ReportIssue": "समस्या की सूचना दें",
   "About.License": "लाइसेंस",
+  "About.PrivacyPolicy": "गोपनीयता नीति",
   "About.Privacy": "गोपनीयता",
   "About.PrivacyDesc": "Anchor आपके डेटा के साथ क्या करता है और क्या नहीं।",
   "About.PrivacyLocal": "पूरी तरह आपके पीसी पर चलता है",

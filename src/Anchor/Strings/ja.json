@@ -148,6 +148,7 @@
 
   "Settings.Startup": "Windows と一緒に起動",
   "Settings.StartupDesc": "サインイン時に Anchor を自動的に起動します。",
+  "Settings.StartupBlocked": "Windows によって Anchor のサインイン時の起動がブロックされています。タスク マネージャーまたは Windows の設定の「スタートアップ アプリ」で再度有効にしてください。",
 
   "Settings.Updates": "更新を確認",
   "Settings.UpdatesDesc": "新しい Anchor が公開されているか GitHub に問い合わせます。既定ではオフ — Web リンクのアイコン取得以外でインターネットに接続するのはこれだけで、ダウンロードやインストールが勝手に行われることはありません。",
@@ -198,6 +199,7 @@
   "About.SourceCode": "ソースコード",
   "About.ReportIssue": "問題を報告",
   "About.License": "ライセンス",
+  "About.PrivacyPolicy": "プライバシー ポリシー",
   "About.Privacy": "プライバシー",
   "About.PrivacyDesc": "Anchor がデータに対して行うこと・行わないこと。",
   "About.PrivacyLocal": "すべて PC 内で動作します",

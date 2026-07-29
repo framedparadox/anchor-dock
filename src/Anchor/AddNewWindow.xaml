@@ -50,10 +50,14 @@
             <StackPanel Grid.Row="1" Spacing="8">
                 <TextBlock Text="{loc:Localize Key=Add.What}" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                 <!-- Sized so the seven type tiles fit the window at every DPI/font-scale
-                     combination without scrolling: 7 * 84 + 6 * 6 spacing = 624 DIP, comfortably
-                     under the 692 DIP left after the window's own padding. -->
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <ToggleButton x:Name="AppType" Click="TypeSelected" Width="84" Height="76" Padding="4,0"
+                     combination without scrolling: 7 * 88 + 6 * 8 spacing = 664 DIP, comfortably
+                     under the 692 DIP left after the window's own padding. Height and spacing
+                     carry a little extra buffer over the tightest fit: several translations
+                     (e.g. German "Verknüpfung" for Add.TypeShortcut) wrap to two lines at this
+                     width, and tiles aren't clipped by their parent, so a cramped gutter would
+                     let a wrapped label visually run into the next tile. -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ToggleButton x:Name="AppType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeApp}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -64,7 +68,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="FileType" Click="TypeSelected" Width="84" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="FileType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeFile}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -75,7 +79,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="FolderType" Click="TypeSelected" Width="84" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="FolderType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeFolder}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -86,7 +90,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="LinkType" Click="TypeSelected" Width="84" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="LinkType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeLink}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -97,7 +101,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="ShortcutType" Click="TypeSelected" Width="84" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="ShortcutType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeShortcut}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -108,7 +112,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="SeparatorType" Click="TypeSelected" Width="84" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="SeparatorType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeSeparator}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -119,7 +123,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="GroupType" Click="TypeSelected" Width="84" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="GroupType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeGroup}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">

@@ -148,6 +148,7 @@
 
   "Settings.Startup": "开机时启动",
   "Settings.StartupDesc": "登录时自动启动 Anchor。",
+  "Settings.StartupBlocked": "Windows 阻止了 Anchor 在登录时启动。请在任务管理器或 Windows 设置的“启动应用”中重新开启。",
 
   "Settings.Updates": "检查更新",
   "Settings.UpdatesDesc": "向 GitHub 查询是否发布了更新版本的 Anchor。默认关闭 —— 除了获取网页链接的图标之外，这是唯一会联网的功能，而且从不替你下载或安装任何东西。",
@@ -198,6 +199,7 @@
   "About.SourceCode": "源代码",
   "About.ReportIssue": "报告问题",
   "About.License": "许可证",
+  "About.PrivacyPolicy": "隐私政策",
   "About.Privacy": "隐私",
   "About.PrivacyDesc": "Anchor 会以及不会如何处理你的数据。",
   "About.PrivacyLocal": "完全在你的电脑上运行",

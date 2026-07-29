@@ -86,8 +86,9 @@ public sealed class DockManager
             Save();
 
         // Strictly opt-in, and deliberately last: nothing above it touches the network, and a
-        // slow or unreachable GitHub must never delay the dock appearing.
-        if (Config.CheckForUpdates)
+        // slow or unreachable GitHub must never delay the dock appearing. A packaged copy skips it
+        // outright — the Store updates itself (see UpdateChecksSupported).
+        if (Config.CheckForUpdates && UpdateChecksSupported)
             _ = CheckForUpdatesAsync(promptOnly: true);
     }
 
@@ -475,11 +476,18 @@ public sealed class DockManager
         _addNewWindow?.ApplyTheme(theme);
     }
 
-    public void SetLaunchAtStartup(bool on)
+    /// <summary>
+    /// Turns "start with Windows" on or off, and records what it actually became. On the packaged
+    /// build Windows can refuse to re-enable an entry the user disabled themselves, so the config
+    /// follows the returned state rather than the request — otherwise the Settings switch would
+    /// claim an autostart that isn't going to happen.
+    /// </summary>
+    public async Task<StartupService.StartupState> SetLaunchAtStartupAsync(bool on)
     {
-        Config.LaunchAtStartup = on;
-        StartupService.SetEnabled(on);
+        var state = await StartupService.SetEnabledAsync(on);
+        Config.LaunchAtStartup = state == StartupService.StartupState.Enabled;
         Save();
+        return state;
     }
 
     public void SetShowRunningIndicators(bool on)
@@ -535,6 +543,20 @@ public sealed class DockManager
     }
 
     // ---- Update check ------------------------------------------------------
+
+    /// <summary>
+    /// Whether Anchor checks GitHub for a newer release at all. False for the Microsoft Store
+    /// build, where the whole feature is hidden rather than merely defaulted off.
+    /// <para>
+    /// Two reasons, and either would be enough. It is <i>redundant</i>: the Store updates a
+    /// packaged app itself, so a banner offering a GitHub download would send someone to install a
+    /// second, unmanaged copy of the app they already have. And it is a <i>policy risk</i>: a Store
+    /// listing that routes users to a build distributed elsewhere is exactly the pattern Store
+    /// review looks for. The portable zip has no such updater, which is why the feature exists
+    /// there at all.
+    /// </para>
+    /// </summary>
+    public static bool UpdateChecksSupported => !PackagedRuntime.IsPackaged;
 
     /// <summary>Raised when a release should be shown to the user. The Settings window listens
     /// and renders it as a banner on its General page.</summary>
@@ -615,7 +637,9 @@ public sealed class DockManager
         // by DockProfiles that are no longer in the configuration.
         DockMetrics.SetDensity(Config.Density);
         Loc.Initialize(Config.Language);
-        StartupService.SetEnabled(Config.LaunchAtStartup);
+        // Not awaited: an import rebuilds every window, and the startup entry is a side effect of
+        // it rather than something the rebuild waits on. Failures are logged by the service.
+        _ = StartupService.SetEnabledAsync(Config.LaunchAtStartup);
         Running.SetEnabled(Config.ShowRunningIndicators);
 
         RebuildWindows();

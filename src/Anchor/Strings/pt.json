@@ -148,6 +148,7 @@
 
   "Settings.Startup": "Iniciar com o Windows",
   "Settings.StartupDesc": "Abrir o Anchor automaticamente ao entrar.",
+  "Settings.StartupBlocked": "O Windows está impedindo o Anchor de iniciar ao entrar. Ative-o novamente em Aplicativos de inicialização, no Gerenciador de Tarefas ou nas Configurações do Windows.",
 
   "Settings.Updates": "Procurar atualizações",
   "Settings.UpdatesDesc": "Perguntar ao GitHub se saiu uma versão mais recente do Anchor. Desativado por padrão — além do ícone de um link da web, é a única coisa que contata a internet, e nada é baixado ou instalado por você.",
@@ -198,6 +199,7 @@
   "About.SourceCode": "Código-fonte",
   "About.ReportIssue": "Relatar um problema",
   "About.License": "Licença",
+  "About.PrivacyPolicy": "Política de privacidade",
   "About.Privacy": "Privacidade",
   "About.PrivacyDesc": "O que o Anchor faz — e não faz — com os seus dados.",
   "About.PrivacyLocal": "Funciona inteiramente no seu PC",

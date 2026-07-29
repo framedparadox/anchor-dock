@@ -6,6 +6,61 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Round 3 — Microsoft Store readiness
+
+A compliance and correctness pass over the MSIX/Store path. Two of these are behavior bugs that
+only appear once the app is installed from the Store, which is exactly where they'd have been
+found by a user rather than by us.
+
+#### Fixed
+
+- **"Start with Windows" silently did nothing in a packaged build.** `StartupService` wrote the
+  per-user `HKCU\…\CurrentVersion\Run` key, but a packaged process's writes under `HKCU\Software`
+  are captured in the package's virtualized registry hive, which Windows' autostart never reads —
+  the switch would flip, save, and then not start anything after a reboot. The manifest now
+  declares a `windows.startupTask` extension and the service drives it through
+  `StartupTask.RequestEnableAsync` when packaged, keeping the Run key for the portable zip.
+  `Services/PackagedRuntime.cs` is the single place that tells the two apart.
+- **A user's own "off" is now respected.** Windows refuses to let an app re-enable a startup task
+  the user disabled in Task Manager. `SetLaunchAtStartupAsync` returns what the entry *actually*
+  became rather than what was asked for, and the Settings switch springs back with a note pointing
+  at Task Manager instead of claiming an autostart that won't happen.
+- **`-p:StorePackage=true` failed after building the package.** Generating the symbol package needs
+  `mspdbcmf.exe` (a Visual Studio C++ tool); when it is absent the MSIX targets build the `.msix`
+  and *then* fail the build with `MSB6011`. `AppxSymbolPackageEnabled` now defaults to false —
+  symbols are optional for a Partner Center upload — and can be turned back on with
+  `-p:AppxSymbolPackageEnabled=true`. The dead `WinAppSdkCheckForPdbConversion` property, which
+  this version of the targets never read, is gone.
+- **The shipped manifest claimed `MaxVersionTested="10.0.19041.0"`** regardless of what
+  `Package.appxmanifest` said: the packaging targets overwrite it from `$(TargetPlatformVersion)`.
+  The target framework moved to `net10.0-windows10.0.26100.0` so the declared value matches the
+  Windows the app is actually tested on. `TargetPlatformMinVersion` is unchanged at 10.0.17763.0,
+  so the install floor (Windows 10 1809) is the same.
+
+#### Changed
+
+- **The GitHub update check is absent from the Store build**, not merely off by default. The Store
+  updates a packaged app itself, so the banner would have sent users to install a second,
+  unmanaged copy of the app they already had — and a Store listing that routes users to a build
+  distributed elsewhere is a pattern review looks for. `DockManager.UpdateChecksSupported` gates
+  the startup check and collapses the whole Settings card. The portable zip is unaffected; it has
+  no other updater.
+- **Manifest metadata lines up with the Store listing.** The Start-menu/app-list name is now
+  "Anchor Dock", matching `Properties/DisplayName` and the reserved name, and the description no
+  longer says "for Windows 11" while `MinVersion` admits Windows 10 1809 — both are policy 10.1.1
+  ("metadata must accurately describe the product"). The app's own UI still calls itself Anchor.
+
+#### Added
+
+- **A privacy policy** — [`docs/privacy-policy.md`](docs/privacy-policy.md), linked from
+  **Settings ▸ About** and destined for the Partner Center listing field. Store policy 10.5.1
+  requires one from "Desktop Bridge and Win32 products" specifically, whatever the app collects
+  (here: nothing).
+- Tests for the Run-key round trip (including that disabling *removes* the value rather than
+  blanking it, and that what's written is a quoted absolute path Windows can run) and for the
+  packaged/unpackaged split. The packaged half needs an installed MSIX and stays a manual sideload
+  check in `docs/microsoft-store-deployment.md` §11.
+
 ### Round 2 — the rest of the roadmap
 
 Everything in this section clears the remaining "Roadmap / future enhancements" items from the

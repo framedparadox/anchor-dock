@@ -148,6 +148,7 @@
 
   "Settings.Startup": "Start with Windows",
   "Settings.StartupDesc": "Launch Anchor automatically when you sign in.",
+  "Settings.StartupBlocked": "Windows is blocking Anchor from starting at sign-in. Turn it back on under Startup apps in Task Manager or Windows Settings.",
 
   "Settings.Updates": "Check for updates",
   "Settings.UpdatesDesc": "Ask GitHub whether a newer Anchor has been released. Off by default — this is the only thing besides a web link's icon that contacts the internet, and nothing is ever downloaded or installed for you.",
@@ -198,6 +199,7 @@
   "About.SourceCode": "Source code",
   "About.ReportIssue": "Report an issue",
   "About.License": "License",
+  "About.PrivacyPolicy": "Privacy policy",
   "About.Privacy": "Privacy",
   "About.PrivacyDesc": "What Anchor does and doesn't do with your data.",
   "About.PrivacyLocal": "Runs entirely on your PC",

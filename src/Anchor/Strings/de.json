@@ -148,6 +148,7 @@
 
   "Settings.Startup": "Mit Windows starten",
   "Settings.StartupDesc": "Anchor automatisch bei der Anmeldung starten.",
+  "Settings.StartupBlocked": "Windows verhindert, dass Anchor bei der Anmeldung startet. Aktivieren Sie es wieder unter „Autostart-Apps“ im Task-Manager oder in den Windows-Einstellungen.",
 
   "Settings.Updates": "Nach Updates suchen",
   "Settings.UpdatesDesc": "GitHub fragen, ob eine neuere Version von Anchor erschienen ist. Standardmäßig aus – dies ist neben dem Symbol eines Weblinks das Einzige, was das Internet kontaktiert, und es wird nie etwas für Sie heruntergeladen oder installiert.",
@@ -198,6 +199,7 @@
   "About.SourceCode": "Quellcode",
   "About.ReportIssue": "Problem melden",
   "About.License": "Lizenz",
+  "About.PrivacyPolicy": "Datenschutzerklärung",
   "About.Privacy": "Datenschutz",
   "About.PrivacyDesc": "Was Anchor mit Ihren Daten macht – und was nicht.",
   "About.PrivacyLocal": "Läuft vollständig auf Ihrem PC",

@@ -106,7 +106,8 @@ other thing that ever could (an update check) is off until you switch it on (see
   restores one, which is how you move a dock to another PC.
 - **Opt-in update check** — off by default; when you turn it on, Anchor asks GitHub whether a
   newer release exists and offers you the download page. It never downloads or installs anything
-  (see [Privacy & data](#privacy--data)).
+  (see [Privacy & data](#privacy--data)). Not present in the Microsoft Store build, which the
+  Store keeps up to date itself.
 - **Running-app indicators** — a dot under an app that's already open, and a click that brings its
   window forward instead of starting a second copy. **Shift+click** starts a new instance anyway,
   the way the Windows 11 taskbar does. Turn the whole thing off in Settings ▸ General.
@@ -219,7 +220,7 @@ A `winget` package (`ajaykontham.Anchor`) is prepared but not yet accepted into 
 dotnet build src/Anchor/Anchor.csproj -c Release -p:Platform=x64
 
 # run it
-./src/Anchor/bin/x64/Release/net10.0-windows10.0.19041.0/win-x64/Anchor.exe
+./src/Anchor/bin/x64/Release/net10.0-windows10.0.26100.0/win-x64/Anchor.exe
 
 # natively for Windows on ARM (cross-compiles fine from an x64 host)
 dotnet build src/Anchor/Anchor.csproj -c Release -p:Platform=ARM64
@@ -407,15 +408,19 @@ right then. Nothing is lost, and nothing needs doing by hand.
   "GlassOpacity": 0.9,           // acrylic frostiness, 0.3–1.0
   "AccentTint": false,           // tint the glass with the Windows accent colour
   "Magnify": false,              // swell icons under the cursor
-  "CheckForUpdates": false,      // opt-in: ask GitHub for a newer release at startup
+  "CheckForUpdates": false,      // opt-in: ask GitHub for a newer release at startup. Ignored by
+                                 //   the Store build, which updates through the Store
   "SkippedUpdate": "",           // a version the user chose not to be reminded about
   "Seeded": true                 // defaults have been seeded (prevents re-seeding an emptied dock)
 }
 ```
 
-You can hand-edit this file while Anchor is closed. `LaunchAtStartup` is the app's view of the
-Windows startup entry; the source of truth is the `Anchor` value under
-`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, which the Settings toggle writes.
+You can hand-edit this file while Anchor is closed. `LaunchAtStartup` is only the app's *view* of
+the Windows startup entry — Windows is the source of truth, and Anchor asks it rather than trusting
+this field. In the portable build that entry is the `Anchor` value under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; in the Microsoft Store build it is the app's
+registered startup task. Either way it shows up in **Task Manager ▸ Startup apps**, and turning it
+off there wins — the Store build can't override that, and says so when you try.
 
 A dock has no monitor field on purpose: which screen it lives on is simply the one `FreeX`/`FreeY`
 fall on. That survives a reboot, a resolution change and a monitor being unplugged and plugged
@@ -458,6 +463,11 @@ Anchor runs entirely on your PC. There are **no accounts, no telemetry, no analy
   startup whether a newer version exists. No token, no account, no identifier beyond the HTTP
   request itself; nothing is uploaded, and nothing is ever downloaded or installed for you — the
   most it does is open the release page in your browser. Leave the switch off and it never runs.
+  The **Microsoft Store build has no update check at all** — the Store updates it — so there the
+  setting is not merely off, it isn't shown.
+
+The full policy is in [`docs/privacy-policy.md`](docs/privacy-policy.md), which is also what the
+Store listing points at and what **Settings ▸ About ▸ Privacy policy** opens.
 - **Launching is a hand-off to Windows.** Opening an item hands it to the shell exactly as
   double-clicking it in Explorer would; Anchor does not read your files' contents. A folder
   fly-out lists a folder's file *names* to draw its icons; it does not open the files.
@@ -478,8 +488,10 @@ The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
 - **Favicon downloads are bounded.** Responses are size-capped (~2 MB) and content-sniffed by
   magic bytes before decoding, so a non-image response can't be shown as a broken/oversized image.
   The cache filename is derived from the sanitized host, not free-form text.
-- **No elevation required.** "Start with Windows" uses the per-user `HKCU` Run key, so it never
-  prompts for admin rights.
+- **No elevation required.** "Start with Windows" uses the per-user `HKCU` Run key in the portable
+  build, and the packaged app's `windows.startupTask` in the Microsoft Store build (where a
+  packaged process's Run-key writes would be virtualized away and never actually start anything).
+  Neither prompts for admin rights, and both are visible to you in **Task Manager ▸ Startup apps**.
 
 ## Troubleshooting
 
@@ -549,10 +561,13 @@ src/Anchor/
     ItemSearch.cs              Quick-launch matching: which items a query finds, and in what order.
     FolderListing.cs           A folder's contents as dock items, in Explorer's order.
     Loc.cs                     The string table: language resolution + key lookup with fallback.
+    PackagedRuntime.cs         Whether this is the MSIX (Store) build or the portable exe — the
+                               one place that decides, for the handful of behaviors that differ.
     MessageWindow.cs           Hidden HWND that receives tray callbacks and WM_HOTKEY.
     TrayIconService.cs         Notification-area icon and its native right-click menu.
     HotkeyService.cs           RegisterHotKey wrapper; several shortcuts at once, keyed by id.
-    StartupService.cs          Per-user "start with Windows" Run-key toggle.
+    StartupService.cs          "Start with Windows": the per-user Run key unpackaged, the
+                               windows.startupTask API when packaged.
     WindowChrome.cs            Borderless/topmost/tool-window, rounded corners, dialog sizing.
     Diag.cs                    Lightweight file logger (%Temp%\anchor.log).
   Localization/

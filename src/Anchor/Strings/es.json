@@ -148,6 +148,7 @@
 
   "Settings.Startup": "Iniciar con Windows",
   "Settings.StartupDesc": "Abre Anchor automáticamente al iniciar sesión.",
+  "Settings.StartupBlocked": "Windows impide que Anchor se inicie al iniciar sesión. Vuélvelo a activar en Aplicaciones de inicio, en el Administrador de tareas o en la Configuración de Windows.",
 
   "Settings.Updates": "Buscar actualizaciones",
   "Settings.UpdatesDesc": "Preguntar a GitHub si hay una versión más reciente de Anchor. Desactivado por defecto: además del icono de un enlace web, es lo único que contacta con internet, y nunca se descarga ni se instala nada por ti.",
@@ -198,6 +199,7 @@
   "About.SourceCode": "Código fuente",
   "About.ReportIssue": "Informar de un problema",
   "About.License": "Licencia",
+  "About.PrivacyPolicy": "Política de privacidad",
   "About.Privacy": "Privacidad",
   "About.PrivacyDesc": "Qué hace y qué no hace Anchor con tus datos.",
   "About.PrivacyLocal": "Funciona por completo en tu PC",

@@ -2,7 +2,12 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <!-- The SDK version compiled against. It is also what the MSIX build stamps as the manifest's
+         MaxVersionTested — the packaging targets derive that from TargetPlatformVersion and
+         overwrite whatever Package.appxmanifest says — so it has to name a Windows the app has
+         actually been tested on, not the oldest one it runs on. That floor is
+         TargetPlatformMinVersion below, which is unchanged: Windows 10 1809 still runs it. -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>Anchor</RootNamespace>
     <AssemblyName>Anchor</AssemblyName>
@@ -67,8 +72,16 @@
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
     <AppxBundle>Always</AppxBundle>
     <AppxAutoIncrementPackageRevision>false</AppxAutoIncrementPackageRevision>
-    <WinAppSdkCheckForPdbConversion>false</WinAppSdkCheckForPdbConversion>
     <UapAppxPackageBuildMode>StoreUpload</UapAppxPackageBuildMode>
+
+    <!-- Off by default because generating the .appxsym needs mspdbcmf.exe, which ships with Visual
+         Studio's C++ tooling and is absent from a plain .NET SDK install — and the MSIX targets
+         don't degrade gracefully when it's missing: they build the package, then fail the whole
+         build on the symbol step (MSB6011), so `-p:StorePackage=true` never completes on a machine
+         without it. Symbols are optional for a Partner Center upload; they only feed the Store's
+         crash analytics. Turn them on with -p:AppxSymbolPackageEnabled=true on a machine that has
+         the Visual Studio "Desktop development with C++" workload installed. -->
+    <AppxSymbolPackageEnabled Condition="'$(AppxSymbolPackageEnabled)' == ''">false</AppxSymbolPackageEnabled>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(StorePackage)' == 'true'">
