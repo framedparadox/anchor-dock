@@ -16,16 +16,21 @@ namespace Anchor;
 /// </summary>
 public sealed partial class AddNewWindow : Window
 {
-    private enum AddKind { App, File, Folder, Link, Shortcut }
+    private enum AddKind { App, File, Folder, Link, Shortcut, Separator, Group }
 
+    private readonly DockManager _manager;
     private readonly DockWindow _dock;
     private readonly nint _hwnd;
     private readonly AppWindow _appWindow;
     private AddKind _kind = AddKind.App;
     private bool _nameEdited;
 
-    public AddNewWindow(DockWindow dock)
+    /// <param name="manager">App-wide state (the theme this window matches, above all).</param>
+    /// <param name="dock">The dock the new item is added to — with several on screen, the one
+    /// whose menu or gear opened this window.</param>
+    public AddNewWindow(DockManager manager, DockWindow dock)
     {
+        _manager = manager;
         _dock = dock;
         InitializeComponent();
 
@@ -47,7 +52,7 @@ public sealed partial class AddNewWindow : Window
         // Match the dock's chosen Light/Dark/System theme so this window reads the same, and keep
         // the caption buttons and window frame in step if the OS theme changes while System mode
         // is on.
-        ApplyTheme(dock.Config.Theme);
+        ApplyTheme(manager.Config.Theme);
         RootGrid.ActualThemeChanged += (_, _) => ApplyChromeTheme();
         // Re-assert on activation: DWM otherwise restores its default rim on some state changes.
         Activated += (_, _) => ApplyChromeTheme();
@@ -60,12 +65,12 @@ public sealed partial class AddNewWindow : Window
             // Only outrank other apps when the dock itself currently does — otherwise this
             // dialog would needlessly float above everything (full-screen apps, video calls)
             // even though a floating, non-topmost dock doesn't need that.
-            p.IsAlwaysOnTop = dock.Config.Snapped || dock.Config.AlwaysOnTop;
+            p.IsAlwaysOnTop = dock.Profile.Snapped || dock.Profile.AlwaysOnTop;
         }
         _appWindow.IsShownInSwitchers = true;
 
-        // Wide enough for the five type tiles at their translated widths (see AddNewWindow.xaml).
-        WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 640, 580);
+        // Wide enough for the seven type tiles at their translated widths (see AddNewWindow.xaml).
+        WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 740, 580);
         WindowChrome.CenterOnCursor(_appWindow, windowId);
 
         // Track manual edits to the name so an auto-suggested name doesn't clobber user input.
@@ -107,6 +112,8 @@ public sealed partial class AddNewWindow : Window
                      : ReferenceEquals(sender, FileType) ? AddKind.File
                      : ReferenceEquals(sender, FolderType) ? AddKind.Folder
                      : ReferenceEquals(sender, LinkType) ? AddKind.Link
+                     : ReferenceEquals(sender, SeparatorType) ? AddKind.Separator
+                     : ReferenceEquals(sender, GroupType) ? AddKind.Group
                      : AddKind.Shortcut;
         SelectType(kind);
     }
@@ -121,22 +128,39 @@ public sealed partial class AddNewWindow : Window
         FolderType.IsChecked = kind == AddKind.Folder;
         LinkType.IsChecked = kind == AddKind.Link;
         ShortcutType.IsChecked = kind == AddKind.Shortcut;
+        SeparatorType.IsChecked = kind == AddKind.Separator;
+        GroupType.IsChecked = kind == AddKind.Group;
+
+        // Neither a separator nor a group points at anything, so the target field goes away for
+        // both. A group still has a name (it labels its fly-out); a separator doesn't, so its
+        // form collapses to the explanatory hint alone.
+        bool hasTarget = kind is not (AddKind.Separator or AddKind.Group);
+        TargetLabel.Visibility = hasTarget ? Visibility.Visible : Visibility.Collapsed;
+        TargetRow.Visibility = hasTarget ? Visibility.Visible : Visibility.Collapsed;
+        NamePanel.Visibility = kind != AddKind.Separator ? Visibility.Visible : Visibility.Collapsed;
 
         bool canBrowse = kind is AddKind.App or AddKind.File or AddKind.Folder;
         BrowseButton.Visibility = canBrowse ? Visibility.Visible : Visibility.Collapsed;
         ArgsPanel.Visibility = kind == AddKind.App ? Visibility.Visible : Visibility.Collapsed;
 
         // Label / placeholder / hint all come from one "Add.<Kind>.*" family in the string table.
+        // The kinds with no target contribute only a hint — there is no label or placeholder to
+        // translate for a field that is never shown.
         string prefix = "Add." + kind switch
         {
             AddKind.App => "App",
             AddKind.File => "File",
             AddKind.Folder => "Folder",
             AddKind.Link => "Link",
+            AddKind.Separator => "Separator",
+            AddKind.Group => "Group",
             _ => "Shortcut",
         };
-        TargetLabel.Text = Loc.Get(prefix + ".Label");
-        TargetBox.PlaceholderText = Loc.Get(prefix + ".Placeholder");
+        if (hasTarget)
+        {
+            TargetLabel.Text = Loc.Get(prefix + ".Label");
+            TargetBox.PlaceholderText = Loc.Get(prefix + ".Placeholder");
+        }
         TargetHint.Text = Loc.Get(prefix + ".Hint");
 
         HideError();
@@ -205,6 +229,24 @@ public sealed partial class AddNewWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
+        // A separator carries no target or name of its own, so it short-circuits the validation
+        // and naming below entirely.
+        if (_kind == AddKind.Separator)
+        {
+            _dock.AddSeparator();
+            Close();
+            return;
+        }
+
+        // A group is created empty and filled from the items already on the dock ("Move to
+        // group ▸" on an item's right-click menu), so it only needs a name.
+        if (_kind == AddKind.Group)
+        {
+            _dock.CreateGroup(NameBox.Text.Trim());
+            Close();
+            return;
+        }
+
         var target = TargetBox.Text.Trim();
         if (target.Length == 0)
         {

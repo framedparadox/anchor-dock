@@ -17,6 +17,24 @@
                 <Setter Property="CornerRadius" Value="8" />
                 <Setter Property="Padding" Value="16,14" />
             </Style>
+
+            <!-- The dimmed second line under a setting's or an item's name.
+
+                 These exist as styles, and are reached by key from the code that builds the Docks
+                 and Apps & links rows, because that code cannot look the brush up for itself. This
+                 window picks its own Light/Dark theme from the user's choice, which is not
+                 necessarily the application's, and `Application.Current.Resources["…"]` resolves
+                 against the application's — so a Light window was painting its descriptions in the
+                 Dark theme's near-white and they vanished into the card. A {ThemeResource} inside a
+                 Style is resolved against the element the style lands on, which is the right
+                 theme by construction. -->
+            <Style x:Key="SecondaryText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+            <Style x:Key="SecondaryCaption" TargetType="TextBlock"
+                   BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
         </Grid.Resources>
 
         <Grid.RowDefinitions>
@@ -47,10 +65,34 @@
                              SelectionChanged="Nav_SelectionChanged">
             <muxc:NavigationView.MenuItems>
                 <muxc:NavigationViewItem x:Name="GeneralNav" Content="{loc:Localize Key=Nav.General}"
+                                         AutomationProperties.AutomationId="SettingsNavGeneral"
                                          IsSelected="True" Icon="Setting" Tag="general" />
+                <muxc:NavigationViewItem x:Name="AppearanceNav" Content="{loc:Localize Key=Nav.Appearance}"
+                                         AutomationProperties.AutomationId="SettingsNavAppearance"
+                                         Tag="appearance">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE790;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem x:Name="ShortcutsNav" Content="{loc:Localize Key=Nav.Shortcuts}"
+                                         AutomationProperties.AutomationId="SettingsNavShortcuts"
+                                         Tag="shortcuts">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE765;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem x:Name="DocksNav" Content="{loc:Localize Key=Nav.Docks}"
+                                         AutomationProperties.AutomationId="SettingsNavDocks"
+                                         Tag="docks">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7C4;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
                 <muxc:NavigationViewItem x:Name="AppsNav" Content="{loc:Localize Key=Nav.Apps}"
+                                         AutomationProperties.AutomationId="SettingsNavApps"
                                          Icon="AllApps" Tag="apps" />
-                <muxc:NavigationViewItem x:Name="AboutNav" Content="{loc:Localize Key=Nav.About}" Tag="about">
+                <muxc:NavigationViewItem x:Name="AboutNav" Content="{loc:Localize Key=Nav.About}" Tag="about"
+                                         AutomationProperties.AutomationId="SettingsNavAbout">
                     <muxc:NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
                     </muxc:NavigationViewItem.Icon>
@@ -65,117 +107,10 @@
                                    Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
 
-                        <!-- Appearance / theme -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE771;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Theme}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.ThemeDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ComboBox x:Name="ThemeChoice" Grid.Column="2" MinWidth="170"
-                                          VerticalAlignment="Center" HorizontalAlignment="Right"
-                                          AutomationProperties.Name="{loc:Localize Key=Settings.Theme}"
-                                          SelectionChanged="ThemeChoice_SelectionChanged">
-                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Light}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Dark}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Theme.System}" />
-                                </ComboBox>
-                            </Grid>
-                        </Border>
-
                         <!-- Language. The list itself is built in code-behind from Loc.Available so
-                             the languages Anchor ships are declared in exactly one place. -->
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel Spacing="12">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Grid.Column="0" Glyph="&#xF2B7;"
-                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{loc:Localize Key=Settings.Language}"
-                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="{loc:Localize Key=Settings.LanguageDesc}"
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <ComboBox x:Name="LanguageChoice" Grid.Column="2" MinWidth="190"
-                                              VerticalAlignment="Center" HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.Language}"
-                                              SelectionChanged="LanguageChoice_SelectionChanged" />
-                                </Grid>
-
-                                <muxc:InfoBar x:Name="RestartBar" IsOpen="False" IsClosable="False"
-                                              Severity="Informational"
-                                              Message="{loc:Localize Key=Settings.RestartPrompt}">
-                                    <muxc:InfoBar.ActionButton>
-                                        <Button Content="{loc:Localize Key=Settings.RestartNow}"
-                                                Click="Restart_Click" />
-                                    </muxc:InfoBar.ActionButton>
-                                </muxc:InfoBar>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Global keyboard shortcut -->
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel Spacing="12">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Grid.Column="0" Glyph="&#xE765;"
-                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{loc:Localize Key=Settings.Hotkey}"
-                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="{loc:Localize Key=Settings.HotkeyDesc}"
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <!-- The on/off switch sits at the right edge of the card, in
-                                         line with every other toggle on this page; the shortcut
-                                         itself stacks underneath it, right-aligned to match. -->
-                                    <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="10"
-                                                VerticalAlignment="Center" HorizontalAlignment="Right">
-                                        <ToggleSwitch x:Name="HotkeySwitch"
-                                                      OnContent="" OffContent="" MinWidth="0"
-                                                      HorizontalAlignment="Right"
-                                                      AutomationProperties.Name="{loc:Localize Key=Settings.Hotkey}"
-                                                      Toggled="HotkeySwitch_Toggled" />
-                                        <!-- Clicking arms capture; the next key press becomes the
-                                             shortcut (see HotkeyButton_PreviewKeyDown). -->
-                                        <Button x:Name="HotkeyButton" MinWidth="150"
-                                                HorizontalAlignment="Right"
-                                                Click="HotkeyButton_Click"
-                                                PreviewKeyDown="HotkeyButton_PreviewKeyDown"
-                                                LostFocus="HotkeyButton_LostFocus" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <muxc:InfoBar x:Name="HotkeyBar" IsOpen="False" IsClosable="False"
-                                              Severity="Warning" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Position -->
+                             the languages Anchor ships are declared in exactly one place. Changing
+                             it takes effect immediately: every window is rebuilt in place, which
+                             is why there is no longer a "restart to finish" prompt here. -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
@@ -183,30 +118,25 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE7C4;"
+                                <FontIcon Grid.Column="0" Glyph="&#xF2B7;"
                                           FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Position}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.Language}"
                                                Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.PositionDesc}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.LanguageDesc}"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <ComboBox x:Name="EdgeChoice" Grid.Column="2" MinWidth="190"
+                                <ComboBox x:Name="LanguageChoice" Grid.Column="2" MinWidth="170" Width="170"
                                           VerticalAlignment="Center" HorizontalAlignment="Right"
-                                          AutomationProperties.Name="{loc:Localize Key=Settings.Position}"
-                                          SelectionChanged="EdgeChoice_SelectionChanged">
-                                    <ComboBoxItem Content="{loc:Localize Key=Position.Floating}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Position.Bottom}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Position.Top}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Position.Left}" />
-                                    <ComboBoxItem Content="{loc:Localize Key=Position.Right}" />
-                                </ComboBox>
+                                          AutomationProperties.Name="{loc:Localize Key=Settings.Language}"
+                                          SelectionChanged="LanguageChoice_SelectionChanged" />
                             </Grid>
                         </Border>
 
-                        <!-- Snapping behaviour: vertical when snapped to a side edge -->
+
+                        <!-- Running-app indicators -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
@@ -214,100 +144,91 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE7AD;"
+                                <FontIcon Grid.Column="0" Glyph="&#xE9D9;"
                                           FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Transpose}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.RunningIndicators}"
                                                Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.TransposeDesc}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.RunningIndicatorsDesc}"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <ToggleSwitch x:Name="VerticalSnapSwitch" Grid.Column="2"
+                                <ToggleSwitch x:Name="RunningIndicatorsSwitch" Grid.Column="2"
                                               OnContent="" OffContent="" MinWidth="0"
                                               HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.Transpose}"
-                                              Toggled="VerticalSnapSwitch_Toggled" />
-                            </Grid>
-                        </Border>
-
-                        <!-- Auto-hide -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE7C4;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.AutoHide}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.AutoHideDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ToggleSwitch x:Name="AutoHideSwitch" Grid.Column="2"
-                                              OnContent="" OffContent="" MinWidth="0"
-                                              HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.AutoHide}"
-                                              Toggled="AutoHideSwitch_Toggled" />
-                            </Grid>
-                        </Border>
-
-                        <!-- Always on top -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE840;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.AlwaysOnTop}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.AlwaysOnTopDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ToggleSwitch x:Name="AlwaysOnTopSwitch" Grid.Column="2"
-                                              OnContent="" OffContent="" MinWidth="0"
-                                              HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.AlwaysOnTop}"
-                                              Toggled="AlwaysOnTopSwitch_Toggled" />
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.RunningIndicators}"
+                                              Toggled="RunningIndicatorsSwitch_Toggled" />
                             </Grid>
                         </Border>
 
                         <!-- Startup -->
                         <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE7E8;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Startup}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.StartupDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ToggleSwitch x:Name="StartupSwitch" Grid.Column="2"
-                                              OnContent="" OffContent="" MinWidth="0"
-                                              HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.Startup}"
-                                              Toggled="StartupSwitch_Toggled" />
-                            </Grid>
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE7E8;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{loc:Localize Key=Settings.Startup}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=Settings.StartupDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="StartupSwitch" Grid.Column="2"
+                                                  OnContent="" OffContent="" MinWidth="0"
+                                                  HorizontalAlignment="Right"
+                                                  AutomationProperties.Name="{loc:Localize Key=Settings.Startup}"
+                                                  Toggled="StartupSwitch_Toggled" />
+                                </Grid>
+
+                                <!-- Only ever shown on the packaged build, and only when Windows
+                                     itself is holding the entry off: a startup task the user
+                                     disabled in Task Manager cannot be re-enabled by the app, so
+                                     the switch springs back and this says who can. -->
+                                <muxc:InfoBar x:Name="StartupBlockedBar" IsOpen="False" IsClosable="True"
+                                              Severity="Warning"
+                                              Message="{loc:Localize Key=Settings.StartupBlocked}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Backup: export the whole configuration, or restore one. -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8B5;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{loc:Localize Key=Settings.Backup}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=Settings.BackupDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                                                VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <Button Content="{loc:Localize Key=Settings.Export}"
+                                                Click="Export_Click" />
+                                        <Button Content="{loc:Localize Key=Settings.Import}"
+                                                Click="Import_Click" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <muxc:InfoBar x:Name="BackupBar" IsOpen="False" IsClosable="True"
+                                              Severity="Success" />
+                            </StackPanel>
                         </Border>
 
                         <!-- Maintenance -->
@@ -336,8 +257,304 @@
                     </StackPanel>
                 </ScrollViewer>
 
+                <!-- ==================== APPEARANCE ====================
+                     Personalization that applies to every dock: how big the cells are, how the
+                     glass is tinted, and whether icons swell under the cursor. -->
+                <ScrollViewer x:Name="AppearancePanel" Visibility="Collapsed"
+                              AutomationProperties.AutomationId="SettingsAppearancePanel">
+                    <StackPanel Spacing="6" MaxWidth="720" HorizontalAlignment="Left">
+                        <TextBlock Text="{loc:Localize Key=Nav.Appearance}"
+                                   Style="{ThemeResource TitleTextBlockStyle}"
+                                   Margin="0,0,0,12" />
+
+                        <!-- Theme -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE771;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Theme}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.ThemeDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ComboBox x:Name="ThemeChoice" Grid.Column="2" MinWidth="170" Width="170"
+                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                          AutomationProperties.Name="{loc:Localize Key=Settings.Theme}"
+                                          SelectionChanged="ThemeChoice_SelectionChanged">
+                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Light}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=Theme.Dark}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=Theme.System}" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Icon size / density -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE740;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Density}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.DensityDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ComboBox x:Name="DensityChoice" Grid.Column="2" MinWidth="170"
+                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                          AutomationProperties.Name="{loc:Localize Key=Settings.Density}"
+                                          SelectionChanged="DensityChoice_SelectionChanged">
+                                    <ComboBoxItem Content="{loc:Localize Key=Density.Small}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=Density.Medium}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=Density.Large}" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Glass frostiness -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE81E;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Glass}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.GlassDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <!-- Percent rather than 0–1: a slider reading "0.9" means nothing
+                                     to the person moving it. -->
+                                <Slider x:Name="GlassSlider" Grid.Column="2" Width="170"
+                                        Minimum="30" Maximum="100" StepFrequency="5"
+                                        VerticalAlignment="Center" HorizontalAlignment="Right"
+                                        AutomationProperties.Name="{loc:Localize Key=Settings.Glass}"
+                                        ValueChanged="GlassSlider_ValueChanged" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Accent tint -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE790;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTint}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTintDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="AccentTintSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.AccentTint}"
+                                              Toggled="AccentTintSwitch_Toggled" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Magnification -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE8A3;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Magnify}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.MagnifyDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="MagnifySwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.Magnify}"
+                                              Toggled="MagnifySwitch_Toggled" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ==================== SHORTCUTS ====================
+                     Everything system-wide Anchor registers with Windows, in one place: the
+                     shortcut that summons the docks, the one that opens quick-launch search, and
+                     the master switch for the per-item ones (assigned from an icon's own menu). -->
+                <ScrollViewer x:Name="ShortcutsPanel" Visibility="Collapsed"
+                              AutomationProperties.AutomationId="SettingsShortcutsPanel">
+                    <StackPanel Spacing="6" MaxWidth="720" HorizontalAlignment="Left">
+                        <TextBlock Text="{loc:Localize Key=Nav.Shortcuts}"
+                                   Style="{ThemeResource TitleTextBlockStyle}"
+                                   Margin="0,0,0,12" />
+
+                        <!-- Summon the docks -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE765;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{loc:Localize Key=Settings.Hotkey}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=Settings.HotkeyDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <!-- The on/off switch sits at the right edge of the card, in
+                                         line with every other toggle; the capture button (added in
+                                         code-behind, see HotkeyCaptureButton) stacks under it. -->
+                                    <StackPanel x:Name="HotkeyColumn" Grid.Column="2"
+                                                Orientation="Vertical" Spacing="10"
+                                                VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <ToggleSwitch x:Name="HotkeySwitch"
+                                                      OnContent="" OffContent="" MinWidth="0"
+                                                      HorizontalAlignment="Right"
+                                                      AutomationProperties.Name="{loc:Localize Key=Settings.Hotkey}"
+                                                      Toggled="HotkeySwitch_Toggled" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <muxc:InfoBar x:Name="HotkeyBar" IsOpen="False" IsClosable="False"
+                                              Severity="Warning" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Quick-launch search -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE721;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{loc:Localize Key=Settings.SearchHotkey}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=Settings.SearchHotkeyDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel x:Name="SearchHotkeyColumn" Grid.Column="2"
+                                                VerticalAlignment="Center" HorizontalAlignment="Right" />
+                                </Grid>
+
+                                <muxc:InfoBar x:Name="SearchHotkeyBar" IsOpen="False" IsClosable="False"
+                                              Severity="Warning" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Per-item shortcuts -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE7C1;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{loc:Localize Key=Settings.ItemHotkeys}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=Settings.ItemHotkeysDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ItemHotkeysSwitch" Grid.Column="2"
+                                                  OnContent="" OffContent="" MinWidth="0"
+                                                  HorizontalAlignment="Right"
+                                                  AutomationProperties.Name="{loc:Localize Key=Settings.ItemHotkeys}"
+                                                  Toggled="ItemHotkeysSwitch_Toggled" />
+                                </Grid>
+
+                                <!-- What is currently assigned, so the shortcuts aren't invisible
+                                     once they're spread across a dozen right-click menus. -->
+                                <StackPanel x:Name="ItemHotkeyList" Spacing="4" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ==================== DOCKS ====================
+                     One card per dock, built in code-behind (DocksList): the number of docks —
+                     and of monitors to offer each one — is only known at runtime, and each card
+                     carries the settings that used to sit on the General page back when there
+                     was exactly one dock to apply them to. -->
+                <Grid x:Name="DocksPanel" Visibility="Collapsed" RowSpacing="12"
+                      AutomationProperties.AutomationId="SettingsDocksPanel">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0">
+                        <TextBlock Text="{loc:Localize Key=Nav.Docks}"
+                                   Style="{ThemeResource TitleTextBlockStyle}"
+                                   VerticalAlignment="Center" />
+                        <Button Content="{loc:Localize Key=Docks.Add}"
+                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Style="{ThemeResource AccentButtonStyle}"
+                                Click="AddDock_Click" />
+                    </Grid>
+
+                    <TextBlock Grid.Row="1" Text="{loc:Localize Key=Docks.Hint}"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap" />
+
+                    <ScrollViewer Grid.Row="2" HorizontalContentAlignment="Stretch">
+                        <StackPanel x:Name="DocksList" Spacing="8" HorizontalAlignment="Stretch"
+                                    AutomationProperties.AutomationId="SettingsDocksList" />
+                    </ScrollViewer>
+                </Grid>
+
                 <!-- ==================== APPS ==================== -->
-                <Grid x:Name="AppsPanel" Visibility="Collapsed" RowSpacing="12">
+                <Grid x:Name="AppsPanel" Visibility="Collapsed" RowSpacing="12"
+                      AutomationProperties.AutomationId="SettingsAppsPanel">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -364,7 +581,8 @@
                                TextWrapping="Wrap" />
 
                     <ScrollViewer Grid.Row="2" HorizontalContentAlignment="Stretch">
-                        <StackPanel x:Name="AppsList" Spacing="8" HorizontalAlignment="Stretch" />
+                        <StackPanel x:Name="AppsList" Spacing="8" HorizontalAlignment="Stretch"
+                                    AutomationProperties.AutomationId="SettingsAppsList" />
                     </ScrollViewer>
                 </Grid>
 
@@ -415,7 +633,53 @@
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock/issues" />
                                     <HyperlinkButton Content="{loc:Localize Key=About.License}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock/blob/main/LICENSE" />
+                                    <!-- The same document whose URL the Microsoft Store listing
+                                         carries; Store policy 10.5.1 requires a Win32 product to
+                                         have one, and having it in-app too costs nothing. -->
+                                    <HyperlinkButton Content="{loc:Localize Key=About.PrivacyPolicy}"
+                                                     NavigateUri="https://github.com/framedparadox/anchor-dock/blob/main/docs/privacy-policy.md" />
                                 </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Update check. Off by default and the only thing on this page that
+                             would ever contact the network (see Privacy, below). Collapsed
+                             entirely on the Microsoft Store build, which updates through the
+                             Store — see DockManager.UpdateChecksSupported. -->
+                        <Border x:Name="UpdateCard" Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE895;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{loc:Localize Key=Settings.Updates}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=Settings.UpdatesDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Center"
+                                                HorizontalAlignment="Right">
+                                        <ToggleSwitch x:Name="UpdatesSwitch"
+                                                      OnContent="" OffContent="" MinWidth="0"
+                                                      HorizontalAlignment="Right"
+                                                      AutomationProperties.Name="{loc:Localize Key=Settings.Updates}"
+                                                      Toggled="UpdatesSwitch_Toggled" />
+                                        <Button x:Name="CheckUpdatesButton" MinWidth="150"
+                                                HorizontalAlignment="Right"
+                                                Content="{loc:Localize Key=Update.CheckNow}"
+                                                Click="CheckUpdates_Click" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <muxc:InfoBar x:Name="UpdateBar" IsOpen="False" IsClosable="False"
+                                              Severity="Informational" />
                             </StackPanel>
                         </Border>
 

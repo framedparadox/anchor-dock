@@ -2,12 +2,10 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  IgnorableNamespaces="uap desktop rescap">
 
-  <!-- Name/Publisher are placeholders. Replace with the values from Partner Center ->
-       Product management -> Product identity after reserving the app name (see
-       docs/microsoft-store-deployment.md, section 3). PublisherDisplayName likewise. -->
   <Identity Name="44492ajaykontham.AnchorDock"
             Publisher="CN=93C75305-77D7-448E-B1C4-591A0E9665E1"
             Version="1.0.0.0" />
@@ -19,20 +17,34 @@
   </Properties>
 
   <Dependencies>
+    <!-- MinVersion matches TargetPlatformMinVersion in Anchor.csproj. Windows 11 is where the dock
+         looks the way the listing shows it (Mica in the Settings window, rounded corners); on
+         Windows 10 those degrade to their flat equivalents and everything else works, which is why
+         the description below avoids claiming a specific Windows version.
+
+         MaxVersionTested is written here for documentation only: the MSIX packaging targets
+         overwrite it from $(TargetPlatformVersion), so the value that ships is the csproj's
+         TargetFramework. Keep the two in step. -->
     <TargetDeviceFamily Name="Windows.Desktop"
                         MinVersion="10.0.17763.0"
                         MaxVersionTested="10.0.26100.0" />
   </Dependencies>
 
   <Resources>
+    <!-- en-US only, deliberately. The app itself ships eight UI languages and follows the Windows
+         display language, but every language declared here is a language the *Store listing* must
+         also be translated into (Store policy 10.7). Declaring one keeps that promise honest. -->
     <Resource Language="en-US" />
   </Resources>
 
   <Applications>
+    <!-- Windows.FullTrustApplication = a normal full-trust desktop exe. -->
     <Application Id="App" Executable="Anchor.exe" EntryPoint="Windows.FullTrustApplication">
+      <!-- DisplayName matches Properties/DisplayName (and the reserved Store name) so the Start
+           menu entry, the Store listing and the installed-apps list all say the same thing. -->
       <uap:VisualElements
-        DisplayName="Anchor"
-        Description="A floating dock for Windows 11."
+        DisplayName="Anchor Dock"
+        Description="A floating dock that keeps your apps, files, folders and web links one click away."
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">
@@ -41,27 +53,40 @@
                          Square310x310Logo="Images\Square310x310Logo.png" />
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
+
+      <Extensions>
+        <!-- "Start with Windows" for the packaged build. A packaged process's writes to
+             HKCU\...\CurrentVersion\Run go into the package's virtualized registry hive, which
+             Windows' autostart never reads — so the Run key that serves the portable zip would
+             silently do nothing here. This is the supported equivalent, and it also puts the entry
+             in Task Manager ▸ Startup apps where users expect to manage it.
+
+             Enabled="false" because autostart is opt-in: Services/StartupService.cs turns it on
+             through StartupTask.RequestEnableAsync when the user flips the Settings switch. TaskId
+             must stay in sync with StartupService.TaskId. -->
+        <desktop:Extension Category="windows.startupTask"
+                           Executable="Anchor.exe"
+                           EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="AnchorStartupTask"
+                               Enabled="false"
+                               DisplayName="Anchor Dock" />
+        </desktop:Extension>
+      </Extensions>
     </Application>
   </Applications>
 
   <Capabilities>
     <!-- runFullTrust: Anchor Dock is a Win32 desktop productivity app (a floating
-         application dock/launcher for Windows 11). It requires runFullTrust because
-         its core function is to launch arbitrary user-selected desktop applications,
-         files, and web links from the dock via Win32 APIs (ShellExecute) in
-         Services/Launcher.cs, which is not possible from an AppContainer-sandboxed
-         UWP process. Without full trust, the app's primary purpose (a customizable
-         launcher/dock) cannot function. -->
+         application dock/launcher). It requires runFullTrust because its core function is to
+         launch arbitrary user-selected desktop applications, files, and web links from the dock
+         via Win32 APIs (ShellExecute) in Services/Launcher.cs, which is not possible from an
+         AppContainer-sandboxed UWP process. Without full trust, the app's primary purpose (a
+         customizable launcher/dock) cannot function.
+
+         This is the only capability declared. broadFileSystemAccess was requested once and denied
+         on review; Services/IconService.cs was refactored to resolve every icon through plain
+         Win32 (SHGetFileInfo / IImageList), which a full-trust packaged process needs no broker
+         capability for. Do not re-add it — see docs/microsoft-store-deployment.md §2.3. -->
     <rescap:Capability Name="runFullTrust" />
-    <!-- broadFileSystemAccess: users can pin arbitrary files, folders, and shortcuts
-         from anywhere on their file system to the dock. To display an accurate icon
-         for each pinned item (matching File Explorer), Services/IconService.cs reads
-         shell icons for these user-chosen paths via WinRT StorageFile, which can
-         reside anywhere on local or removable drives, not just the limited set of
-         broker-accessible library folders. No files are read, modified, or
-         transmitted; the capability is used only for icon retrieval on paths the
-         user has explicitly added to their dock.
-         Drop this only if IconService is refactored to Win32 icon extraction (SHGetFileInfo). -->
-    <rescap:Capability Name="broadFileSystemAccess" />
   </Capabilities>
 </Package>

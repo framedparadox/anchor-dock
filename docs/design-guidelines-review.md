@@ -347,3 +347,23 @@ The same source also produced the Microsoft Store MSIX tile/logo set (`src/Ancho
 `docs/microsoft-store-deployment.md`. Row 13 and #20 in the tables above are now fully **Fixed**;
 the only remaining identity gap is Partner Center's actual publisher identity, which is an account
 detail, not a code change.
+
+---
+
+## Pass 4 (2026-07-28) — localization regression in the Add-to-Dock type selector
+
+A manual layout change (removing the horizontal `ScrollViewer` around the seven type-selector
+tiles and shrinking them from 96×76 to 84×76 with 6 px spacing, to make the row fit the window
+without scrolling) reintroduced a localization risk the removed `ScrollViewer`'s own comment had
+been guarding against.
+
+| # | Area | Finding | Severity | Status |
+|---|------|---------|----------|--------|
+| 24 | Layout / Localization | Add-to-Dock type tiles fit at 84 px width in English, but several translated labels (e.g. German "Verknüpfung" for Add.TypeShortcut) wrap to two lines; with only 6 px spacing and no clipping on the `ToggleButton` content, a wrapped label can visually run into the next tile | Medium | **Fixed** |
+
+**#24 — Fixed.** Tiles are back to 88×80 with 8 px spacing (`7 * 88 + 6 * 8 = 664` DIP, still
+under the 692 DIP budget, so no `ScrollViewer` is needed), giving wrapped two-line translated
+labels more vertical room and a wider gutter so they don't collide with a neighboring tile. This
+was verified against every shipped translation's `Add.Type*` strings (`src/Anchor/Strings/*.json`
+— de, es, fr, hi, ja, pt, zh-Hans), not just English, since the app supports seven languages and a
+fixed-size tile has to hold up across all of them.

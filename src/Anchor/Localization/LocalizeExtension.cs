@@ -7,8 +7,9 @@ namespace Anchor.Localization;
 /// XAML markup extension for translated text: <c>Text="{loc:Localize Key=Settings.Theme}"</c>.
 /// <para>
 /// Resolved once, when the XAML is loaded, from the table <see cref="Loc"/> chose at startup —
-/// so switching language re-reads correctly for any window opened afterwards, and the dock strip
-/// itself picks it up on the next launch (Settings offers a restart for exactly that reason).
+/// not a live binding to the string table (see its remarks). A language change therefore rebuilds
+/// every window in place (<see cref="Anchor.DockManager.SetLanguage"/>) rather than re-resolving
+/// this extension, so the new table takes effect immediately without a restart.
 /// </para>
 /// </summary>
 [MarkupExtensionReturnType(ReturnType = typeof(string))]

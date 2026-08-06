@@ -5,14 +5,15 @@ using Microsoft.UI.Xaml;
 namespace Anchor;
 
 /// <summary>
-/// Application entry point. Creates the single <see cref="DockWindow"/>, enforces a
-/// one-dock-per-session policy (a second launch exits quietly), and routes otherwise-unhandled
-/// exceptions to the diagnostic log so a crash leaves a trace instead of vanishing silently.
+/// Application entry point. Creates the <see cref="DockManager"/> (which in turn creates a window
+/// per configured dock), enforces one Anchor per config (a second launch exits quietly), and
+/// routes otherwise-unhandled exceptions to the diagnostic log so a crash leaves a trace instead
+/// of vanishing silently.
 /// </summary>
 public partial class App : Application
 {
-    /// <summary>The single dock window instance.</summary>
-    public static DockWindow? Dock { get; private set; }
+    /// <summary>The running docks and everything app-wide that goes with them.</summary>
+    public static DockManager? Manager { get; private set; }
 
     // Held for the whole process lifetime so the named mutex it represents stays alive; a second
     // launch (e.g. the Start-menu entry while the "start with Windows" copy is already running)
@@ -42,59 +43,39 @@ public partial class App : Application
         }
 
         // Load the string table before any window is constructed: XAML resolves its
-        // {loc:Localize} bindings as it loads, so the language has to be settled first.
-        Loc.Initialize(DockStore.Load().Language);
+        // {loc:Localize} bindings as it loads, so the language has to be settled first. The
+        // config is read once here and handed to the manager — loading it twice would give the
+        // dock windows a different object from the one that gets saved.
+        var config = DockStore.Load();
+        Loc.Initialize(config.Language);
 
-        Dock = new DockWindow();
-        Dock.Activate();
-    }
-
-    /// <summary>
-    /// Relaunches Anchor and exits this instance — the way a language change is applied to
-    /// windows (the dock strip above all) whose XAML has already been loaded. The instance mutex
-    /// is released first so the replacement process doesn't mistake us for a second launch and
-    /// bow out.
-    /// </summary>
-    public static void Restart()
-    {
-        var exe = Environment.ProcessPath;
-        if (string.IsNullOrEmpty(exe))
-        {
-            Diag.Log("Restart: no process path — staying put.");
-            return;
-        }
-
-        try
-        {
-            // Drop the tray icon and the global shortcut before the replacement starts, so the
-            // two processes never briefly show two icons or fight over the same hotkey.
-            Dock?.ReleaseShellIntegration();
-            _instanceMutex?.Dispose();
-            _instanceMutex = null;
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
-            {
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            // Failed to spawn the replacement: better to keep running (with the old language)
-            // than to exit and leave the user with no dock at all.
-            Diag.Log("Restart failed: " + ex.Message);
-            return;
-        }
-
-        Current.Exit();
+        Manager = new DockManager(config);
+        Manager.Start();
     }
 
     /// <summary>
     /// True if this is the only running Anchor in the current session. Uses a named mutex: the
     /// first process creates it (and keeps it alive via <see cref="_instanceMutex"/>); any later
     /// process finds it already present and returns false.
+    /// <para>
+    /// The name is scoped to the data directory, so two copies pointed at the same dock still
+    /// collapse to one (the case this exists for) while a copy running against its own data —
+    /// the UI test harness, or a portable install on a removable drive — is a separate instance
+    /// rather than one that silently refuses to start.
+    /// </para>
     /// </summary>
     private static bool IsFirstInstance()
     {
-        _instanceMutex = new Mutex(initiallyOwned: false, @"Local\Anchor.SingleInstance.v1", out bool createdNew);
+        string name = @"Local\Anchor.SingleInstance.v1." + DataDirectoryKey();
+        _instanceMutex = new Mutex(initiallyOwned: false, name, out bool createdNew);
         return createdNew;
+    }
+
+    /// <summary>A short, stable, path-character-free token identifying the data directory.</summary>
+    private static string DataDirectoryKey()
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(
+            DockStore.DataDirectory.ToLowerInvariant());
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes), 0, 8);
     }
 }

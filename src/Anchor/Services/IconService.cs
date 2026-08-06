@@ -4,8 +4,6 @@ using Anchor.Interop;
 using Anchor.Models;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Windows.Storage;
-using Windows.Storage.FileProperties;
 using Windows.Storage.Streams;
 
 namespace Anchor.Services;
@@ -17,14 +15,13 @@ namespace Anchor.Services;
 /// </summary>
 public static class IconService
 {
-    private const uint IconSize = 96; // request generously; the dock renders smaller & scales down
-
     // Shared client: favicons are tiny, follow redirects, and a UA header avoids servers that
     // reject "no user agent" requests.
     private static readonly HttpClient Http = CreateClient();
 
-    private static readonly string CacheDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Anchor", "IconCache");
+    // Alongside dock.json, so an override of Anchor's data directory takes the cache with it
+    // rather than leaving downloaded favicons in the real profile (see DockStore.DataDirectory).
+    private static readonly string CacheDir = Path.Combine(DockStore.DataDirectory, "IconCache");
 
     private static HttpClient CreateClient()
     {
@@ -39,9 +36,22 @@ public static class IconService
     {
         try
         {
-            // 1. Explicit user-supplied icon wins.
+            // 0. A built-in glyph the user picked from the icon picker is final — it needs no
+            // resolution at all, and must not be raced by a shell/favicon fetch that would
+            // silently overwrite the user's choice with a bitmap once it lands.
+            if (!string.IsNullOrEmpty(item.CustomGlyph))
+                return null;
+
+            // 1. Explicit user-supplied icon wins — but only if it actually decodes. A path that
+            // has since been deleted, or an image the XAML stack can't read, falls through to the
+            // normal resolution below rather than leaving the item blank.
             if (!string.IsNullOrWhiteSpace(item.CustomIconPath) && File.Exists(item.CustomIconPath))
-                return await FromFileAsync(item.CustomIconPath!);
+            {
+                var custom = await FromFileAsync(item.CustomIconPath!);
+                if (custom is not null)
+                    return custom;
+                Diag.Log($"IconService: custom icon '{item.CustomIconPath}' didn't decode — using the default");
+            }
 
             // 2. Kind-specific resolution.
             switch (item.Kind)
@@ -49,12 +59,12 @@ public static class IconService
                 case DockItemKind.Application:
                 case DockItemKind.File:
                     if (File.Exists(item.Target))
-                        return await AppOrFileIconAsync(item.Target);
+                        return await ShellIconAsync(item.Target);
                     break;
 
                 case DockItemKind.Folder:
                     if (Directory.Exists(item.Target))
-                        return await ThumbnailAsync(await StorageFolder.GetFolderFromPathAsync(item.Target));
+                        return await ShellIconAsync(item.Target);
                     break;
 
                 case DockItemKind.WebLink:
@@ -69,37 +79,29 @@ public static class IconService
     }
 
     /// <summary>
-    /// Apps and files usually get a crisp thumbnail via the WinRT Storage pipeline, but that
-    /// pipeline flatly refuses to open shortcuts — <c>StorageFile.GetFileFromPathAsync</c> on a
-    /// .lnk throws <c>UnauthorizedAccessException</c> ("UNABLE_TO_MASK_PATH") every time,
-    /// regardless of where the .lnk lives — and it can deny arbitrary paths for an unpackaged
-    /// app more generally. <see cref="NativeMethods.SHGetFileInfo"/> has neither limitation, so
-    /// it's the fallback whenever the WinRT path doesn't pan out.
+    /// Resolves a file, app, or folder's shell icon via pure Win32 — no WinRT Storage broker
+    /// involved, so this needs no <c>broadFileSystemAccess</c> capability. Prefers the 256x256
+    /// "jumbo" icon (matching Explorer's large-icon views); falls back to the classic 32x32
+    /// icon (<see cref="NativeMethods.SHGetFileInfo"/> with <c>SHGFI_ICON</c>) if the jumbo
+    /// lookup fails for any reason.
     /// </summary>
-    private static async Task<ImageSource?> AppOrFileIconAsync(string path)
-    {
-        try
-        {
-            return await ThumbnailAsync(await StorageFile.GetFileFromPathAsync(path));
-        }
-        catch (Exception ex)
-        {
-            Diag.Log($"IconService: Storage thumbnail failed for '{path}' ({ex.GetType().Name}) — falling back to the shell icon");
-            return await ShellIconAsync(path);
-        }
-    }
-
     private static async Task<ImageSource?> ShellIconAsync(string path)
     {
-        var info = new NativeMethods.SHFILEINFO();
-        nint result = NativeMethods.SHGetFileInfo(
-            path, 0, ref info, (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
-            NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_LARGEICON);
-        if (result == 0 || info.hIcon == nint.Zero)
-            return null;
+        nint hIcon = TryGetJumboIcon(path);
+        if (hIcon == nint.Zero)
+        {
+            var info = new NativeMethods.SHFILEINFO();
+            nint result = NativeMethods.SHGetFileInfo(
+                path, 0, ref info, (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
+                NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_LARGEICON);
+            if (result == 0 || info.hIcon == nint.Zero)
+                return null;
+            hIcon = info.hIcon;
+        }
+
         try
         {
-            using var icon = System.Drawing.Icon.FromHandle(info.hIcon);
+            using var icon = System.Drawing.Icon.FromHandle(hIcon);
             using var bitmap = icon.ToBitmap();
             using var ms = new MemoryStream();
             bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
@@ -107,30 +109,47 @@ public static class IconService
         }
         finally
         {
-            NativeMethods.DestroyIcon(info.hIcon);
+            NativeMethods.DestroyIcon(hIcon);
         }
     }
 
-    private static async Task<ImageSource?> ThumbnailAsync(IStorageItemProperties item)
+    /// <summary>
+    /// Looks up <paramref name="path"/>'s index in the shell's system image list, then resolves
+    /// that index against the jumbo (256x256) list. Returns <see cref="nint.Zero"/> on any
+    /// failure — no jumbo list, path not found, etc. — which the caller treats as "fall back to
+    /// the smaller per-file icon".
+    /// </summary>
+    private static nint TryGetJumboIcon(string path)
     {
-        using StorageItemThumbnail? thumb =
-            await item.GetThumbnailAsync(ThumbnailMode.SingleItem, IconSize, ThumbnailOptions.ResizeThumbnail);
+        var info = new NativeMethods.SHFILEINFO();
+        nint listHandle = NativeMethods.SHGetFileInfo(
+            path, 0, ref info, (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
+            NativeMethods.SHGFI_SYSICONINDEX);
+        if (listHandle == nint.Zero)
+            return nint.Zero;
 
-        if (thumb is null || thumb.Size == 0)
-            return null;
+        var iid = NativeMethods.IID_IImageList;
+        if (NativeMethods.SHGetImageList(NativeMethods.SHIL_JUMBO, ref iid, out var imageList) != 0)
+            return nint.Zero;
 
-        var bmp = new BitmapImage { DecodePixelWidth = (int)IconSize };
-        await bmp.SetSourceAsync(thumb);
-        return bmp;
+        return imageList.GetIcon(info.iIcon, NativeMethods.ILD_TRANSPARENT, out nint hIcon) == 0
+            ? hIcon
+            : nint.Zero;
     }
 
+    /// <summary>Decodes an image file the user pointed at (a custom icon can be any path on
+    /// disk). Plain Win32 file I/O — a full-trust process needs no broker capability for it.</summary>
     private static async Task<ImageSource?> FromFileAsync(string path)
     {
-        var file = await StorageFile.GetFileFromPathAsync(path);
-        using var stream = await file.OpenReadAsync();
-        var bmp = new BitmapImage();
-        await bmp.SetSourceAsync(stream);
-        return bmp;
+        try
+        {
+            return await DecodeAsync(await File.ReadAllBytesAsync(path));
+        }
+        catch (Exception ex)
+        {
+            Diag.Log($"IconService: direct read failed for '{path}': {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
     }
 
     // ---- Favicons ---------------------------------------------------------

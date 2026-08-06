@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Anchor.Models;
 
 /// <summary>Which screen edge the dock is snapped to.</summary>
@@ -21,43 +23,26 @@ public enum DockTheme
     System,
 }
 
-/// <summary>Everything that persists between runs: the items and dock settings.</summary>
+/// <summary>
+/// Everything that persists between runs: the docks and the app-wide settings.
+/// <para>
+/// Per-dock state (items, position, edge, auto-hide) lives on each <see cref="DockProfile"/> in
+/// <see cref="Docks"/>; everything here is app-wide and shared by every strip.
+/// </para>
+/// </summary>
 public sealed class DockConfig
 {
-    public List<DockItem> Items { get; set; } = new();
-
     /// <summary>
-    /// When true the dock is snapped flush to <see cref="Edge"/>. If <see cref="AutoHide"/> is
-    /// also on it slides behind that edge and reveals on cursor approach; otherwise it stays
-    /// pinned flush and fully visible. When false the dock floats freely at (<see cref="FreeX"/>,
-    /// <see cref="FreeY"/>).
+    /// The docks Anchor shows, in creation order. Always non-empty after
+    /// <see cref="Migrate"/> — a config with no docks would leave the user with no UI and no way
+    /// to get one back.
     /// </summary>
-    public bool Snapped { get; set; }
+    public List<DockProfile> Docks { get; set; } = new();
 
-    public DockEdge Edge { get; set; } = DockEdge.Bottom;
-
-    /// <summary>
-    /// The dock's last top-left position in physical pixels. Kept up to date whether snapped or
-    /// floating: when floating it is the free position; when snapped it records where the user
-    /// dropped the dock so it re-appears at that spot (and on that monitor) rather than snapping
-    /// back to the screen centre. Null only before the dock has ever been placed.
-    /// </summary>
-    public int? FreeX { get; set; }
-    public int? FreeY { get; set; }
-
-    // ---- General settings -------------------------------------------------
-
-    /// <summary>When snapped, hide the dock behind the edge and reveal on hover.</summary>
-    public bool AutoHide { get; set; } = true;
+    // ---- App-wide settings ------------------------------------------------
 
     /// <summary>Start Anchor automatically when the user signs in (per-user Run key).</summary>
     public bool LaunchAtStartup { get; set; }
-
-    /// <summary>
-    /// Keep the dock above other windows while it is <b>floating</b> (not snapped). When snapped
-    /// the dock is always topmost regardless, so the auto-hide reveal works over other windows.
-    /// </summary>
-    public bool AlwaysOnTop { get; set; } = true;
 
     /// <summary>
     /// The app's colour theme. Defaults to <see cref="DockTheme.Dark"/> so it reads like the
@@ -66,11 +51,11 @@ public sealed class DockConfig
     public DockTheme Theme { get; set; } = DockTheme.Dark;
 
     /// <summary>
-    /// When the dock is snapped to the <b>left or right</b> edge, arrange its icons vertically
-    /// instead of horizontally. Top/bottom snapping and floating always stay horizontal. Off by
-    /// default (the dock is horizontal everywhere).
+    /// Show a dot under an app that is already running, and make clicking it focus that window
+    /// instead of starting a second copy (Shift+click still starts a new instance). On by
+    /// default. Turning it off also stops the poll that looks for those windows.
     /// </summary>
-    public bool VerticalWhenSideSnapped { get; set; }
+    public bool ShowRunningIndicators { get; set; } = true;
 
     /// <summary>
     /// The language Anchor's own UI uses, as a BCP-47 code from <c>Loc.Available</c> (e.g.
@@ -96,4 +81,179 @@ public sealed class DockConfig
     /// "+ Add New" affordance instead of springing the defaults back.
     /// </summary>
     public bool Seeded { get; set; }
+
+    /// <summary>
+    /// How big the dock's icons and cells are. <see cref="DockDensity.Medium"/> matches the
+    /// Windows 11 taskbar and is the default; the geometry every surface derives from it lives on
+    /// <see cref="DockMetrics"/>.
+    /// </summary>
+    public DockDensity Density { get; set; } = DockDensity.Medium;
+
+    /// <summary>
+    /// How frosted the acrylic glass is (the backdrop's luminosity opacity), 0.3–1.0. Higher is
+    /// more frosted; at the bottom of the range the desktop comes through almost unobstructed.
+    /// <para>
+    /// The default is the top of the range, in both themes. Fully frosted is the setting that
+    /// looks the same wherever the dock is put: below it the glass takes its color from whatever
+    /// happens to be behind the window, so the same dock reads dark over one wallpaper and washed
+    /// out over another, and in light mode over a dark desktop it stops reading as light at all.
+    /// Clearing the glass is a deliberate choice, so it is the slider's job rather than the
+    /// default.
+    /// </para>
+    /// </summary>
+    public double GlassOpacity { get; set; } = 1.00;
+
+    /// <summary>Tint the glass with the Windows accent color instead of the neutral grey the
+    /// taskbar uses.</summary>
+    public bool AccentTint { get; set; }
+
+    /// <summary>
+    /// Swell an icon as the cursor passes over it, macOS-dock style. The swell happens
+    /// <em>inside</em> the cell — the dock window never resizes — because the acrylic backdrop
+    /// paints the whole window and cannot be masked to a taller, mostly-empty one.
+    /// </summary>
+    public bool Magnify { get; set; }
+
+    /// <summary>
+    /// Per-item shortcuts (<c>DockItem.Hotkey</c>) are only registered with Windows while this is
+    /// on. Off by default: a handful of extra system-wide combinations is a decision the user
+    /// should make deliberately, not one that arrives with an update.
+    /// </summary>
+    public bool ItemHotkeysEnabled { get; set; }
+
+    /// <summary>
+    /// The shortcut that opens quick-launch search, in <c>HotkeyGesture</c>'s readable form.
+    /// Empty means none — which is the default, for the same reason as
+    /// <see cref="ItemHotkeysEnabled"/>.
+    /// </summary>
+    public string SearchHotkey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Check GitHub for a newer release on startup. <b>Off by default and strictly opt-in</b> —
+    /// it is the only thing besides a web link's favicon that would make Anchor talk to the
+    /// network, and the privacy promise in the README depends on it staying that way.
+    /// </summary>
+    public bool CheckForUpdates { get; set; }
+
+    /// <summary>A release the user chose to skip, so the same prompt doesn't reappear every
+    /// launch. Empty means nothing is skipped.</summary>
+    public string SkippedUpdate { get; set; } = string.Empty;
+
+    // ---- Legacy single-dock fields (read on load, never written again) -----
+    //
+    // Configs written before Anchor supported more than one dock carry these at the top level.
+    // They are nullable so that, once Migrate has folded them into a DockProfile and nulled them
+    // out, DockStore's WhenWritingNull policy drops them from the file entirely — the config
+    // converts itself on first save rather than carrying both shapes around forever.
+
+    [JsonPropertyName("Items")]
+    public List<DockItem>? LegacyItems { get; set; }
+
+    [JsonPropertyName("Snapped")]
+    public bool? LegacySnapped { get; set; }
+
+    [JsonPropertyName("Edge")]
+    public DockEdge? LegacyEdge { get; set; }
+
+    [JsonPropertyName("FreeX")]
+    public int? LegacyFreeX { get; set; }
+
+    [JsonPropertyName("FreeY")]
+    public int? LegacyFreeY { get; set; }
+
+    [JsonPropertyName("AutoHide")]
+    public bool? LegacyAutoHide { get; set; }
+
+    [JsonPropertyName("AlwaysOnTop")]
+    public bool? LegacyAlwaysOnTop { get; set; }
+
+    [JsonPropertyName("VerticalWhenSideSnapped")]
+    public bool? LegacyVerticalWhenSideSnapped { get; set; }
+
+    /// <summary>
+    /// True when <see cref="Migrate"/> actually had to change something — i.e. the file on disk
+    /// is still in the old shape. Startup uses this to rewrite it once, so the conversion isn't
+    /// re-done on every launch until the user happens to change a setting.
+    /// </summary>
+    [JsonIgnore]
+    public bool WasMigrated { get; private set; }
+
+    /// <summary>
+    /// Brings a freshly loaded config up to the current shape: folds a pre-multi-dock file's
+    /// top-level dock into <see cref="Docks"/>, and guarantees at least one dock exists.
+    /// Idempotent, and safe to call on a config that is already current.
+    /// </summary>
+    public DockConfig Migrate()
+    {
+        bool hasLegacyDock =
+            LegacyItems is not null || LegacySnapped is not null || LegacyEdge is not null ||
+            LegacyFreeX is not null || LegacyFreeY is not null || LegacyAutoHide is not null ||
+            LegacyAlwaysOnTop is not null || LegacyVerticalWhenSideSnapped is not null;
+
+        // Only adopt the legacy fields when there is nothing newer to conflict with. A file that
+        // already has Docks is authoritative; anything left over at the top level is stale.
+        WasMigrated |= hasLegacyDock;
+
+        if (hasLegacyDock && Docks.Count == 0)
+        {
+            Docks.Add(new DockProfile
+            {
+                Items = LegacyItems ?? new List<DockItem>(),
+                Snapped = LegacySnapped ?? false,
+                Edge = LegacyEdge ?? DockEdge.Bottom,
+                FreeX = LegacyFreeX,
+                FreeY = LegacyFreeY,
+                AutoHide = LegacyAutoHide ?? true,
+                AlwaysOnTop = LegacyAlwaysOnTop ?? true,
+                VerticalWhenSideSnapped = LegacyVerticalWhenSideSnapped ?? false,
+            });
+        }
+
+        LegacyItems = null;
+        LegacySnapped = null;
+        LegacyEdge = null;
+        LegacyFreeX = null;
+        LegacyFreeY = null;
+        LegacyAutoHide = null;
+        LegacyAlwaysOnTop = null;
+        LegacyVerticalWhenSideSnapped = null;
+
+        if (Docks.Count == 0)
+            Docks.Add(new DockProfile());
+
+        return this;
+    }
+
+    /// <summary>
+    /// Copies every app-wide setting off <paramref name="other"/>, leaving <see cref="Docks"/>
+    /// alone. Used by import, which replaces the docks separately: the running
+    /// <see cref="DockConfig"/> instance is shared by every window and the manager, so an import
+    /// has to fill the existing object in rather than swap in a new one.
+    /// <para>
+    /// <see cref="Seeded"/> is deliberately not copied — it says whether <em>this installation</em>
+    /// has been past its first run, which is a fact about this machine and not about the file.
+    /// </para>
+    /// </summary>
+    public void CopyAppSettingsFrom(DockConfig other)
+    {
+        LaunchAtStartup = other.LaunchAtStartup;
+        Theme = other.Theme;
+        ShowRunningIndicators = other.ShowRunningIndicators;
+        Language = other.Language;
+        Hotkey = other.Hotkey;
+        HotkeyEnabled = other.HotkeyEnabled;
+        Density = other.Density;
+        GlassOpacity = other.GlassOpacity;
+        AccentTint = other.AccentTint;
+        Magnify = other.Magnify;
+        ItemHotkeysEnabled = other.ItemHotkeysEnabled;
+        SearchHotkey = other.SearchHotkey;
+        CheckForUpdates = other.CheckForUpdates;
+        SkippedUpdate = other.SkippedUpdate;
+    }
+
+    /// <summary>The dock that app-wide actions fall back to (the tray's "Add new…", for one).</summary>
+    [JsonIgnore]
+    public DockProfile Primary => Docks.Count > 0 ? Docks[0] : throw new InvalidOperationException(
+        "DockConfig has no docks; Migrate() must run before the config is used.");
 }

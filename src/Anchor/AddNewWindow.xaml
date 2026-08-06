@@ -49,8 +49,15 @@
             <!-- Type selector -->
             <StackPanel Grid.Row="1" Spacing="8">
                 <TextBlock Text="{loc:Localize Key=Add.What}" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <!-- Sized so the seven type tiles fit the window at every DPI/font-scale
+                     combination without scrolling: 7 * 88 + 6 * 8 spacing = 664 DIP, comfortably
+                     under the 692 DIP left after the window's own padding. Height and spacing
+                     carry a little extra buffer over the tightest fit: several translations
+                     (e.g. German "Verknüpfung" for Add.TypeShortcut) wrap to two lines at this
+                     width, and tiles aren't clipped by their parent, so a cramped gutter would
+                     let a wrapped label visually run into the next tile. -->
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <ToggleButton x:Name="AppType" Click="TypeSelected" Width="104" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="AppType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeApp}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -61,7 +68,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="FileType" Click="TypeSelected" Width="104" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="FileType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeFile}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -72,7 +79,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="FolderType" Click="TypeSelected" Width="104" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="FolderType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeFolder}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -83,7 +90,7 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="LinkType" Click="TypeSelected" Width="104" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="LinkType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeLink}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
@@ -94,13 +101,38 @@
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
                     </ToggleButton>
-                    <ToggleButton x:Name="ShortcutType" Click="TypeSelected" Width="104" Height="76" Padding="4,0"
+                    <ToggleButton x:Name="ShortcutType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
                                   HorizontalContentAlignment="Center"
                                   AutomationProperties.Name="{loc:Localize Key=Add.TypeShortcut}">
                         <StackPanel Spacing="6" VerticalAlignment="Center">
                             <FontIcon Glyph="&#xE8A7;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
                                       AutomationProperties.AccessibilityView="Raw" />
                             <TextBlock Text="{loc:Localize Key=Add.TypeShortcut}" HorizontalAlignment="Center" TextAlignment="Center"
+                                       TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}"
+                                       AutomationProperties.AccessibilityView="Raw" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton x:Name="SeparatorType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
+                                  HorizontalContentAlignment="Center"
+                                  AutomationProperties.Name="{loc:Localize Key=Add.TypeSeparator}">
+                        <StackPanel Spacing="6" VerticalAlignment="Center">
+                            <FontIcon Glyph="&#xE76F;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
+                                      AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock Text="{loc:Localize Key=Add.TypeSeparator}" HorizontalAlignment="Center" TextAlignment="Center"
+                                       TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}"
+                                       AutomationProperties.AccessibilityView="Raw" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton x:Name="GroupType" Click="TypeSelected" Width="88" Height="80" Padding="4,0"
+                                  HorizontalContentAlignment="Center"
+                                  AutomationProperties.Name="{loc:Localize Key=Add.TypeGroup}">
+                        <StackPanel Spacing="6" VerticalAlignment="Center">
+                            <!-- FolderOpen, matching the Group kind's own default icon
+                                 (DockItem.Glyph) — previously this duplicated the App tile's
+                                 AllApps glyph, which read as the same type twice. -->
+                            <FontIcon Glyph="&#xE838;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="22"
+                                      AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock Text="{loc:Localize Key=Add.TypeGroup}" HorizontalAlignment="Center" TextAlignment="Center"
                                        TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}"
                                        AutomationProperties.AccessibilityView="Raw" />
                         </StackPanel>
@@ -112,7 +144,9 @@
             <StackPanel Grid.Row="2" Spacing="14" VerticalAlignment="Top">
                 <StackPanel Spacing="6">
                     <TextBlock x:Name="TargetLabel" />
-                    <Grid ColumnSpacing="8">
+                    <!-- Collapsed for the Separator type, which has no target to point at: the
+                         hint below stays visible and explains what will be added. -->
+                    <Grid x:Name="TargetRow" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -129,7 +163,7 @@
                                TextWrapping="Wrap" />
                 </StackPanel>
 
-                <StackPanel Spacing="6">
+                <StackPanel x:Name="NamePanel" Spacing="6">
                     <TextBlock Text="{loc:Localize Key=Add.DisplayName}" />
                     <TextBox x:Name="NameBox" PlaceholderText="{loc:Localize Key=Add.DisplayNamePlaceholder}" />
                 </StackPanel>

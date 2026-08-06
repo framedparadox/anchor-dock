@@ -7,12 +7,13 @@ against this repository's actual configuration, so it also calls out the app-spe
 
 > TL;DR: Anchor's default `dotnet build`/`dotnet publish` stays an **unpackaged** app
 > (`WindowsPackageType=None` in `src/Anchor/Anchor.csproj`). **Option A (single-project MSIX) is
-> already wired up** behind the `StorePackage` MSBuild property — `Package.appxmanifest` and the
-> `src/Anchor/Images/` visual assets exist in this repo, generated from `docs/anchor.png`. What's
-> **left** is Partner Center account setup (§3), swapping the placeholder `Identity`/
-> `PublisherDisplayName` values for your real ones, and the actual submission (§7). A
-> no-repackaging alternative (ship the existing `.exe` via the Store's EXE/MSI path) is covered as
-> **Option C**.
+> already wired up** behind the `StorePackage` MSBuild property — `Package.appxmanifest`, the real
+> Partner Center identity, and the `src/Anchor/Images/` visual assets are all in this repo, and
+> `dotnet build -p:StorePackage=true` produces a signable `.msix` today. What's **left** is the
+> `.msixupload` bundling step (needs MSBuild/VS — §5), WACK (§6), and completing the submission
+> forms (§7), of which the **privacy policy URL** and **support contact** are the two that have
+> failed a submission here before. A no-repackaging alternative (ship the existing `.exe` via the
+> Store's EXE/MSI path) is covered as **Option C**.
 
 ---
 
@@ -45,15 +46,22 @@ a real MSIX and get the best Store experience (automatic updates, clean install/
   Two are directly relevant to Anchor:
   - **10.2 / 10.1 (functionality & security):** an app that launches other programs is allowed,
     but it must do what it says and not run undisclosed code.
-  - **Restricted capabilities:** `runFullTrust` and `broadFileSystemAccess` (both needed here —
-    see §3) require a written justification during submission.
+  - **Restricted capabilities:** `runFullTrust` requires a written justification during
+    submission (see §3). Anchor previously also declared `broadFileSystemAccess`; that request
+    was **denied** on review — Microsoft's own rejection wording warns that resubmitting with
+    the same justification will likely get the same outcome — so `IconService` was refactored to
+    avoid needing it at all (see item 3 in §2 below). Don't re-add it without a materially new
+    justification.
+  - **Support info:** Partner Center **Properties → Support Info** requires a valid support
+    contact or developer website URL. A submission can be rejected for missing this alone — set
+    it under **Use different details for this app → Support contact info** before resubmitting.
 
 ### Tools
 - **Windows 10 2004+ / Windows 11** dev machine (MSIX tooling is Windows-only).
 - **Visual Studio 2022 (17.x)** with the **.NET Desktop** and **Windows App SDK / WinUI**
   workloads, or the standalone **MSBuild** + Windows SDK. Note: **MSIX packaging generally
   requires MSBuild/Visual Studio, not `dotnet build`** — the plain .NET CLI cannot emit an MSIX.
-- **.NET 10 SDK** (matches `TargetFramework net10.0-windows10.0.19041.0`).
+- **.NET 10 SDK** (matches `TargetFramework net10.0-windows10.0.26100.0`).
 - **Windows App Certification Kit (WACK)** — installed with the Windows SDK; used in §6.
 - Optional for CI: the **Microsoft Store Developer CLI (`msstore`)** — see §9.
 
@@ -72,14 +80,16 @@ These are the things about Anchor specifically that affect a Store submission.
    (`EntryPoint="Windows.FullTrustApplication"` + the `runFullTrust` capability). That's normal
    for a packaged WinUI 3 desktop app, but it *is* a restricted capability you must justify.
 
-3. **It reads icons from arbitrary file-system paths.** `Services/IconService.cs` calls
-   `StorageFile.GetFileFromPathAsync` / `StorageFolder.GetFolderFromPathAsync` on targets like
-   `C:\Windows\explorer.exe` and any file/folder the user pins. Under MSIX, the WinRT `Storage`
-   broker restricts arbitrary paths unless you declare **`broadFileSystemAccess`** (a restricted
-   capability). Without it, icon resolution for pinned items outside the package will fail even
-   though the app is full trust. Declare it and justify it, **or** refactor `IconService` to use
-   Win32 icon extraction (`SHGetFileInfo` / `IShellItemImageFactory`), which is not subject to
-   the WinRT broker and would let you drop the capability.
+3. **It reads icons from arbitrary file-system paths — via Win32, not the WinRT broker.**
+   `Services/IconService.cs` resolves icons for targets like `C:\Windows\explorer.exe` and any
+   file/folder the user pins entirely through Win32 shell APIs (`SHGetFileInfo` +
+   `SHGetImageList`/`IImageList` for a 256x256 "jumbo" icon matching Explorer, falling back to
+   the classic 32x32 icon). It previously used the WinRT `StorageFile`/`StorageFolder` APIs for
+   this, which under MSIX go through a broker that restricts arbitrary paths unless you declare
+   **`broadFileSystemAccess`** (a restricted capability) — but that capability request was
+   **denied** by Store review, so the WinRT calls were removed instead. A full-trust packaged
+   process needs no broker capability for plain Win32 file/icon access, so this needs nothing in
+   `<Capabilities>` beyond `runFullTrust`.
 
 4. **Config lives in `%AppData%\Anchor\dock.json`** (`Services/DockStore.cs` via
    `Environment.SpecialFolder.ApplicationData`). Under MSIX this call is **redirected** to the
@@ -96,28 +106,60 @@ These are the things about Anchor specifically that affect a Store submission.
    `docs/anchor.png`) is wired up as the unpackaged exe's `<ApplicationIcon>` too, closing
    recommendation #13 in `docs/design-guidelines-review.md`.
 
-6. **Architecture is x64-only** (`<Platforms>x64</Platforms>`, `win-x64`). x64 is accepted by
-   the Store and covers most PCs. To also reach Arm64 devices, add an `arm64` build and submit
-   both packages in one `.msixupload` (optional).
+6. **Two architectures.** `<Platforms>x64;ARM64</Platforms>`, with the RID derived from
+   `Platform`. Build both and submit them in one `.msixupload` (`AppxBundle=Always` is already
+   set) to reach Windows-on-ARM devices as well as x64.
 
 7. **The window hides from the taskbar and Alt-Tab.** That's fine, but make sure users can still
    *find and launch* it after install: the MSIX manifest gives it a **Start-menu entry** by
    default (don't set `AppListEntry="none"`), and quitting is via the dock's gear menu.
 
+8. **"Start with Windows" works differently when packaged, and the code knows the difference.**
+   The portable build writes the per-user `HKCU\…\CurrentVersion\Run` key. A *packaged* process
+   must not: its writes under `HKCU\Software` land in the package's virtualized registry hive,
+   which Windows' autostart never reads — the toggle would appear to work and silently do nothing
+   after a reboot. `Package.appxmanifest` therefore declares a
+   `windows.startupTask` extension (`TaskId="AnchorStartupTask"`, `Enabled="false"`), and
+   `Services/StartupService.cs` enables it through `StartupTask.RequestEnableAsync` when packaged.
+   The two must stay in sync — the `TaskId` string appears in both files.
+
+   Consequence worth knowing before you test: a user can disable the entry in **Task Manager ▸
+   Startup apps**, and Windows then refuses to let the app re-enable it. Anchor detects that
+   (`StartupTaskState.DisabledByUser`), puts the Settings switch back and shows a note pointing at
+   Task Manager. That is the required behavior, not a bug.
+
+9. **The GitHub update check does not exist in the packaged build.** `Services/UpdateService.cs`
+   is opt-in and off by default in the portable zip; when packaged, `DockManager.UpdateChecksSupported`
+   is false, the startup check never runs and the whole Settings card is collapsed. The Store
+   updates a packaged app itself, so a banner sending users to a GitHub release would both be
+   redundant and route them to a build distributed outside the Store — the pattern Store review
+   looks for. Don't "fix" this by re-enabling it.
+
+10. **Which build am I in?** `Services/PackagedRuntime.cs` answers it once, via
+    `GetCurrentPackageFullName`. Anything that has to differ between the two forms should go
+    through it rather than re-deriving package identity.
+
 ---
 
-## 3. Reserve the app name and get your identity (Partner Center)
+## 3. Reserve the app name and get your identity (Partner Center) — done
 
-1. In Partner Center, go to **Apps and games → New product → App**, and **reserve the name**
-   "Anchor" (or your chosen Store name). Name reservation is what unlocks the identity values.
-2. Open the product, then **Product management → Product identity**. Copy these three values —
-   they must go into the manifest **verbatim**:
-   - **Package/Identity/Name** (e.g. `12345YourPublisher.Anchor`)
-   - **Package/Identity/Publisher** (e.g. `CN=ABCDEF01-2345-6789-ABCD-EF0123456789`)
-   - **Package/Properties/PublisherDisplayName** (your account's display name)
+`src/Anchor/Package.appxmanifest` already carries the **real** values from this repo's Partner
+Center product:
 
-> Mismatched identity is the #1 upload rejection. If you associate the project from Visual Studio
-> (**Project → Publish → Associate App with the Store…**), VS fills these in for you.
+| Manifest field | Value |
+|---|---|
+| `Package/Identity/Name` | `44492ajaykontham.AnchorDock` |
+| `Package/Identity/Publisher` | `CN=93C75305-77D7-448E-B1C4-591A0E9665E1` |
+| `Package/Properties/PublisherDisplayName` | `ajaykontham` |
+| `Package/Properties/DisplayName` | `Anchor Dock` — must equal the **reserved name** |
+
+`Applications/Application/uap:VisualElements@DisplayName` is also `Anchor Dock`, deliberately: it
+is what the Start menu and the installed-apps list show, and Store policy 10.1.1 wants the app's
+metadata to say the same thing everywhere. The app's own UI still calls itself "Anchor".
+
+> If you ever start a fresh product, these come from **Product management → Product identity** and
+> must be copied **verbatim** — mismatched identity is the #1 upload rejection. Associating the
+> project from Visual Studio (**Project → Publish → Associate App with the Store…**) fills them in.
 
 ---
 
@@ -136,8 +178,11 @@ everyday `dotnet build`/`dotnet publish` is unaffected:
   <!-- Store re-signs your package; no personal code-signing cert needed for upload. -->
   <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
   <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
-  <AppxBundle>Never</AppxBundle>
+  <AppxBundle>Always</AppxBundle>
   <AppxAutoIncrementPackageRevision>false</AppxAutoIncrementPackageRevision>
+  <UapAppxPackageBuildMode>StoreUpload</UapAppxPackageBuildMode>
+  <!-- See the note on symbols below. -->
+  <AppxSymbolPackageEnabled Condition="'$(AppxSymbolPackageEnabled)' == ''">false</AppxSymbolPackageEnabled>
 </PropertyGroup>
 
 <ItemGroup Condition="'$(StorePackage)' == 'true'">
@@ -145,17 +190,30 @@ everyday `dotnet build`/`dotnet publish` is unaffected:
     <SubType>Designer</SubType>
   </AppxManifest>
 </ItemGroup>
-
-<ItemGroup Condition="'$(StorePackage)' == 'true'">
-  <Content Include="Images\**\*.png" />
-</ItemGroup>
 ```
 
+(`Images\**\*.png` is included unconditionally, not just for Store builds — the About page renders
+the logo out of the app folder via `ms-appx:///Images/…` in the unpackaged build too.)
+
 `src/Anchor/Package.appxmanifest` (see §4.3) and `src/Anchor/Images/*.png` (see §4.2) already
-exist next to `Anchor.csproj`. Build the package (§5) with `-p:StorePackage=true`; this was
-verified to produce a correct merged `AppxManifest.xml` and package the `Images\` assets via
-`dotnet build -p:StorePackage=true` (the actual `.msixupload` bundling step still needs
-MSBuild/Visual Studio — see §5).
+exist next to `Anchor.csproj`. `dotnet build src\Anchor\Anchor.csproj -c Release -p:Platform=x64
+-p:StorePackage=true` was run against this configuration and **produces a real
+`AppPackages\Anchor_<version>_Test\Anchor_<version>_x64.msix`** whose embedded `AppxManifest.xml`
+carries the identity, the `runFullTrust` capability and the `windows.startupTask` extension. The
+`.msixupload` bundling step still needs MSBuild/Visual Studio (§5).
+
+> **Symbols are off by default.** Generating the `.appxsym` needs `mspdbcmf.exe`, which ships with
+> Visual Studio's C++ tooling. When it is missing the MSIX targets don't degrade gracefully: they
+> build the package and *then* fail the build (`MSB6011`), so `-p:StorePackage=true` never
+> completes. Symbols are optional for a Partner Center upload — they only feed Store crash
+> analytics — so `AppxSymbolPackageEnabled` defaults to `false`. On a machine with the **Desktop
+> development with C++** workload, pass `-p:AppxSymbolPackageEnabled=true` to include them.
+
+> **`MaxVersionTested` comes from the csproj, not the manifest.** The packaging targets overwrite
+> the manifest's value from `$(TargetPlatformVersion)`, i.e. the `TargetFramework`
+> (`net10.0-windows10.0.26100.0`). If you lower the TFM, the shipped manifest quietly claims the
+> app was only tested that far back. `TargetPlatformMinVersion` (10.0.17763.0) is what actually
+> sets the install floor, and is separate.
 
 ### Option B — Separate packaging project (`.wapproj`) — not implemented here
 
@@ -195,72 +253,26 @@ Partner Center's **listing** also needs a **≥300×300 Store logo** and at leas
 (1366×768 or 1920×1080 works well) — `docs/dock.png` is a good starting screenshot, or a fresh
 screenshot of the app running under its new name.
 
-### 4.3 `Package.appxmanifest` — already in place, identity is a placeholder
+### 4.3 `Package.appxmanifest` — complete
 
-`src/Anchor/Package.appxmanifest` matches the template below. The one thing **you must still
-edit** is the `Identity`/`PublisherDisplayName` block — it currently holds placeholder values and
-must be replaced with the real ones from §3 before you can upload.
+Read [`src/Anchor/Package.appxmanifest`](../src/Anchor/Package.appxmanifest) itself rather than a
+copy here; it is commented in place and a duplicate in this file only drifts. The parts that carry
+compliance weight, and why:
 
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<Package
-  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
-
-  <!-- PLACEHOLDER — these three MUST be replaced with Partner Center → Product identity values,
-       verbatim, before upload. -->
-  <Identity Name="12345YourPublisher.Anchor"
-            Publisher="CN=ABCDEF01-2345-6789-ABCD-EF0123456789"
-            Version="1.0.0.0" />
-
-  <Properties>
-    <DisplayName>Anchor</DisplayName>
-    <PublisherDisplayName>Your Publisher Display Name</PublisherDisplayName>
-    <Logo>Images\StoreLogo.png</Logo>
-  </Properties>
-
-  <Dependencies>
-    <!-- Matches TargetPlatformMinVersion (10.0.17763.0) in the csproj. -->
-    <TargetDeviceFamily Name="Windows.Desktop"
-                        MinVersion="10.0.17763.0"
-                        MaxVersionTested="10.0.26100.0" />
-  </Dependencies>
-
-  <Resources>
-    <Resource Language="en-US" />
-  </Resources>
-
-  <Applications>
-    <!-- Windows.FullTrustApplication = a normal full-trust desktop exe. -->
-    <Application Id="App" Executable="Anchor.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements
-        DisplayName="Anchor"
-        Description="A floating dock for Windows 11."
-        BackgroundColor="transparent"
-        Square150x150Logo="Images\Square150x150Logo.png"
-        Square44x44Logo="Images\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"
-                         Square71x71Logo="Images\Square71x71Logo.png"
-                         Square310x310Logo="Images\Square310x310Logo.png" />
-        <uap:SplashScreen Image="Images\SplashScreen.png" />
-      </uap:VisualElements>
-    </Application>
-  </Applications>
-
-  <Capabilities>
-    <!-- Required: the dock launches arbitrary programs (Process.Start / ShellExecute). -->
-    <rescap:Capability Name="runFullTrust" />
-    <!-- Required: IconService reads icons from arbitrary paths via WinRT StorageFile.
-         Drop this only if you switch icon loading to Win32 (SHGetFileInfo). -->
-    <rescap:Capability Name="broadFileSystemAccess" />
-  </Capabilities>
-</Package>
-```
+| Element | Why it is the way it is |
+|---|---|
+| `Identity` / `PublisherDisplayName` | Real Partner Center values (§3). Verbatim, or the upload is rejected. |
+| `Properties/DisplayName` = `Anchor Dock` | Must equal the **reserved name**. |
+| `VisualElements@DisplayName` = `Anchor Dock` | Start menu / installed-apps list. Kept equal to the above for policy 10.1.1. |
+| `VisualElements@Description` | Deliberately does **not** say "Windows 11": `MinVersion` admits Windows 10 1809, and 10.1.1 requires metadata to match what the app actually supports. If you would rather market it as Windows-11-only, raise `MinVersion` to `10.0.22000.0` instead of re-adding the claim. |
+| `Resources` = `en-US` only | The app ships eight UI languages, but each language *declared here* is one the **Store listing** must also be translated into (policy 10.7). One declared language, one listing to write. |
+| `windows.startupTask` extension | The only autostart mechanism that works when packaged — see §2.8. |
+| `rescap:Capability runFullTrust` | The one restricted capability, justified at §7.2. `broadFileSystemAccess` was denied on review and must not come back. |
 
 > **Store version rule:** the `Version` **revision must be 0** (`Major.Minor.Build.0`). The Store
-> reserves the 4th field. Bump `Build` (or `Minor`) for each submission.
+> reserves the 4th field. Bump `Build` (or `Minor`) for each submission, and keep
+> `<Version>`/`<FileVersion>`/`<AssemblyVersion>` in `Anchor.csproj` in step — Settings ▸ About
+> reads the assembly version.
 
 ---
 
@@ -275,7 +287,7 @@ works; self-contained is the safer default and is what the repo already uses.
 
 ### Build with MSBuild (Option A)
 ```powershell
-# Restore, then produce a Store-signable MSIX for x64.
+# Restore, then produce a Store-signable package for x64.
 msbuild src\Anchor\Anchor.csproj `
   /restore `
   /p:Configuration=Release `
@@ -284,9 +296,31 @@ msbuild src\Anchor\Anchor.csproj `
   /p:UapAppxPackageBuildMode=StoreUpload `
   /p:AppxPackageSigningEnabled=false
 ```
-The output `.msixupload` lands under `src\Anchor\AppPackages\`. `StoreUpload` mode bundles the
-symbols and is the format Partner Center expects. For multi-arch, build `x64` and `arm64` and use
-`AppxBundle=Always` so both land in one `.msixupload`.
+The output lands under `src\Anchor\AppPackages\`. `StoreUpload` mode is the format Partner Center
+expects. `AppxBundle=Always` is already set, so building **x64** and **ARM64** puts both into one
+`.msixupload` — do both, since the app supports both.
+
+`dotnet build` with the same properties gets you a valid, inspectable `.msix` (useful for checking
+the merged manifest, and for sideload testing once signed) but not the `.msixupload` bundle — that
+step needs MSBuild or Visual Studio.
+
+### Sideload the built package to test it
+The packaged behavior — the startup task, the redirected config folder, the collapsed update card —
+can only be verified from an installed package, not from `bin\`. To install locally you need the
+package signed with a certificate your machine trusts:
+
+```powershell
+# One-off: a self-signed cert whose subject matches Package/Identity/Publisher exactly.
+$cert = New-SelfSignedCertificate -Type Custom -Subject "CN=93C75305-77D7-448E-B1C4-591A0E9665E1" `
+  -KeyUsage DigitalSignature -FriendlyName "Anchor sideload" -CertStoreLocation "Cert:\CurrentUser\My" `
+  -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+# Export it and trust it under Local Machine ▸ Trusted People, then:
+signtool sign /fd SHA256 /a /f anchor-test.pfx /p <password> Anchor_1.0.0.0_x64.msix
+Add-AppxPackage .\Anchor_1.0.0.0_x64.msix
+```
+
+This certificate is for **local testing only** — never ship it. Uninstall with
+`Get-AppxPackage *AnchorDock* | Remove-AppxPackage`.
 
 ### Build from Visual Studio (Option A or B)
 Right-click the app (A) or the packaging project (B) → **Publish → Create App Packages… →
@@ -319,19 +353,34 @@ In your reserved product, create a **new submission** and complete each section:
 1. **Packages** — upload the `.msixupload`. Partner Center validates identity/version and shows
    the supported architectures.
 2. **Properties** — pick a **category** (e.g. *Utilities & tools*), declare what the app does.
-   Because you declared restricted capabilities, you'll be prompted to **explain why**
-   `runFullTrust` and `broadFileSystemAccess` are needed. Suggested wording:
+   Because you declared a restricted capability, you'll be prompted to **explain why**
+   `runFullTrust` is needed. Suggested wording:
    > *"Anchor is a launcher/dock. `runFullTrust` is required to start user-pinned applications,
-   > files, and links via ShellExecute. `broadFileSystemAccess` is required to read the shell
-   > icons of user-pinned items located anywhere on the file system. The app does not read file
-   > contents; it only resolves icons and launches items the user explicitly pinned."*
+   > files, and links via ShellExecute, which is not possible from an AppContainer-sandboxed
+   > process. All icon resolution and file access use plain Win32 APIs available to any
+   > full-trust process; the app declares no other restricted capability."*
+   >
+   > Also set **Support Info** on this page (or under **Use different details for this app →
+   > Support contact info**) to a valid support contact or developer website URL — a submission
+   > was previously rejected solely for leaving this blank.
 3. **Age ratings** — complete the **IARC** questionnaire (a few minutes). Anchor has no mature
    content, so it will rate low, but the questionnaire is mandatory.
 4. **Store listing** — description, at least one **screenshot** (use/adapt `docs/dock.png`), the
-   ≥300×300 **Store logo**, feature list, and search terms. Reuse copy from `README.md`.
-5. **Privacy policy** — provide a **privacy policy URL**. This is required whenever the app can
-   access the network or personal data; Anchor opens user-supplied web links, so include one even
-   if it simply states that Anchor stores its configuration locally and collects no personal data.
+   ≥300×300 **Store logo**, feature list, and search terms (**max seven**, policy 10.1.3). Reuse
+   copy from `README.md`, but keep the product *name* free of descriptive/marketing text (10.1.1).
+5. **Privacy policy — mandatory, not optional.** Policy 10.5.1 says outright that "product types
+   that inherently have access to Personal Information must always have privacy policies… these
+   include, but are not limited to, **Desktop Bridge and Win32 products**." Anchor is a full-trust
+   Win32 product, so the field must be filled in whatever the app actually collects (which is
+   nothing). [`docs/privacy-policy.md`](privacy-policy.md) is written for this; paste its public
+   URL:
+
+   ```
+   https://github.com/framedparadox/anchor-dock/blob/main/docs/privacy-policy.md
+   ```
+
+   The same document is linked in-app from **Settings ▸ About**. If you later move it to a
+   project website, update the `NavigateUri` in `SettingsWindow.xaml` in the same change.
 6. **Pricing and availability** — Free (recommended) and your target **markets**.
 
 Then **Submit to the Store**. Certification typically completes within hours to ~3 business days;
@@ -396,19 +445,40 @@ a plain desktop utility.
 
 ## 11. Pre-submission checklist
 
-- [ ] Partner Center account active; app **name reserved**.
-- [ ] `Identity Name` / `Publisher` / `PublisherDisplayName` in `src/Anchor/Package.appxmanifest`
-      replaced **verbatim** with your real Partner Center values (currently placeholders).
-- [ ] Manifest `Version` revision is **0**.
-- [x] Visual assets generated (`Square44x44`, `Square150x150`, `StoreLogo`, splash) — done, see §4.2.
-- [x] `runFullTrust` **and** `broadFileSystemAccess` declared in the manifest — justification
-      wording for the submission form is drafted in §7 (or refactor `IconService` to Win32 so
-      `broadFileSystemAccess` can be dropped).
-- [ ] Config still saves/loads under MSIX redirection (smoke-test the packaged build).
-- [ ] Package builds in **StoreUpload** mode; `.msixupload` produced (needs MSBuild/VS — §5).
+**In the repo — done**
+
+- [x] Partner Center account active; app **name reserved**; `Identity Name` / `Publisher` /
+      `PublisherDisplayName` are the real values, verbatim (§3).
+- [x] Manifest `Version` revision is **0** (`1.0.0.0`).
+- [x] Visual assets generated (`Square44x44`, `Square150x150`, `StoreLogo`, splash) — §4.2.
+- [x] Only `runFullTrust` declared — `broadFileSystemAccess` was dropped after being denied on
+      review; `IconService` resolves all icons via Win32 (§2.3). Justification wording is in §7.2.
+- [x] `Properties/DisplayName`, `VisualElements@DisplayName` and the reserved name all agree
+      ("Anchor Dock"); the description no longer claims a Windows version `MinVersion` doesn't
+      match (§4.3).
+- [x] "Start with Windows" uses `windows.startupTask` when packaged, not the Run key, so it
+      actually works after install (§2.8).
+- [x] The GitHub update check is compiled out of the packaged build (§2.9).
+- [x] A **privacy policy** exists at `docs/privacy-policy.md` and is linked from Settings ▸ About
+      (§7.5) — required for a Win32 product by policy 10.5.1.
+- [x] `-p:StorePackage=true` completes and emits a `.msix` with the expected manifest (§4).
+
+**Before you press submit — needs you, or a Windows box with VS**
+
+- [ ] Sideload the signed package (§5) and smoke-test the *packaged* behavior specifically:
+      Settings ▸ General ▸ **Start with Windows** survives a reboot and appears in Task Manager ▸
+      Startup apps; the **update card is absent**; config saves and reloads (it lives under
+      `…\Packages\<PackageFamilyName>\LocalCache\Roaming\Anchor` when packaged, not
+      `%AppData%\Anchor` — an existing unpackaged `dock.json` will **not** be picked up).
+- [ ] Uninstall the sideloaded package and confirm nothing is left behind (policy 10.2.7).
+- [ ] `.msixupload` produced in **StoreUpload** mode for **x64 and ARM64** (needs MSBuild/VS — §5).
 - [ ] **WACK passes.**
-- [ ] Listing complete: description, ≥1 screenshot, ≥300×300 logo, **privacy policy URL**, age
-      rating (IARC), category, markets, price.
+- [ ] Partner Center **Properties → Support Info**: valid support contact or developer website URL
+      (a prior submission was rejected for this alone).
+- [ ] Partner Center **Properties**: category (*Utilities & tools*), `runFullTrust` justification
+      pasted (§7.2).
+- [ ] Listing complete: description, ≥1 screenshot, ≥300×300 logo, **privacy policy URL**,
+      ≤7 search terms, age rating (IARC), markets, price.
 - [ ] Submitted, and certification email received.
 
 ---
@@ -421,9 +491,11 @@ a plain desktop utility.
 - Windows App Certification Kit: <https://learn.microsoft.com/windows/win32/win_cert/windows-app-certification-kit>
 - Microsoft Store Developer CLI: <https://learn.microsoft.com/windows/apps/publish/msstore-dev-cli/overview>
 
-> Reminder: the MSIX toolchain is Windows-only. `dotnet build src\Anchor\Anchor.csproj
-> -p:StorePackage=true` was run against this repo's actual configuration and confirmed
-> `Package.appxmanifest` merges correctly and `Images\*.png` package into the AppX layout; the
-> full `.msixupload`/WACK/signing steps still need MSBuild or Visual Studio (§5–§6) and haven't
-> been exercised end-to-end. Verify `Package.appxmanifest` identity values against your Partner
-> Center product before your first upload.
+> Reminder on what has and hasn't been proven here. `dotnet build src\Anchor\Anchor.csproj -c
+> Release -p:Platform=x64 -p:StorePackage=true` was run against this repo's actual configuration
+> and produced `AppPackages\Anchor_1.0.0.0_Test\Anchor_1.0.0.0_x64.msix`; its embedded
+> `AppxManifest.xml` was read back and carries the real identity, the `runFullTrust` capability,
+> the `windows.startupTask` extension and the `Images\` assets. **Not** exercised end-to-end: the
+> `.msixupload` bundle, signing, sideload install, WACK, and the packaged-only runtime behavior
+> (startup task, redirected config) — those need MSBuild/VS and an install, and are the first four
+> boxes in §11's second list. The MSIX toolchain is Windows-only throughout.

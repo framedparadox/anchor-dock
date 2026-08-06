@@ -2,12 +2,12 @@
 
 [![Release](https://img.shields.io/github/v/release/framedparadox/anchor-dock?label=release)](https://github.com/framedparadox/anchor-dock/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2011%20%C2%B7%20x64-0078D4)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Windows%2011%20%C2%B7%20x64%20%C2%B7%20ARM64-0078D4)](#requirements)
 [![Built with](https://img.shields.io/badge/.NET%2010%20%C2%B7%20WinUI%203-512BD4)](#requirements)
 
 A floating dock for Windows 11, built with **WinUI 3 / Windows App SDK**. It floats a
 compact, glass "strip" above the taskbar that holds apps, files, folders, and web links —
-launch anything with a click.
+launch anything with a click. Run one, or one per monitor.
 
 The glass is the **real Windows 11 acrylic material** (the same `DesktopAcrylicBackdrop`
 the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (default) or
@@ -15,8 +15,9 @@ the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (
 
 ![The dock](docs/dock.png)
 
-Free and open source (MIT). No accounts, no telemetry, no ads and no admin rights — the only thing
-Anchor ever sends over the network is a request for a web link's favicon (see
+Free and open source (MIT). No accounts, no telemetry, no ads and no admin rights — out of the box
+the only thing Anchor sends over the network is a request for a web link's favicon, and the one
+other thing that ever could (an update check) is off until you switch it on (see
 [Privacy & data](#privacy--data)).
 
 ---
@@ -53,27 +54,79 @@ Anchor ever sends over the network is a request for a web link's favicon (see
   from Settings ▸ General. The dock, its glass and the Settings/Add windows all switch together;
   a High Contrast accessibility theme always overrides it.
 - **Rounded corners** — the native Windows 11 window rounding (DWM).
-- **Taskbar-sized icons** — 24 px icons in 40 px cells, matching the Windows 11 taskbar.
+- **Taskbar-sized icons** — 24 px icons in 40 px cells by default, matching the Windows 11
+  taskbar; Settings ▸ Appearance offers a smaller and a larger size too.
 - **Tray icon** — Anchor sits in the notification area while it runs. **Left-click** brings the
   dock to the front (even when it's tucked behind a screen edge); **right-click** gives you
-  *Show/Hide dock*, *Add new…*, *Settings…* and *Quit Anchor*. Since the dock is deliberately off
-  the taskbar and Alt-Tab, this is the always-available handle on a running Anchor — and it
-  re-adds itself if Explorer restarts.
+  *Show/Hide dock*, *Search…*, *Add new…*, *Settings…* and *Quit Anchor*. Since the dock is
+  deliberately off the taskbar and Alt-Tab, this is the always-available handle on a running
+  Anchor — and it re-adds itself if Explorer restarts.
 - **Global keyboard shortcut** — a system-wide hotkey (**Ctrl+Alt+A** by default) summons the
   dock: it un-hides it, slides it back out from its edge, raises it above other windows and gives
-  it focus. Re-assign it in Settings ▸ General by clicking the shortcut button and pressing the
+  it focus. Re-assign it in Settings ▸ Shortcuts by clicking the shortcut button and pressing the
   combination you want (Esc cancels, Backspace clears); Anchor tells you if another app already
   owns it. At least one of Ctrl / Alt / Win is required.
 - **Eight languages** — English, Deutsch, Español, Français, हिन्दी, 日本語, Português (Brasil) and
   简体中文. Anchor follows your Windows display language by default, or pin one in
-  Settings ▸ General; changing it offers a one-click restart so every window switches over.
+  Settings ▸ General; the change applies immediately, with no restart.
+- **Several docks, one per monitor if you like** — add a dock from any dock's right-click menu or
+  Settings ▸ Docks. Each has its own items, monitor, edge, auto-hide and always-on-top setting;
+  theme, language, the global shortcut and start-with-Windows stay shared. The tray icon and the
+  shortcut summon them all at once.
+- **Groups** — club related apps, files or links into one dock icon, keeping a long dock short.
+  Clicking it opens a **fly-out bar**: a second dock growing out of that icon — the same cells,
+  glass and spacing as the strip itself, running across the dock's flow (vertical out of a
+  horizontal dock, horizontal out of a side-snapped one) and always away from the edge it's
+  snapped to. Fill a group by **dragging an icon onto it**, or with *Move to group* on an item's
+  right-click menu; drag a cell sideways out of an open bar to put it back on the strip. A group's
+  own menu offers *Ungroup*.
+
+  ![A group's fly-out bar opened above the dock](docs/group-flyout.png)
+- **Folder fly-outs** — turn on *Show folder contents* for a folder and it lists what's inside it
+  in the same bar instead of opening Explorer, macOS-stack style. Click a subfolder to drill in,
+  right-click an entry to pin it to the dock, and the last cell always opens the real folder in
+  File Explorer.
+- **Quick-launch search** — assign a shortcut in Settings ▸ Shortcuts and it opens a small glass
+  card that filters every item on every dock. Type, arrow to the one you want, Enter to launch;
+  Esc or clicking away dismisses it. Also on the dock's and the tray's right-click menus, so it is
+  reachable before you have assigned a shortcut.
+- **Per-item shortcuts** — give any icon its own system-wide combination from *Shortcut* on its
+  right-click menu, including items tucked inside a group. Off by default behind one master switch,
+  since every shortcut claims a combination from every other app; Settings ▸ Shortcuts lists the
+  ones you've assigned.
+- **Icon size, glass and magnification** — Settings ▸ Appearance offers **Small / Medium / Large**
+  cells (Medium matches the taskbar), a frostiness slider for the acrylic, an **accent tint**
+  switch, and macOS-style **magnification** that swells icons under the cursor.
+- **Drop a file onto an icon** — dropping a file on an **app** opens it with that app, the way
+  dropping it on an exe in Explorer does; dropping one on a **group** files it in there. The target
+  icon swells to say which will happen.
+- **Move items between docks** — *Move to dock* on an item's menu re-homes it without losing its
+  custom icon, arguments or shortcut.
+- **Import / export** — Settings ▸ General saves every dock, item and setting to a file and
+  restores one, which is how you move a dock to another PC.
+- **Opt-in update check** — off by default; when you turn it on, Anchor asks GitHub whether a
+  newer release exists and offers you the download page. It never downloads or installs anything
+  (see [Privacy & data](#privacy--data)). Not present in the Microsoft Store build, which the
+  Store keeps up to date itself.
+- **Running-app indicators** — a dot under an app that's already open, and a click that brings its
+  window forward instead of starting a second copy. **Shift+click** starts a new instance anyway,
+  the way the Windows 11 taskbar does. Turn the whole thing off in Settings ▸ General.
+- **Separators** — a thin divider you can drop anywhere on the strip to group icons visually.
+  Add one from the dock's right-click menu or the Add window; drag it like any other item.
+- **Custom icons** — *Change icon…* on an item's right-click menu points it at any PNG / ICO / JPG
+  / BMP / GIF, and *Use the default icon* puts the shell or favicon icon back.
 - **Settings window** — a gear button opens a Windows-Settings-style window (Mica, left
-  navigation) with a **General** page (theme, language, keyboard shortcut, position,
-  transpose-on-side-edges, auto-hide, always-on-top, start-with-Windows, reset), an
-  **Apps & links** page that lists every entry with a show/hide switch and a remove button, and an
-  **About** page (version + a plain-language privacy summary).
+  navigation) with a **General** page (theme, language, running-app indicators, start-with-Windows,
+  update check, import/export, reset), an **Appearance** page (icon size, glass, accent tint,
+  magnification), a **Shortcuts** page (the summon shortcut, quick-launch search, and the master
+  switch plus a list for per-item shortcuts), a **Docks** page (one card per dock: name, monitor,
+  position, transpose-on-side-edges, auto-hide, always-on-top, remove), an **Apps & links** page
+  that lists every entry — grouped by dock, with a group's contents indented — with a show/hide
+  switch and a remove button, and an **About** page (version + a plain-language privacy summary).
 - **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
-  link / shortcut**, with a type picker, Browse, and auto-suggested names.
+  link / shortcut / separator / group**, with a type picker, Browse, and auto-suggested names.
+
+  ![The Add to Dock window's type picker](docs/add-to-dock.png)
 - **Automatic icons** — apps, files and folders use the Windows shell icon (the same icon
   Explorer shows); web links auto-fetch the site's **favicon**, cached to disk so it downloads
   once and still shows offline.
@@ -94,26 +147,35 @@ Anchor ever sends over the network is a request for a web link's favicon (see
 - **Show / hide without deleting** — hide items from the dock (Settings ▸ Apps, or an icon's
   right-click menu) while keeping them in the list.
 - **Empty state** — with no items the dock shows a **"＋ Add New"** button.
-- **Per-item menu** — right-click an icon: Open, Edit, Rename, Move left/right, Hide, Remove.
+- **Per-item menu** — right-click an icon: Open, Edit, Rename, Change icon, Show folder contents
+  (folders), Move to group, Move to dock, Shortcut, Move left/right, Hide, Remove.
 - **Keyboard & screen-reader friendly** — items and the gear are real `Button`s: Tab / arrow-key
   focus, Space/Enter to launch, focus visuals, and Narrator names. Context menus are reachable
   with the Menu key / Shift+F10; auto-hide honors the *reduced-motion* and *high-contrast*
   accessibility settings.
 - **Single instance** — launching Anchor a second time (e.g. from the Start menu while the
-  "start with Windows" copy is already running) quietly exits rather than stacking a second dock.
+  "start with Windows" copy is already running) quietly exits rather than stacking a second set of
+  docks. Scoped to the data directory, so a portable copy with its own `ANCHOR_DATA_DIR` still runs.
 - **Persistent** — items, position, snap state and settings are saved to JSON and restored next launch.
 - **Out of the way** — borderless, always-on-top, hidden from the taskbar and Alt-Tab.
 
-The Settings window (Mica, Windows-Settings-style navigation):
+The Settings window (Mica, Windows-Settings-style left navigation) has six pages:
 
-![Settings](docs/AnchorDock_Settings.png)
+| General | Appearance | Shortcuts |
+|---|---|---|
+| ![Settings ▸ General](docs/settings-general.png) | ![Settings ▸ Appearance](docs/settings-appearance.png) | ![Settings ▸ Shortcuts](docs/settings-shortcuts.png) |
+
+| Docks | Apps & links | About |
+|---|---|---|
+| ![Settings ▸ Docks](docs/settings-docks.png) | ![Settings ▸ Apps & links](docs/settings-apps.png) | ![Settings ▸ About](docs/settings-about.png) |
 
 ## Install
 
 Anchor is **portable** — there is no installer, no setup wizard and nothing written outside your
 own user profile.
 
-1. Download **`Anchor-win-x64-<version>.zip`** from the
+1. Download **`Anchor-win-x64-<version>.zip`** — or **`Anchor-win-arm64-<version>.zip`** on a
+   Windows-on-ARM machine — from the
    [latest release](https://github.com/framedparadox/anchor-dock/releases/latest).
 2. Extract it to a folder you intend to keep (e.g. `%LocalAppData%\Programs\Anchor`) — Anchor runs
    from where you unzip it, so don't launch it out of the Downloads/temp folder.
@@ -143,8 +205,10 @@ A `winget` package (`ajaykontham.Anchor`) is prepared but not yet accepted into 
 
 - Windows 11 (tested on build 26200) — Windows 10 1809+ (build 17763) should also work; that is
   the app's `TargetPlatformMinVersion`.
-- **x64 only.** WinUI cannot target `AnyCPU`, and the project builds `win-x64`; there is no ARM64 or
-  x86 build yet (an ARM64 build is on the [roadmap](#roadmap--future-enhancements)).
+- **x64 or ARM64.** WinUI cannot target `AnyCPU`, so each is a separate build: pass
+  `-p:Platform=x64` (the default) or `-p:Platform=ARM64`, and the runtime identifier follows. There
+  is no x86 build. The ARM64 build cross-compiles from an x64 host, but only the x64 one can be
+  smoke-tested there — an ARM64 release should be tried on real hardware before it ships.
 - No admin rights, at install or at run time.
 - To *build* it: the **.NET 10 SDK**. The build is **self-contained**, so the Windows App Runtime
   does **not** need to be installed separately — on either your machine or a user's.
@@ -156,56 +220,108 @@ A `winget` package (`ajaykontham.Anchor`) is prepared but not yet accepted into 
 dotnet build src/Anchor/Anchor.csproj -c Release -p:Platform=x64
 
 # run it
-./src/Anchor/bin/x64/Release/net10.0-windows10.0.19041.0/win-x64/Anchor.exe
+./src/Anchor/bin/x64/Release/net10.0-windows10.0.26100.0/win-x64/Anchor.exe
+
+# natively for Windows on ARM (cross-compiles fine from an x64 host)
+dotnet build src/Anchor/Anchor.csproj -c Release -p:Platform=ARM64
 ```
 
-> WinUI apps cannot target `AnyCPU`; always pass `-p:Platform=x64` (this machine's architecture)
-> for a single project. The whole solution builds with `dotnet build Anchor.slnx -c Release`
-> (both projects are x64-only, so x64 is the default — don't add `-p:Platform=x64` at the
-> solution level, which trips MSBuild's solution-configuration mapping).
+> WinUI apps cannot target `AnyCPU`; always pass `-p:Platform=x64` or `-p:Platform=ARM64` for a
+> single project. The runtime identifier is derived from `Platform` in the csproj, so the two can
+> never drift apart. The whole solution builds with `dotnet build Anchor.slnx -c Release` (x64 is
+> the default — don't add `-p:Platform=x64` at the solution level, which trips MSBuild's
+> solution-configuration mapping).
 
-To produce the distributable, self-contained folder and zip (what a release ships):
+To produce the distributable, self-contained folders and zips (what a release ships):
 
 ```powershell
-pwsh scripts/package-release.ps1            # version comes from the csproj
+pwsh scripts/package-release.ps1                     # both architectures, version from the csproj
 pwsh scripts/package-release.ps1 -Version 1.1.0
+pwsh scripts/package-release.ps1 -Architecture x64   # or arm64
 ```
 
-It publishes to `publish\Anchor-win-x64\`, zips that to `dist\Anchor-win-x64-<version>.zip` and
-prints the zip's SHA-256. The version comes from
+It publishes to `publish\Anchor-win-<arch>\`, zips each to `dist\Anchor-win-<arch>-<version>.zip`
+and prints each zip's SHA-256. The version comes from
 [`src/Anchor/Anchor.csproj`](src/Anchor/Anchor.csproj) — bump `<Version>`, `<FileVersion>` and
 `<AssemblyVersion>` together, since Settings ▸ About reads the assembly version.
 
 ## Tests
 
+There are two suites. The unit tests are the ones you run constantly; the UI smoke tests need a
+real desktop and are opt-in.
+
 ```powershell
-dotnet test tests/Anchor.Tests/Anchor.Tests.csproj -p:Platform=x64
+dotnet test tests/Anchor.Tests/Anchor.Tests.csproj -p:Platform=x64   # fast, headless
+pwsh scripts/run-ui-tests.ps1                                        # launches the real app
 ```
 
 `tests/Anchor.Tests/` covers the pure-logic pieces (`Models/`, `Services/DockItemFactory.cs`,
-`Services/Loc.cs`) with xUnit — the `Kind → Glyph` mapping and property-change notifications on
-`DockItem`, the first-run defaults and JSON round-trip of `DockConfig`, `DockItemFactory`
-classification / name suggestion, `HotkeyGesture` parsing / rendering / registrability, and the
-translation tables (every language defines every English key, no blanks, no strays, matching
-`{0}` placeholders) plus language resolution. It targets the same Windows-qualified TFM as the app (WinUI types like
-`ImageSource` require it), so — like the app itself — it only builds and runs on Windows. The
-shell / network / registry / Win32 / live-XAML pieces are integration-shaped and are verified by
-manual testing (see *Using it*); the reasoning is documented in `docs/design-guidelines-review.md`.
+`Services/Loc.cs`, `Services/DockStore.cs`, `Services/UpdateService.cs`, `Services/ItemSearch.cs`,
+`Services/FolderListing.cs`) with xUnit — the
+`Kind → Glyph` mapping, cell sizing (including the density setting and the magnification clamp)
+and property-change notifications on `DockItem`, the first-run defaults, dock-profile round-trip
+and **upgrade-from-single-dock migration** of `DockConfig`, the defaults every new setting has to
+keep so an upgrade doesn't change the dock under you, export/import round-tripping (and its refusal
+to import a file that isn't an Anchor config), release-tag parsing, `DockItemFactory` classification
+/ name suggestion, quick-launch ranking (a name match has to beat an item that merely matches by
+path), a folder stack's ordering and hidden-file exclusion against a real directory, the command
+line built when files are dropped on an app (a path with spaces must stay one argument), the
+magnification curve, `HotkeyGesture` parsing / rendering / registrability, and the translation tables
+(every language defines every English key, no blanks, no strays, matching `{0}` placeholders) plus
+language resolution. It targets the same Windows-qualified TFM as the app (WinUI types like
+`ImageSource` require it), so — like the app itself — it only builds and runs on Windows.
+
+`tests/Anchor.UITests/` is the smoke harness for the shell / Win32 / live-XAML paths the unit
+tests can't reach: it launches the **published** `Anchor.exe` and drives it through UI Automation
+(via [FlaUI](https://github.com/FlaUI/FlaUI)'s UIA3 client), checking that the dock window appears,
+that the seeded items render as named, invokable buttons, that the gear opens Settings and its
+pages switch, that the Docks, Appearance and Shortcuts pages build their controls, that a group
+opens a fly-out bar with its children in it, and that closing Settings doesn't take the dock down
+with it. Notes:
+
+- It is **not** in `Anchor.slnx`, so `dotnet build` / `dotnet test` on the solution stays exactly
+  as fast and side-effect-free as before. `scripts/run-ui-tests.ps1` publishes the app, points
+  `ANCHOR_EXE` at it and sets `ANCHOR_UITESTS=1`; without those the tests skip rather than fail.
+- It needs an **interactive desktop** — a signed-in session with a visible desktop. It won't pass
+  over a lock screen or on a headless CI agent.
+- Each test runs Anchor against a throwaway `ANCHOR_DATA_DIR` under `%Temp%`, so **your own dock is
+  never touched** — which is what makes it safe to cover reset and remove-item paths.
+- UI Automation rather than WinAppDriver or Appium: no background server to install and keep
+  running, no Node/npm, no protocol-version matching between client and driver, and UIA3 talks to
+  WinUI 3's automation peers directly.
+
+The network / registry pieces (`IconService`'s favicon fetch, `StartupService`) remain
+integration-shaped and are verified by manual testing (see *Using it*); the reasoning is
+documented in `docs/design-guidelines-review.md`.
 
 ## Using it
 
-- **Left-click** an icon to launch it (Space/Enter when it has keyboard focus works too).
-- **Hover** an icon for a Windows 11 taskbar-style highlight.
-- **Drag an icon** to reorder it. **Drag the dock's background** (the padding around the
-  icons, the divider, or the gear) to move the whole dock; drop it *at* a screen edge to snap and
-  auto-hide behind that edge, or anywhere else to float.
-- **Right-click an icon** → *Open, Edit…, Rename…, Move left, Move right, Hide, Remove*.
-- **Gear button** → opens **Settings** (General + Apps & links + About).
-- **Right-click the dock background** → *Add New…*, *Settings…*, *Snap to edge*, *Float (unsnap)*, *Quit*.
-- **Tray icon** (notification area) → **left-click** to bring the dock to the front;
-  **right-click** for *Show/Hide dock*, *Add new…*, *Settings…*, *Quit Anchor*.
-- **Ctrl+Alt+A** (default) from anywhere brings the dock to the front — the quickest way back to a
-  dock that's auto-hidden behind an edge. Change or clear it in Settings ▸ General.
+- **Left-click** an icon to launch it (Space/Enter when it has keyboard focus works too). If that
+  app is already open, the click brings its window forward instead — **Shift+click** to start a new
+  instance anyway.
+- **Click a group** to open its fly-out bar — a second dock out of that icon — then click
+  anything inside it. A folder with *Show folder contents* on opens the same bar over its contents.
+- **Hover** an icon for a Windows 11 taskbar-style highlight, or turn on
+  Settings ▸ Appearance ▸ *Magnify on hover* for a macOS-style swell.
+- **Drag an icon** to reorder it, **onto a group** to file it in there, or **sideways out of an
+  open group bar** to put it back on the strip. **Drag the dock's background** (the padding around
+  the icons, the divider, or the gear) to move the whole dock; drop it *at* a screen edge to snap
+  and auto-hide behind that edge, or anywhere else to float.
+- **Drag a file from Explorer** onto the dock to add it, onto an **app icon** to open it with that
+  app, or onto a **group** to file it in there. The target icon swells to show which it will be.
+- **Right-click an icon** → *Open, Edit…, Rename…, Change icon…, Move to group ▸, Move to dock ▸,
+  Shortcut ▸, Move left, Move right, Hide, Remove* — plus *Show folder contents* on a folder. A
+  group instead offers *Open group, Rename…, Change icon…, Ungroup*; a separator only the
+  placement and removal commands.
+- **Gear button** → opens **Settings** (General + Appearance + Shortcuts + Docks + Apps & links +
+  About).
+- **Right-click the dock background** → *Add New…*, *Add separator*, *New group…*, *Search…*,
+  *Settings…*, *Snap to edge*, *Float (unsnap)*, *Add another dock*, *Remove this dock*, *Quit*.
+- **Tray icon** (notification area) → **left-click** to bring every dock to the front;
+  **right-click** for *Show/Hide dock*, *Search…*, *Add new…*, *Settings…*, *Quit Anchor*.
+- **Ctrl+Alt+A** (default) from anywhere brings the docks to the front — the quickest way back to a
+  dock that's auto-hidden behind an edge. Change or clear it in Settings ▸ Shortcuts, where you can
+  also assign a shortcut for **quick-launch search** and switch on **per-item shortcuts**.
 
 Because the dock stays off the taskbar, everything (including **Quit**) lives in the gear/settings,
 the right-click menu and the tray icon. When snapped, move the cursor to that edge (within the
@@ -228,51 +344,104 @@ Delete this file to reset the dock to its seeded defaults. Downloaded favicons a
 separately under `%AppData%\Anchor\IconCache\` (one `<host>.ico` per site); deleting that folder
 just forces the icons to be re-fetched.
 
+Set **`ANCHOR_DATA_DIR`** to put both somewhere else — a folder on a removable drive for a truly
+portable copy, or a throwaway folder for testing. It also scopes the single-instance check, so a
+copy with its own data directory runs alongside your everyday one instead of quietly exiting.
+
 The file is written atomically (write-to-temp then rename) so a crash mid-save can't corrupt it.
 Enums are stored **by name**, and unset optional fields are omitted, so an older file still loads
 after an upgrade (a missing `Theme`, for instance, defaults back to `Dark`).
+
+**Upgrading from a single-dock config.** Before Anchor supported more than one dock, the items and
+placement sat at the top level of this file. Such a file still loads: on first launch its dock is
+folded into `Docks[0]` with every setting intact, and the file is rewritten in the new shape once,
+right then. Nothing is lost, and nothing needs doing by hand.
 
 <details>
 <summary>Example <code>dock.json</code> (and field reference)</summary>
 
 ```jsonc
 {
-  "Items": [
+  // ---- Per-dock: one entry per strip on screen ----
+  "Docks": [
     {
-      "Id": "8f3c…",             // stable GUID (generated once per item)
-      "Kind": "Application",     // Application | File | Folder | WebLink | Separator
-      "DisplayName": "Notepad",  // shown in the tooltip / Settings list
-      "Target": "C:\\Windows\\System32\\notepad.exe", // path, or URL for a WebLink
-      "Arguments": "notes.txt",  // optional, apps only; omitted when empty
-      "CustomIconPath": null,    // optional path to an icon that overrides the shell icon
-      "Hidden": false            // true = kept in the list but not drawn on the dock
+      "Id": "cc25…",                  // stable GUID (generated once per dock)
+      "Name": "Left screen",          // shown in Settings ▸ Docks; "" = "Dock 1", "Dock 2", …
+      "Items": [
+        {
+          "Id": "8f3c…",             // stable GUID (generated once per item)
+          "Kind": "Application",     // Application | File | Folder | WebLink | Separator | Group
+          "DisplayName": "Notepad",  // shown in the tooltip / Settings list
+          "Target": "C:\\Windows\\System32\\notepad.exe", // path, or URL for a WebLink
+          "Arguments": "notes.txt",  // optional, apps only; omitted when empty
+          "CustomIconPath": null,    // optional icon overriding the shell/favicon one
+          "CustomGlyph": null,       // optional built-in glyph from the icon picker (exclusive
+                                     //   with CustomIconPath)
+          "Hidden": false,           // true = kept in the list but not drawn on the dock
+          "Hotkey": "Ctrl+Alt+1",    // optional per-item shortcut; only live when
+                                     //   ItemHotkeysEnabled is true. Omitted when unset
+          "FolderFlyout": false,     // Folder only: list the contents in a fly-out bar instead
+                                     //   of opening Explorer
+          "Children": []             // Group only: the items in its fly-out bar. Groups don't nest
+        }
+      ],
+      "Snapped": false,              // true = flush to Edge; false = floating at FreeX/FreeY
+      "Edge": "Bottom",              // Bottom | Top | Left | Right
+      "FreeX": 640,                  // last top-left (physical px); also the snap anchor,
+      "FreeY": 900,                  //   and what decides which monitor this dock is on
+      "AutoHide": true,              // when snapped, slide behind the edge and reveal on hover
+      "AlwaysOnTop": true,           // keep above other windows while floating
+      "VerticalWhenSideSnapped": false // "Transpose": vertical icons on the left/right edge
     }
   ],
-  "Snapped": false,              // true = flush to Edge; false = floating at FreeX/FreeY
-  "Edge": "Bottom",              // Bottom | Top | Left | Right
-  "FreeX": 640,                  // last top-left (physical px); also the snap anchor
-  "FreeY": 900,
-  "AutoHide": true,              // when snapped, slide behind the edge and reveal on hover
+
+  // ---- App-wide: shared by every dock ----
   "LaunchAtStartup": false,      // mirrors the per-user HKCU Run key
-  "AlwaysOnTop": true,           // keep above other windows while floating
   "Theme": "Dark",               // Light | Dark | System
-  "VerticalWhenSideSnapped": false, // "Transpose": vertical icons on the left/right edge
+  "ShowRunningIndicators": true, // dot under an open app + click-to-focus (Shift+click = new)
   "Language": "",                // "" = follow Windows; else en|de|es|fr|hi|ja|pt|zh-Hans
-  "Hotkey": "Ctrl+Alt+A",        // global shortcut; "" = none. Ctrl/Alt/Shift/Win + a key
+  "Hotkey": "Ctrl+Alt+A",        // summon-the-docks shortcut; "" = none. Ctrl/Alt/Shift/Win + key
   "HotkeyEnabled": true,         // register Hotkey with Windows (off keeps the combination)
+  "SearchHotkey": "",            // quick-launch search shortcut; "" = none (the default)
+  "ItemHotkeysEnabled": false,   // master switch for the per-item Hotkey fields above
+  "Density": "Medium",           // Small | Medium | Large — icon and cell size
+  "GlassOpacity": 0.9,           // acrylic frostiness, 0.3–1.0
+  "AccentTint": false,           // tint the glass with the Windows accent colour
+  "Magnify": false,              // swell icons under the cursor
+  "CheckForUpdates": false,      // opt-in: ask GitHub for a newer release at startup. Ignored by
+                                 //   the Store build, which updates through the Store
+  "SkippedUpdate": "",           // a version the user chose not to be reminded about
   "Seeded": true                 // defaults have been seeded (prevents re-seeding an emptied dock)
 }
 ```
 
-You can hand-edit this file while Anchor is closed. `LaunchAtStartup` is the app's view of the
-Windows startup entry; the source of truth is the `Anchor` value under
-`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, which the Settings toggle writes.
+You can hand-edit this file while Anchor is closed. `LaunchAtStartup` is only the app's *view* of
+the Windows startup entry — Windows is the source of truth, and Anchor asks it rather than trusting
+this field. In the portable build that entry is the `Anchor` value under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; in the Microsoft Store build it is the app's
+registered startup task. Either way it shows up in **Task Manager ▸ Startup apps**, and turning it
+off there wins — the Store build can't override that, and says so when you try.
 
-`Hotkey` is stored as readable text (`Ctrl+Alt+A`) rather than key codes, so it stays legible.
-Assignable keys are `A`–`Z`, `0`–`9`, `F1`–`F24`, `Space`, `Enter`, `Tab`, `Backspace`, `Insert`,
-`Delete`, `Home`, `End`, `PageUp`, `PageDown` and the four arrow keys; at least one of `Ctrl`,
-`Alt` or `Win` is required. A value Anchor can't parse is treated as "no shortcut" — it never
-stops the config from loading.
+A dock has no monitor field on purpose: which screen it lives on is simply the one `FreeX`/`FreeY`
+fall on. That survives a reboot, a resolution change and a monitor being unplugged and plugged
+back in far better than any display id would, and it means Settings ▸ Docks ▸ *Monitor* only has
+to write coordinates.
+
+Shortcuts (`Hotkey`, `SearchHotkey` and an item's own `Hotkey`) are stored as readable text
+(`Ctrl+Alt+A`) rather than key codes, so they stay legible. Assignable keys are `A`–`Z`, `0`–`9`,
+`F1`–`F24`, `Space`, `Enter`, `Tab`, `Backspace`, `Insert`, `Delete`, `Home`, `End`, `PageUp`,
+`PageDown` and the four arrow keys; at least one of `Ctrl`, `Alt` or `Win` is required. A value
+Anchor can't parse is treated as "no shortcut" — it never stops the config from loading.
+
+**This file is also the backup format.** Settings ▸ General ▸ *Backup* exports exactly this shape,
+so an exported file can be dropped straight into `%AppData%\Anchor\dock.json` by hand, and a
+`dock.json` copied off another machine imports without conversion. Importing replaces every dock,
+item and app-wide setting at once; there is no merge and no undo.
+
+The **icon cache is deliberately not part of a backup**: it holds nothing but downloaded favicons,
+which the new machine re-fetches on its own. Custom icons *are* preserved, because
+`CustomIconPath` points at your own image file — so if you're moving between machines, copy that
+file across too (or use a built-in glyph from the icon picker, which travels inside the config).
 
 </details>
 
@@ -282,14 +451,26 @@ Anchor runs entirely on your PC. There are **no accounts, no telemetry, no analy
 
 - **Your data stays local.** Items, layout and settings live in `%AppData%\Anchor\dock.json`
   and never leave your device.
-- **Web-link icons are the only network access.** For a web link, Anchor fetches the site's
-  favicon — first directly from the site (`https://<host>/favicon.ico`), and only if that fails,
-  from DuckDuckGo's icon service (`https://icons.duckduckgo.com/ip3/<host>.ico`), which receives
-  just the site's domain. Nothing else is sent, and downloaded icons are cached under
+- **Web-link icons are the only network access by default.** For a web link, Anchor fetches the
+  site's favicon — first directly from the site (`https://<host>/favicon.ico`), and only if that
+  fails, from DuckDuckGo's icon service (`https://icons.duckduckgo.com/ip3/<host>.ico`), which
+  receives just the site's domain. Nothing else is sent, and downloaded icons are cached under
   `%AppData%\Anchor\IconCache\` so a site is contacted at most once. If you never add a web link,
   Anchor makes no network requests at all.
+- **The update check is the only other thing that can reach the network, and it is off until you
+  turn it on.** With **Settings ▸ General ▸ Check for updates** enabled, Anchor asks the public
+  GitHub releases API (`api.github.com/repos/framedparadox/anchor-dock/releases/latest`) once at
+  startup whether a newer version exists. No token, no account, no identifier beyond the HTTP
+  request itself; nothing is uploaded, and nothing is ever downloaded or installed for you — the
+  most it does is open the release page in your browser. Leave the switch off and it never runs.
+  The **Microsoft Store build has no update check at all** — the Store updates it — so there the
+  setting is not merely off, it isn't shown.
+
+The full policy is in [`docs/privacy-policy.md`](docs/privacy-policy.md), which is also what the
+Store listing points at and what **Settings ▸ About ▸ Privacy policy** opens.
 - **Launching is a hand-off to Windows.** Opening an item hands it to the shell exactly as
-  double-clicking it in Explorer would; Anchor does not read your files' contents.
+  double-clicking it in Explorer would; Anchor does not read your files' contents. A folder
+  fly-out lists a folder's file *names* to draw its icons; it does not open the files.
 
 The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
 
@@ -307,8 +488,10 @@ The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
 - **Favicon downloads are bounded.** Responses are size-capped (~2 MB) and content-sniffed by
   magic bytes before decoding, so a non-image response can't be shown as a broken/oversized image.
   The cache filename is derived from the sanitized host, not free-form text.
-- **No elevation required.** "Start with Windows" uses the per-user `HKCU` Run key, so it never
-  prompts for admin rights.
+- **No elevation required.** "Start with Windows" uses the per-user `HKCU` Run key in the portable
+  build, and the packaged app's `windows.startupTask` in the Microsoft Store build (where a
+  packaged process's Run-key writes would be virtualized away and never actually start anything).
+  Neither prompts for admin rights, and both are visible to you in **Task Manager ▸ Startup apps**.
 
 ## Troubleshooting
 
@@ -320,35 +503,71 @@ The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
   offline). Fix the target via the item's **Edit…** menu, or check connectivity for a web link.
 - **The snapped dock seems to have vanished.** It auto-hid behind its edge — move the cursor to
   that screen edge (within the dock's span) or onto the small notch to reveal it. To stop it
-  hiding, turn off **Settings ▸ Auto-hide when snapped**.
+  hiding, turn off **auto-hide** for that dock in **Settings ▸ Docks**.
+- **A dock is off-screen after unplugging a monitor.** It gets clamped onto a remaining screen at
+  the next layout; press **Ctrl+Alt+A** or click the tray icon to summon it. If it's still lost,
+  **Settings ▸ Docks ▸ Monitor** re-centres it on the screen you pick.
+- **An app that's clearly running has no dot.** The indicator needs a resolvable executable — a
+  shortcut to a Store app or a control-panel item has none. It's also a 2-second poll, so give it
+  a moment. Turn the feature off entirely in **Settings ▸ General**.
 - **Reset everything.** Close Anchor and delete `%AppData%\Anchor\dock.json`, or use
-  **Settings ▸ General ▸ Reset dock to defaults** (which asks for confirmation first).
+  **Settings ▸ General ▸ Reset dock to defaults** (which asks for confirmation first, and closes
+  any extra docks along with clearing the first).
 
 ## Architecture
 
 ```
 src/Anchor/
-  App.xaml(.cs)              App entry point; single-instance guard; creates the single DockWindow.
-  DockWindow.xaml(.cs)       The dock window: glass, chrome, layout, items, drag/reorder, menu.
-  DockWindow.AutoHide.cs     Auto-hide controller (cursor polling, slide animation, hidden notch).
-  DockWindow.Tray.cs         Tray icon + global-shortcut wiring; bring-to-front; language switch.
-  SettingsWindow.xaml(.cs)   Windows-Settings-style window: General + Apps & links + About pages.
-  AddNewWindow.xaml(.cs)     Windows-app-style modal for adding an app/file/folder/link/shortcut.
+  App.xaml(.cs)              App entry point; single-instance guard; creates the DockManager.
+  DockManager.cs             Owns everything there is one of however many docks are on screen:
+                             the config, tray icon, global shortcut, running-app poll, Settings
+                             and Add windows; creates a DockWindow per DockProfile.
+  DockWindow.xaml(.cs)       One dock strip: glass, chrome, layout, items, drag/reorder, menu.
+  DockWindow.AutoHide.cs     Auto-hide controller (cursor polling, eased slide, hidden notch).
+  DockWindow.FlyoutBar.cs    The fly-out bar: a second dock strip out of one icon. Shared by
+                             groups and folder stacks; also the drag-out-of-a-bar gesture.
+  DockWindow.Groups.cs       Groups: create/dissolve, the fly-out, and the "Move to group" menu.
+  DockWindow.FolderFlyout.cs Folder stacks: a folder's contents rendered into a fly-out bar.
+  DockWindow.DropTargets.cs  Dropping a file onto an app icon (open with) or a group (file into).
+  DockWindow.MoveToDock.cs   Handing an item over to another dock.
+  DockWindow.ItemHotkey.cs   The per-item shortcut menu and its capture flyout.
+  DockWindow.IconPicker.cs   The glyph swatch grid + "browse for an image" picker.
+  DockWindow.Magnify.cs      Cursor-follows magnification, and the glass personalization.
+  SearchWindow.xaml(.cs)     Quick-launch search: a glass card filtering every item on every dock.
+  SettingsWindow.xaml(.cs)   Windows-Settings-style window: General + Appearance + Shortcuts +
+                             Docks + Apps & links + About.
+  AddNewWindow.xaml(.cs)     Windows-app-style modal for adding an app/file/folder/link/shortcut/
+                             separator/group.
+  Controls/
+    HotkeyCaptureButton.cs   A button that captures a key combination; shared by every shortcut UI.
   Models/
-    DockItem.cs              One dock entry (kind, target, icon, hidden). Serializable.
-    DockConfig.cs            Persisted items + settings (theme, language, hotkey, snap edge, …).
+    DockItem.cs              One dock entry (kind, target, icon, hidden, shortcut, group children).
+    DockProfile.cs           One dock: its items, edge, placement and hide behavior.
+    DockConfig.cs            The docks + app-wide settings, with the single-dock upgrade path.
+    DockMetrics.cs           Cell/icon geometry derived from the density setting — the one place
+                             every surface reads its sizes from.
     HotkeyGesture.cs         A global shortcut: modifiers + key, parsed from / rendered to text.
   Services/
     AcrylicBackdropManager.cs  Applies + keeps-alive the taskbar-style acrylic.
     IconService.cs             Shell-thumbnail icons for apps/files/folders; cached favicons for links.
     Launcher.cs                ShellExecute-based launching (apps, files, URLs).
-    DockStore.cs               JSON load/save of the config (atomic write).
+    RunningAppService.cs       Which pinned apps have a window open, and focusing those windows.
+    RunningAppMonitor.cs       The poll behind that, shared by every dock.
+    ShortcutResolver.cs        Resolves a .lnk to its target exe (IShellLinkW), so shortcuts match.
+    DockStore.cs               JSON load/save of the config (atomic write); the data directory;
+                               export/import to an arbitrary path.
+    UpdateService.cs           The opt-in GitHub releases check (off by default; never installs).
     DockItemFactory.cs         Classifies a target (app/file/folder/link) and suggests a name.
+    ItemSearch.cs              Quick-launch matching: which items a query finds, and in what order.
+    FolderListing.cs           A folder's contents as dock items, in Explorer's order.
     Loc.cs                     The string table: language resolution + key lookup with fallback.
+    PackagedRuntime.cs         Whether this is the MSIX (Store) build or the portable exe — the
+                               one place that decides, for the handful of behaviors that differ.
     MessageWindow.cs           Hidden HWND that receives tray callbacks and WM_HOTKEY.
     TrayIconService.cs         Notification-area icon and its native right-click menu.
-    HotkeyService.cs           RegisterHotKey wrapper for the one global shortcut.
-    StartupService.cs          Per-user "start with Windows" Run-key toggle.
+    HotkeyService.cs           RegisterHotKey wrapper; several shortcuts at once, keyed by id.
+    StartupService.cs          "Start with Windows": the per-user Run key unpackaged, the
+                               windows.startupTask API when packaged.
     WindowChrome.cs            Borderless/topmost/tool-window, rounded corners, dialog sizing.
     Diag.cs                    Lightweight file logger (%Temp%\anchor.log).
   Localization/
@@ -356,16 +575,22 @@ src/Anchor/
   Strings/                     One embedded JSON string table per language (en, de, es, fr, …).
   Interop/
     NativeMethods.cs           Win32/DWM P/Invoke (corners, Z-order, DPI, cursor, shell icons,
-                               tray icon, popup menus, global hotkeys).
+                               tray icon, popup menus, global hotkeys, window/process enumeration).
   Assets/Anchor.ico            Win32 app icon (ApplicationIcon), generated from docs/anchor.png.
   Images/                      MSIX tile/logo set (StorePackage=true builds only), same source.
   Package.appxmanifest         MSIX manifest for Store packaging (placeholder identity).
 tests/Anchor.Tests/            xUnit unit tests for the pure-logic Models/Services.
-scripts/package-release.ps1    Self-contained publish → dist\Anchor-win-x64-<version>.zip + SHA-256.
+tests/Anchor.UITests/          UI smoke tests: launches the published exe and drives it via UIA
+                               (FlaUI). Opt-in, not in the solution — see Tests.
+scripts/package-release.ps1    Self-contained publish → dist\Anchor-win-<arch>-<version>.zip +
+                               SHA-256; signs the exe when given a certificate thumbprint.
+scripts/run-ui-tests.ps1       Publishes the app and runs the UI smoke tests against it.
+.github/workflows/ci.yml       Builds x64 + ARM64 and runs the unit tests on push/PR; the UI
+                               tests are an opt-in job needing a self-hosted windowed runner.
 packaging/winget/manifests/    Staged winget-pkgs manifest templates (see docs/winget-deployment.md).
 docs/                          Screenshots, Store-deployment guide, winget guide, design review.
 .vscode/                       F5 launch + build tasks, pinned to the required x64 platform.
-Anchor.slnx                    Solution (app + tests).
+Anchor.slnx                    Solution (app + unit tests).
 ```
 
 ### Notes / design decisions
@@ -376,13 +601,36 @@ Anchor.slnx                    Solution (app + tests).
   to keep the glass alive. The tint/luminosity recipe is theme-aware and tunable
   (`Dark`/`Light` properties) to match the taskbar exactly.
 - **Sizing.** The window is auto-sized to its content. The strip size is computed
-  *analytically* from the (uniform) cell metrics rather than by measuring the live tree —
-  this avoids the "shrink window → clip content → lock small" feedback loop and needs no
-  manual `Measure()` (which throws on live elements).
-- **Master vs. visible items.** `DockConfig.Items` is the ordered source of truth (including
+  *analytically* — by summing each cell's own extent (`DockItem.CellExtent`, since a separator's
+  slot is narrower than an icon's) rather than by measuring the live tree. This avoids the
+  "shrink window → clip content → lock small" feedback loop and needs no manual `Measure()`
+  (which throws on live elements). The drag-reorder hit test reads the same extents, so the two
+  can never disagree about where a cell starts.
+- **Reorder is measured against the *other* items.** With mixed cell widths, mapping the cursor
+  onto a slot by walking the current order oscillates whenever a wide icon crosses a narrow
+  separator. Instead the drag walks the layout with the dragged item excluded and inserts where
+  the cursor passes each remaining item's midpoint — those midpoints don't move as the dragged
+  item is re-inserted around them, so the result is stable.
+- **Master vs. visible items.** `DockProfile.Items` is the ordered source of truth (including
   hidden items); the dock renders a filtered projection. A visible reorder is merged back into
   the master list with hidden items kept anchored at their indices, so hiding/showing never
   loses position.
+- **One manager, N docks.** Everything app-wide — the config file, the tray icon, the global
+  shortcut, the running-app poll, the Settings and Add windows — belongs to `DockManager`, not to
+  a dock. With more than one strip, "the dock that owns the tray icon" would be an arbitrary
+  choice that breaks the moment you remove that dock; a `DockWindow` is therefore purely one strip
+  and its own placement.
+- **A dock's monitor is its coordinates.** `DockProfile` deliberately stores no display id or
+  device name: the monitor is whichever display `FreeX`/`FreeY` land on. Display ids are not
+  stable across sessions or re-plugs, whereas a position is, and it makes "move this dock to that
+  screen" a matter of writing coordinates.
+- **Running-app detection walks windows, not processes.** `RunningAppService` enumerates visible,
+  un-owned, titled, non-tool top-level windows and maps each to its process's image path — the
+  same shape of answer the taskbar gives. Matching on the full path rather than the file name
+  matters (two apps can both ship an `Update.exe`), and shell fixtures (`Progman`, `WorkerW`,
+  `Shell_TrayWnd`) are excluded or File Explorer would read as permanently running. Pinned
+  shortcuts are resolved through `IShellLinkW` first, since a `.lnk`'s own path never matches a
+  running process.
 - **Reorder vs. move gestures.** A press that starts on an icon reorders that icon; a press on
   the background/divider/gear moves the whole window. Both are driven by polling the global
   cursor + button state on a timer (WinUI pointer capture is racy while a window moves under the
@@ -390,9 +638,12 @@ Anchor.slnx                    Solution (app + tests).
 - **Snap keeps its place.** The dropped position is remembered even while snapped, and the target
   monitor is resolved from that point (`DisplayArea.GetFromPoint`), so a snapped dock hides where
   you left it on the correct screen instead of re-centering.
-- **Single instance.** `App` acquires a session-scoped named mutex (`Local\Anchor.SingleInstance.v1`)
-  on launch; a second process finds it already held and exits before creating a window, so the
-  "start with Windows" copy and a manual launch never produce two overlapping docks.
+- **Single instance.** `App` acquires a session-scoped named mutex on launch; a second process
+  finds it already held and exits before creating a window, so the "start with Windows" copy and a
+  manual launch never produce two overlapping sets of docks. The name is scoped to the data
+  directory, so two copies pointed at the same `dock.json` still collapse to one — the case this
+  exists for — while a copy running against its own `ANCHOR_DATA_DIR` (a portable install, or the
+  UI test harness) is a separate instance rather than one that silently refuses to start.
 - **`Window` has no `Resources`.** WinUI 3's `Window` is not a `FrameworkElement`, so shared XAML
   resources live on the root panel (`<Grid.Resources>`), not `<Window.Resources>` — the latter
   makes the XAML compiler fail with no diagnostic. The new dialog windows use the built-in
@@ -412,7 +663,11 @@ Anchor.slnx                    Solution (app + tests).
   therefore need the restart Settings offers. Test coverage asserts every language defines every
   English key, with matching `{0}` placeholders.
 - **Unpackaged & self-contained** so it runs like a normal desktop utility with no MSIX and
-  no separate runtime install.
+  no separate runtime install. `EnableMsixTooling` is still switched on even though nothing is
+  packaged: it is what brings in the targets that generate `Anchor.pri`, where the compiled XAML
+  lives. Without it `dotnet build` still produced one but `dotnet publish` didn't copy it, and a
+  published `Anchor.exe` died on its first window with *"Cannot locate resource from
+  `ms-appx:///DockWindow.xaml`"*.
 
 ## FAQ
 
@@ -432,106 +687,115 @@ the shortcut off if you don't want Anchor holding a global binding at all.
 `src/Anchor/Strings/en.json`, translate the values, and add the code to `Loc.Available`. The
 tests will tell you if you missed a key.
 
-**Can I run it on multiple monitors?** Yes. A snapped dock hides and reveals on whichever monitor
-you dropped it on. On an edge that borders another monitor it stays pinned and visible instead of
-sliding into the neighbor.
+**Can I run it on multiple monitors?** Yes, two ways. A single dock hides and reveals on whichever
+monitor you dropped it on (and on an edge that borders another monitor it stays pinned and visible
+instead of sliding into the neighbor). Or give each screen its own: **Settings ▸ Docks ▸ Add dock**,
+then pick its monitor — each dock keeps its own items and edge.
 
-**Can I use my own icon for an item?** Set `CustomIconPath` for that item in `dock.json` (while
-Anchor is closed) to point at an image file; it overrides the shell/favicon icon.
+**Can I use my own icon for an item?** Right-click it → **Change icon…** and pick a PNG, ICO, JPG,
+BMP or GIF. **Use the default icon** puts the shell/favicon icon back. (It's still the
+`CustomIconPath` field in `dock.json` underneath, if you'd rather edit that.)
+
+**How do I keep a long dock short?** Put related items in a group: right-click one →
+**Move to group ▸ New group…**, then add more the same way. The group is a single icon that opens
+a fly-out. **Ungroup** puts its contents back on the strip where the group was.
 
 **Does it need admin rights?** No. Everything (including "start with Windows") is per-user.
 
 ## Known limitations
 
-- **One global hotkey, one action.** The shortcut only summons the dock; there's no per-item
-  binding, and no chorded/sequence shortcuts. Assignable keys are limited to a fixed,
-  layout-independent table (see *Configuration*) so the stored text means the same thing on
-  every keyboard layout.
-- **Language changes need a restart to apply everywhere.** `{loc:Localize}` resolves when XAML
-  loads, so the dock strip and any open window keep their old strings until relaunch — Settings
-  offers a one-click restart. Translations are machine-assisted and unreviewed by native
-  speakers; corrections are welcome (`src/Anchor/Strings/*.json`).
-- **No magnification.** Hovering an icon gives the Windows 11 taskbar-style subtle-fill highlight,
-  not a macOS-style zoom; the icons never grow beyond the glass strip.
-- **Timer-driven animations.** The auto-hide slide uses a `DispatcherQueueTimer` calling
-  `AppWindow.Move` per frame rather than a Composition animation; smooth today, a polish item.
+- **Shortcut keys come from a fixed table.** Assignable keys are a fixed, layout-independent set
+  (see *Configuration*) so the stored text means the same thing on every keyboard layout, and there
+  are no chorded or sequence shortcuts.
+- **Translations are machine-assisted** and unreviewed by native speakers; corrections are welcome
+  (`src/Anchor/Strings/*.json`).
+- **Magnification stays inside the strip.** Icons swell within their own cell rather than popping
+  up above the dock: the glass is a real `DesktopAcrylicBackdrop`, which paints the whole window
+  and can't be masked, so a window tall enough for icons to rise out of the strip would be a slab
+  of glass with icons along the bottom of it.
+- **The auto-hide slide is timer-driven**, not a Composition animation — hiding moves the *window*
+  off the screen edge, and Composition animates content *inside* a window. It is a fixed-duration
+  eased `AppWindow.Move`, which is smooth, but it is a timer.
 - **Web-link icons** fetch the site favicon (site `/favicon.ico`, then a favicon service),
   falling back to a globe glyph when a site has none or there's no connectivity.
-- **Custom icons are config-file-only.** A per-item `CustomIconPath` overrides the shell/favicon
-  icon, but only by hand-editing `dock.json` — there's no "Change icon…" in the UI.
-- **Separators are half-built.** `DockItemKind.Separator` exists in the model (and `Launcher`
-  ignores clicks on one), but nothing creates one and the dock has no separator visual — an item of
-  that kind renders as an empty cell.
-- **x64 only, unsigned, manual updates.** No ARM64/x86 build, no code-signing certificate, and no
-  in-app update check — see the roadmap below.
+- **Groups don't nest, and can't hold separators.** A group's children are always leaves. Both
+  would give the fly-out bar a structure it has no way to render, and neither earns the complexity.
+- **Fly-out bars open on click, not hover**, and a folder fly-out lists at most 60 entries (hidden
+  and system entries excluded) — past that, its *Open in File Explorer* cell is the answer. The
+  listing is a snapshot taken when the bar opens; it doesn't watch the folder for changes.
+- **Running-app indicators only cover apps with a resolvable exe.** A `.lnk` is followed to its
+  target, but a shortcut to a Store app or a control-panel item has no file-system target, so it
+  never lights up. Detection is a 2-second poll (Windows raises no event for "an app opened its
+  first window"), so a dot can lag reality by that much.
+- **Per-monitor docks are positional.** A dock's screen is wherever its stored coordinates fall.
+  Unplug that monitor and the dock is clamped onto a remaining one — sensible, but it does not
+  remember where it came from and will not move back on its own when the display returns.
+- **Importing a backup replaces everything.** There's no merge and no undo; export first if you
+  want to keep what you have.
+- **UI smoke tests need a real desktop.** They launch the app and drive it through UI Automation,
+  so they can't run headless or over a lock screen, and they're excluded from the solution and
+  opt-in for that reason — including in CI, where they need a self-hosted windowed runner.
+- **Unsigned releases.** There's no code-signing certificate yet, so SmartScreen warns on first
+  run; `scripts/package-release.ps1` can sign a build once one exists. The update check tells you a
+  new version is out but never installs it. x64 and ARM64 are both built; there's no x86 build.
 
 ## Roadmap / future enhancements
 
-Nothing here is committed or scheduled; it's the shortlist of what would most improve Anchor next,
-roughly in the order the value-to-effort ratio suggests. Comments and PRs on any of it are welcome —
-open an issue first for the bigger items.
+The original roadmap has been worked through — see the `[Unreleased]` section of
+[`CHANGELOG.md`](CHANGELOG.md) for what landed and, where an item turned out not to be buildable
+as written, why. What is left is below. Nothing here is committed or scheduled; comments and PRs
+are welcome — open an issue first for the bigger items.
 
-**Dock & items**
+**Blocked on things code can't supply**
 
-- **Grouping / folders** — club related apps, links or shortcuts into one dock icon that opens a
-  fly-out, keeping long docks short. Model-wise a group is a `DockItem` kind that holds child
-  items rather than a target.
-- **Finish separators, and expose custom icons** — give `DockItemKind.Separator` a thin divider
-  visual plus a *Separator* entry in the Add window, and add "Change icon…" to an item's
-  right-click menu so `CustomIconPath` stops being a hand-edit.
-- **Folder fly-outs** — a folder item lists its contents on hover/click instead of only opening
-  Explorer, macOS-stack style.
-- **Drop a file onto an app icon** to open it with that app (the dock already accepts drops to
-  *add*; this routes the drop to `Launcher` with the path as an argument instead).
-- **Running-app indicators** — a dot under icons whose app is running, and click-to-focus the
-  existing window rather than starting a second copy.
-- **Multiple / per-monitor docks** — more than one strip, each with its own items and edge, instead
-  of a single dock that follows you.
-
-**Interaction**
-
-- **Per-item hotkeys** (`Ctrl+Alt+1…9` to launch slot *n*). `HotkeyService` is deliberately
-  single-shortcut today — one fixed id, and `Register` replaces the previous gesture — so this means
-  keying registrations by id and routing `WM_HOTKEY` on `wParam`.
-- **Quick-launch search** — press the hotkey twice (or a second shortcut) for a small filter box
-  over the dock's items.
-- **Icon-size / density setting** — 24 px cells match the taskbar, but a *Small / Medium / Large*
-  option, plus an opacity or accent-tint slider for the acrylic, is the obvious personalization gap.
-- **macOS-style magnification** — needs a taller window with a masked backdrop so icons can pop
-  above the strip; the current design deliberately stays inside it.
-- **Composition-based animations** — replace the per-frame `AppWindow.Move` slide with a
-  Composition/implicit animation for a cheaper, smoother auto-hide reveal.
-
-**Platform & distribution**
-
-- **ARM64 build** — add `win-arm64` to the publish matrix so Windows-on-ARM machines run natively
-  instead of emulated.
-- **Code-signed releases** — a signing certificate removes the SmartScreen warning on first run and
-  is a prerequisite for a smooth winget/Store listing.
-- **Update check** — an opt-in "check for updates" that reads the GitHub releases feed and links to
-  the new zip. Strictly opt-in, so the no-network-by-default promise in *Privacy & data* holds.
-- **Store / winget availability** — land the staged manifests under `packaging/winget/` so
-  `winget install ajaykontham.Anchor` works, and finish the MSIX/Store submission that
-  `-p:StorePackage=true` already builds for (packaging notes live in `docs/`).
-- **Import / export** — a one-click backup of `dock.json` (plus the icon cache) to move a dock
-  between machines.
-
-**Quality**
-
-- **Live language switching** without the restart prompt — requires re-resolving `{loc:Localize}`
-  bindings at runtime instead of at XAML load.
-- **Native-speaker review of the eight translations**, which are currently machine-assisted, and
+- **Code-signed releases.** `scripts/package-release.ps1` will sign a build now
+  (`-CertificateThumbprint`), so the only thing missing is a certificate. Signing removes the
+  SmartScreen warning on first run and is a prerequisite for a smooth winget/Store listing.
+- **Store / winget availability** — the manifests are staged under `packaging/winget/` and
+  `-p:StorePackage=true` builds the MSIX, but landing them means a signed release plus a PR to
+  `microsoft/winget-pkgs` and a Store submission (notes in `docs/`).
+- **Native-speaker review of the eight translations**, which are machine-assisted throughout, and
   more languages beyond them (`src/Anchor/Strings/en.json` is the template).
-- **UI smoke tests** — the shell/Win32/live-XAML paths are manual-only today; a WinAppDriver or
-  Appium harness would cover launch, snap, auto-hide and the tray menu.
+- **Run the UI smoke tests in CI.** The job exists in `.github/workflows/ci.yml` but is pinned to a
+  self-hosted runner labelled `windows-desktop`: UI Automation needs an interactive desktop
+  session, which a stock hosted agent doesn't have.
 
+**Would need a different foundation**
+
+- **Icons that pop above the strip.** Magnification currently swells an icon inside its cell. Going
+  further means a window taller than the strip with a backdrop masked to the strip's shape, and the
+  dock's glass is a real `DesktopAcrylicBackdrop` that paints the whole window and can't be masked.
+  A different material (or a layered window with per-pixel alpha, losing the desktop blur) would be
+  the price.
+- **Composition-driven auto-hide.** The slide is a timed, eased `AppWindow.Move` because hiding
+  moves the *window* off the screen edge and Composition animates content *inside* a window. Doing
+  it properly would mean the dock keeping a full-size window and sliding its content — which leaves
+  an invisible window over the screen edge swallowing clicks.
+
+**Still open, and buildable**
+
+- **Snap / auto-hide UI tests.** The suite covers launch, the seeded items, the Settings pages and
+  a group fly-out. Testing the hide would mean the harness moving the window and watching it slide;
+  the tray menu is a native popup with no UI Automation surface at all, so it stays manual.
+- **Multi-select on the dock** — rubber-band or Ctrl+click several icons to group, hide or move
+  them in one go, rather than one at a time.
+- **A second row.** The strip is one cell deep; a taller dock with two or three rows of icons is a
+  natural fit for a large density on a big screen.
+- **Sync the config between machines** — export/import covers the manual case; watching a folder in
+  OneDrive/Dropbox would make it automatic.
 ## Contributing
 
 Contributions are welcome. A few things that keep the bar consistent:
 
 - Build with `-p:Platform=x64` (WinUI can't be `AnyCPU`) and keep the build **warning-free**.
+  If you touch anything platform-shaped, check `-p:Platform=ARM64` still builds too.
 - Add or update tests under `tests/Anchor.Tests/` for any pure-logic change, and run
   `dotnet test` before opening a PR.
+- If you change the dock's windows, item template or the Settings pages, run
+  `pwsh scripts/run-ui-tests.ps1` as well — those tests find elements by `AutomationId` and by the
+  name Narrator announces, so they break exactly when the accessibility surface does.
+- Adding a user-visible string means adding it to **all eight** `src/Anchor/Strings/*.json`;
+  `LocTests` fails the build otherwise, and English-only keys silently ship English to everyone.
 - Match the existing commenting style — explain *why*, not just *what*, especially around the
   Win32/DWM interop and the drag/auto-hide timing.
 - UI-affecting changes can't be unit-tested here; smoke-test them on Windows and note what you
