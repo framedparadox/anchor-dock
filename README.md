@@ -186,7 +186,10 @@ own user profile.
 Notes:
 
 - The zip is a **self-contained** build — ~86 MB compressed, ~215 MB on disk once extracted. It
-  carries .NET 10 and the Windows App SDK with it, so nothing else has to be installed.
+  bundles .NET 10 and the Windows App SDK so nothing else needs installing. For a smaller
+  download (~60–80 MB) that requires the [Windows App Runtime](https://learn.microsoft.com/windows/apps/windows-app-sdk/deploy-unpackaged-apps)
+  to already be installed, publish with `pwsh scripts/package-release.ps1 -FrameworkDependent` or
+  `dotnet publish -p:FrameworkDependent=true --self-contained false`.
 - Releases are **not code-signed yet**, so SmartScreen may show "Windows protected your PC" the
   first time — choose *More info ▸ Run anyway*. To verify the download instead of trusting it, the
   expected SHA-256 is published in

@@ -53,7 +53,7 @@ public sealed partial class SearchWindow : Window
         // summoned overlay, not a window the user manages.
         WindowChrome.MakeBorderlessToolWindow(_appWindow, _hwnd);
         WindowChrome.StripFrame(_hwnd);
-        WindowChrome.SetRoundedCorners(_hwnd, small: false);
+        WindowChrome.EnsureRoundedCorners(_hwnd, small: false);
 
         RootGrid.RequestedTheme = DockWindow.ResolveTheme(manager.Config.Theme);
         _backdrop = new AcrylicBackdropManager(this);

@@ -379,6 +379,60 @@
                             </Grid>
                         </Border>
 
+                        <!-- Settings gear position -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE713;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.SettingsPosition}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.SettingsPositionDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ComboBox x:Name="SettingsPositionChoice" Grid.Column="2" MinWidth="170"
+                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                          AutomationProperties.Name="{loc:Localize Key=Settings.SettingsPosition}"
+                                          SelectionChanged="SettingsPositionChoice_SelectionChanged">
+                                    <ComboBoxItem Content="{loc:Localize Key=SettingsPosition.Trailing}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=SettingsPosition.Leading}" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Persistent item labels -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE8D2;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.ShowItemLabels}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.ShowItemLabelsDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="ShowItemLabelsSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.ShowItemLabels}"
+                                              Toggled="ShowItemLabelsSwitch_Toggled" />
+                            </Grid>
+                        </Border>
+
                         <!-- Magnification -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">

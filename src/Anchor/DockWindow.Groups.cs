@@ -157,11 +157,11 @@ public sealed partial class DockWindow
     {
         var menu = new MenuFlyout();
         menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => { owner.Hide(); LaunchOrFocus(child); }));
-        menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => { owner.Hide(); ShowRenameFlyout(target, child); }));
+        menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => { owner.Hide(); ShowRenameDialog(child); }));
         menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () =>
         {
             owner.Hide();
-            ShowIconPicker(target, sel => ApplyIconSelection(child, sel));
+            ShowIconPickerDialog(sel => ApplyIconSelection(child, sel));
         }));
         if (child.HasCustomIcon)
             menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(child, null)));
@@ -271,7 +271,7 @@ public sealed partial class DockWindow
             }
         }
         RenderIconBox();
-        iconBox.Click += (_, _) => ShowIconPicker(iconBox, sel =>
+        iconBox.Click += (_, _) => ShowIconPickerDialog(sel =>
         {
             pending = sel;
             RenderIconBox();

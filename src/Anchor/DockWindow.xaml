@@ -81,7 +81,7 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Background="Transparent"
-                CornerRadius="10"
+                CornerRadius="8"
                 Padding="8,6">
 
             <StackPanel x:Name="Strip"
@@ -102,6 +102,8 @@
                         AutomationProperties.AutomationId="AnchorAddNewButton"
                         AutomationProperties.Name="{loc:Localize Key=Dock.AddNewName}"
                         ToolTipService.ToolTip="{loc:Localize Key=Dock.AddNewTip}"
+                        ToolTipService.InitialShowDelay="0"
+                        ToolTipService.ShowDuration="60000"
                         Click="AddNew_Click">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <FontIcon Glyph="&#xE710;"
@@ -182,11 +184,11 @@
                                         AutomationProperties.ItemStatus="{x:Bind RunningStatus, Mode=OneWay}"
                                         ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}"
                                         ToolTipService.Placement="Top"
+                                        ToolTipService.InitialShowDelay="0"
+                                        ToolTipService.ShowDuration="60000"
                                         Click="Item_Click">
-                                    <Grid>
-                                        <!-- The icon's size is OneWay because it moves twice over:
-                                             with the density setting, and — while magnification is
-                                             on — with the cursor's distance from this cell. -->
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <Grid HorizontalAlignment="Center">
                                         <Image Source="{x:Bind IconImage, Mode=OneWay}"
                                                Visibility="{x:Bind ImageVisibility, Mode=OneWay}"
                                                Width="{x:Bind RenderIconSize, Mode=OneWay}"
@@ -194,16 +196,22 @@
                                                Stretch="Uniform"
                                                AutomationProperties.AccessibilityView="Raw" />
 
-                                        <!-- OneWay: a picked icon-picker glyph (CustomGlyph) can
-                                             change after this cell first renders, unlike the
-                                             kind-derived fallback glyph, which never does. -->
                                         <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}"
                                                   Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
                                                   FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                                   FontSize="{x:Bind RenderGlyphSize, Mode=OneWay}"
                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                   AutomationProperties.AccessibilityView="Raw" />
-                                    </Grid>
+                                        </Grid>
+                                        <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
+                                                   Visibility="{x:Bind LabelVisibility, Mode=OneWay}"
+                                                   FontSize="9"
+                                                   MaxWidth="{x:Bind CellWidth, Mode=OneWay}"
+                                                   TextAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                   AutomationProperties.AccessibilityView="Raw" />
+                                    </StackPanel>
                                 </Button>
 
                                 <!-- Running-app indicator: the taskbar's underline, drawn over the
@@ -259,6 +267,8 @@
                         AutomationProperties.AutomationId="AnchorSettingsButton"
                         AutomationProperties.Name="{loc:Localize Key=Dock.Settings}"
                         ToolTipService.ToolTip="{loc:Localize Key=Dock.Settings}"
+                        ToolTipService.InitialShowDelay="0"
+                        ToolTipService.ShowDuration="60000"
                         Click="Settings_Click">
                     <FontIcon x:Name="SettingsGlyph"
                               Glyph="&#xE713;"

@@ -81,8 +81,8 @@ public sealed partial class DockWindow : Window
         // activation because DWM otherwise restores the default (contrasting) rim.
         WindowChrome.MakeBorderlessToolWindow(_appWindow, _hwnd);
         WindowChrome.StripFrame(_hwnd);
-        WindowChrome.SetRoundedCorners(_hwnd, small: false);
-        Activated += (_, _) => ApplyWindowBorder();
+        WindowChrome.EnsureRoundedCorners(_hwnd, small: false);
+        Activated += (_, _) => ApplyWindowChrome();
 
         // Seed the starter items only on the very first run — never after the user has
         // intentionally emptied the dock, and never for a dock they added themselves.
@@ -98,8 +98,15 @@ public sealed partial class DockWindow : Window
         // Match the rounded DWM border to the effective theme now, and keep it in step when the
         // theme changes — either the user's choice, or the OS light/dark setting while in System
         // mode (ActualThemeChanged covers both).
-        ApplyWindowBorder();
-        RootGrid.ActualThemeChanged += (_, _) => ApplyWindowBorder();
+        ApplyWindowChrome();
+        RootGrid.ActualThemeChanged += (_, _) => ApplyWindowChrome();
+
+        DockItemAnimations.ReducedMotion = !new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+        DockItemAnimations.SetShowLabels(_manager.Config.ShowItemLabels);
+        _showLabelsHandler = RefreshItemLabels;
+        DockItemAnimations.ShowLabelsChanged += _showLabelsHandler;
+        ApplyInstantTooltips();
+        HookVisualAnimationTimer();
 
         if (IsHighContrast())
         {
@@ -119,6 +126,7 @@ public sealed partial class DockWindow : Window
         ItemsHost.ItemsSource = Items;
         RebuildVisible();
         ApplyMetrics();
+        ApplyStripLayout();
         // One subscription for the life of the window: it drives the cell highlight always, and
         // the magnify swell when that setting is on (see DockWindow.Magnify.cs).
         HookStripPointer();
@@ -131,7 +139,11 @@ public sealed partial class DockWindow : Window
         // gesture (item reorder for icons, window drag for the background).
         DockStrip.AddHandler(UIElement.PointerPressedEvent,
             new PointerEventHandler(Dock_PointerPressed), handledEventsToo: true);
-        RootGrid.Loaded += (_, _) => QueueRelayout();
+        RootGrid.Loaded += (_, _) =>
+        {
+            ApplyWindowChrome();
+            QueueRelayout();
+        };
 
         Closed += (_, _) =>
         {
@@ -139,6 +151,8 @@ public sealed partial class DockWindow : Window
             _slideTimer?.Stop();
             _dragTimer?.Stop();
             _dragOutTimer?.Stop();
+            _visualAnimTimer?.Stop();
+            DockItemAnimations.ShowLabelsChanged -= _showLabelsHandler;
             _backdrop?.Dispose();
         };
 
@@ -412,6 +426,77 @@ public sealed partial class DockWindow : Window
         QueueRelayout();
     }
 
+    /// <summary>Reorders the gear/divider relative to user items per <see cref="DockConfig.SettingsPosition"/>.</summary>
+    public void ApplyStripLayout()
+    {
+        bool leading = _manager.Config.SettingsPosition == SettingsPosition.Leading;
+        int gearIndex = leading ? 0 : Strip.Children.Count - 1;
+        int dividerIndex = leading ? 1 : Strip.Children.Count - 2;
+
+        if (Strip.Children.IndexOf(SettingsButton) != gearIndex)
+            Strip.Children.Move(Strip.Children.IndexOf(SettingsButton), gearIndex);
+        if (Strip.Children.IndexOf(Divider) != dividerIndex)
+            Strip.Children.Move(Strip.Children.IndexOf(Divider), dividerIndex);
+
+        int itemsIndex = leading ? 2 : 1;
+        if (Strip.Children.IndexOf(ItemsHost) != itemsIndex)
+            Strip.Children.Move(Strip.Children.IndexOf(ItemsHost), itemsIndex);
+
+        int addNewIndex = leading ? Strip.Children.Count - 1 : 0;
+        if (Strip.Children.IndexOf(AddNewButton) != addNewIndex)
+            Strip.Children.Move(Strip.Children.IndexOf(AddNewButton), addNewIndex);
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _visualAnimTimer;
+    private Action? _showLabelsHandler;
+
+    /// <summary>Re-reads label visibility after the app-wide show-labels setting changes.</summary>
+    public void RefreshItemLabels()
+    {
+        foreach (var item in _profile.Items)
+        {
+            item.RefreshMetrics();
+            foreach (var child in item.Children)
+                child.RefreshMetrics();
+        }
+        QueueRelayout();
+    }
+
+    public void QueueRelayoutPublic() => QueueRelayout();
+
+    private void ApplyInstantTooltips()
+    {
+        ToolTipService.SetInitialShowDelay(RootGrid, 0);
+        ToolTipService.SetShowDuration(RootGrid, 60000);
+    }
+
+    private void HookVisualAnimationTimer()
+    {
+        if (DockItemAnimations.ReducedMotion)
+            return;
+
+        _visualAnimTimer = DispatcherQueue.CreateTimer();
+        _visualAnimTimer.Interval = TimeSpan.FromMilliseconds(8);
+        _visualAnimTimer.Tick += (_, _) =>
+        {
+            bool any = false;
+            const double hoverStep = 0.28;
+            const double magnifyStep = 0.22;
+            foreach (var item in Items)
+                any |= item.AnimateVisuals(hoverStep, magnifyStep);
+            if (!any)
+                _visualAnimTimer?.Stop();
+        };
+    }
+
+    private void EnsureVisualAnimationRunning()
+    {
+        if (DockItemAnimations.ReducedMotion || _visualAnimTimer is null)
+            return;
+        if (!_visualAnimTimer.IsRunning)
+            _visualAnimTimer.Start();
+    }
+
     // The pill's actual width. Measured rather than fixed at AddNewWidth because its caption is
     // translated, and "Hinzufügen" or "डॉक में जोड़ें" is wider than the English "Add New" that
     // constant was sized for — a fixed width would clip them.
@@ -529,6 +614,7 @@ public sealed partial class DockWindow : Window
         _work = work;
         _appWindow.MoveAndResize(_shownRect);
         ApplyTopmost();
+        ApplyWindowChrome();
         OnRelayoutApplied();
     }
 
@@ -655,13 +741,16 @@ public sealed partial class DockWindow : Window
             else
             {
                 menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => LaunchOrFocus(item)));
-                menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditFlyout(target, item)));
+                menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditDialog(item)));
             }
 
-            menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameFlyout(target, item)));
-            menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () => ShowIconPicker(target, sel => ApplyIconSelection(item, sel))));
+            menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameDialog(item)));
+            menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () =>
+                ShowIconPickerDialog(sel => ApplyIconSelection(item, sel))));
             if (item.HasCustomIcon)
                 menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(item, null)));
+            if (!item.IsSeparator && !item.IsGroup)
+                menu.Items.Add(Mi(Loc.Get("Menu.RefreshIcon"), () => RefreshItemIcon(item)));
 
             if (item.IsGroup)
             {
@@ -730,104 +819,6 @@ public sealed partial class DockWindow : Window
         SyncMasterFromVisible();
         PersistAndRelayout();
         RaiseItemsChanged();
-    }
-
-    private void ShowRenameFlyout(FrameworkElement target, DockItem item)
-    {
-        var box = new TextBox { Text = item.DisplayName, Width = 240 };
-        var ok = new Button
-        {
-            Content = Loc.Get("Flyout.Rename"),
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(FlyoutHeader(Loc.Get("Flyout.Rename")));
-        panel.Children.Add(box);
-        panel.Children.Add(ok);
-
-        var flyout = new Flyout { Content = panel };
-
-        void Commit()
-        {
-            var name = box.Text.Trim();
-            if (name.Length > 0)
-            {
-                item.DisplayName = name; // observable -> tooltip updates
-                SaveConfig();
-                RaiseItemsChanged();
-            }
-            flyout.Hide();
-        }
-
-        ok.Click += (_, _) => Commit();
-        // Enter commits like the button would; Escape is handled by the flyout's own
-        // light-dismiss behavior (no extra wiring needed).
-        box.KeyDown += (_, e) =>
-        {
-            if (e.Key == Windows.System.VirtualKey.Enter)
-            {
-                Commit();
-                e.Handled = true;
-            }
-        };
-
-        flyout.ShowAt(target);
-        box.Focus(FocusState.Programmatic);
-        box.SelectAll();
-    }
-
-    private void ShowEditFlyout(FrameworkElement target, DockItem item)
-    {
-        var box = new TextBox { Text = item.Target, Width = 320 };
-        var ok = new Button
-        {
-            Content = Loc.Get("Common.Save"),
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(FlyoutHeader(Loc.Get("Flyout.EditTarget")));
-        panel.Children.Add(box);
-        panel.Children.Add(ok);
-
-        var flyout = new Flyout { Content = panel };
-
-        void Commit()
-        {
-            var t = box.Text.Trim();
-            if (t.Length > 0)
-            {
-                item.Target = t;
-                item.Kind = DockItemFactory.Classify(t);
-                item.IconImage = null;
-                // Re-realize the item so kind-derived visuals (glyph) refresh, then reload icon.
-                int i = Items.IndexOf(item);
-                if (i >= 0)
-                {
-                    Items.RemoveAt(i);
-                    Items.Insert(i, item);
-                }
-                SaveConfig();
-                RaiseItemsChanged();
-                _ = LoadOneIconAsync(item);
-            }
-            flyout.Hide();
-        }
-
-        ok.Click += (_, _) => Commit();
-        // Enter commits like the button would; Escape is handled by the flyout's own
-        // light-dismiss behavior (no extra wiring needed).
-        box.KeyDown += (_, e) =>
-        {
-            if (e.Key == Windows.System.VirtualKey.Enter)
-            {
-                Commit();
-                e.Handled = true;
-            }
-        };
-
-        flyout.ShowAt(target);
-        box.Focus(FocusState.Programmatic);
-        box.SelectAll();
     }
 
     private void DockBackground_ContextRequested(UIElement sender, ContextRequestedEventArgs e)
@@ -1066,6 +1057,12 @@ public sealed partial class DockWindow : Window
 
         static Windows.UI.Color Rgb(byte r, byte g, byte b) =>
             Windows.UI.Color.FromArgb(255, r, g, b);
+    }
+
+    private void ApplyWindowChrome()
+    {
+        ApplyWindowBorder();
+        WindowChrome.EnsureRoundedCorners(_hwnd, small: false);
     }
 
     // The dock is topmost while snapped (so the auto-hide reveal shows over other windows), and

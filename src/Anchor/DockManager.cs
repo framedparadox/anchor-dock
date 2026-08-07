@@ -66,6 +66,7 @@ public sealed class DockManager
         // Settle the geometry before the first window is built: the item template binds to it,
         // and a dock that lays out at the default density and then re-sizes reads as a flicker.
         DockMetrics.SetDensity(Config.Density);
+        DockItemAnimations.SetShowLabels(Config.ShowItemLabels);
 
         foreach (var profile in Config.Docks.ToList())
             _docks.Add(CreateWindow(profile, seedDefaults: firstRun && profile.Items.Count == 0));
@@ -533,6 +534,26 @@ public sealed class DockManager
         Save();
         foreach (var dock in _docks)
             dock.ApplyMagnifySetting();
+    }
+
+    public void SetSettingsPosition(SettingsPosition position)
+    {
+        Config.SettingsPosition = position;
+        Save();
+        foreach (var dock in _docks)
+        {
+            dock.ApplyStripLayout();
+            dock.QueueRelayoutPublic();
+        }
+    }
+
+    public void SetShowItemLabels(bool on)
+    {
+        Config.ShowItemLabels = on;
+        DockItemAnimations.SetShowLabels(on);
+        Save();
+        foreach (var dock in _docks)
+            dock.RefreshItemLabels();
     }
 
     /// <summary>Turns the opt-in update check on or off. Nothing is contacted until it is on.</summary>

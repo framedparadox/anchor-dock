@@ -113,6 +113,8 @@ public sealed partial class DockWindow
 
             edge += extent + CellSpacing;
         }
+
+        EnsureVisualAnimationRunning();
     }
 
     /// <summary>Drops both cues — on pointer exit, and whenever the strip is rebuilt under a
@@ -124,6 +126,7 @@ public sealed partial class DockWindow
             item.SetHovered(false);
             item.SetMagnification(1);
         }
+        EnsureVisualAnimationRunning();
     }
 
     /// <summary>Returns every icon to its resting size, leaving the highlight alone — for the
@@ -143,6 +146,7 @@ public sealed partial class DockWindow
     /// </summary>
     public void ApplyGlass()
     {
+        _backdrop?.SyncWithSystemColors();
         _backdrop?.Personalize(_manager.Config.GlassOpacity, _manager.Config.AccentTint);
         // The window rim is mixed from the same two settings, so it has to be re-mixed with them
         // or it goes on advertising the glass the dock used to have.

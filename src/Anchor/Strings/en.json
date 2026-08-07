@@ -17,6 +17,7 @@
   "Menu.Rename": "Rename…",
   "Menu.ChangeIcon": "Change icon…",
   "Menu.ResetIcon": "Use the default icon",
+  "Menu.RefreshIcon": "Refresh icon",
   "Menu.MoveLeft": "Move left",
   "Menu.MoveRight": "Move right",
   "Menu.MoveToGroup": "Move to group",
@@ -54,6 +55,7 @@
   "Flyout.CreateGroup": "Create",
   "IconPicker.Title": "Choose an icon",
   "IconPicker.Browse": "Browse for an image…",
+  "IconPicker.BrowseApp": "Pick from app or DLL…",
   "Group.Empty": "This group is empty. Drag an item onto the group icon, or right-click an item and choose “Move to group”, to put it in here.",
   "Folder.Empty": "There's nothing in this folder.",
   "Folder.OpenInExplorer": "Open in File Explorer",
@@ -112,6 +114,12 @@
 
   "Settings.Magnify": "Magnify on hover",
   "Settings.MagnifyDesc": "Swell icons as the cursor passes over them, macOS-dock style. The swell stays inside the strip, so the dock never changes size.",
+  "Settings.SettingsPosition": "Settings button position",
+  "Settings.SettingsPositionDesc": "Place the settings gear at the start or end of the dock strip.",
+  "SettingsPosition.Leading": "Start of dock",
+  "SettingsPosition.Trailing": "End of dock",
+  "Settings.ShowItemLabels": "Show item names",
+  "Settings.ShowItemLabelsDesc": "Always show each item's name under its icon instead of only on hover.",
 
   "Settings.Hotkey": "Summon the docks",
   "Settings.HotkeyDesc": "A system-wide shortcut that brings every dock to the front — including one tucked behind a screen edge.",

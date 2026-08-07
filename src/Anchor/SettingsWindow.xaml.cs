@@ -239,6 +239,8 @@ public sealed partial class SettingsWindow : Window
         GlassSlider.Value = Math.Round(cfg.GlassOpacity * 100);
         AccentTintSwitch.IsOn = cfg.AccentTint;
         MagnifySwitch.IsOn = cfg.Magnify;
+        SettingsPositionChoice.SelectedIndex = cfg.SettingsPosition == SettingsPosition.Leading ? 1 : 0;
+        ShowItemLabelsSwitch.IsOn = cfg.ShowItemLabels;
         ItemHotkeysSwitch.IsOn = cfg.ItemHotkeysEnabled;
 
         _initializing = false;
@@ -277,6 +279,22 @@ public sealed partial class SettingsWindow : Window
         if (_initializing)
             return;
         _manager.SetMagnify(MagnifySwitch.IsOn);
+    }
+
+    private void SettingsPositionChoice_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _manager.SetSettingsPosition(SettingsPositionChoice.SelectedIndex == 1
+            ? SettingsPosition.Leading
+            : SettingsPosition.Trailing);
+    }
+
+    private void ShowItemLabelsSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _manager.SetShowItemLabels(ShowItemLabelsSwitch.IsOn);
     }
 
     // ---- Language ----------------------------------------------------------

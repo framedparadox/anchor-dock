@@ -86,6 +86,20 @@ public static class WindowChrome
             hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
     }
 
+    /// <summary>
+    /// Re-applies rounded corners after a frame or layout change. DWM can drop the corner
+    /// preference when the non-client frame is stripped or the window is moved/resized — which
+    /// shows up most often in installed/MSIX builds where startup timing differs from dev.
+    /// </summary>
+    public static void EnsureRoundedCorners(nint hwnd, bool small = false)
+    {
+        SetRoundedCorners(hwnd, small);
+        NativeMethods.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE |
+            NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE |
+            NativeMethods.SWP_FRAMECHANGED);
+    }
+
     // The window surface each theme's rim is painted to match, as COLORREFs (0x00BBGGRR). These
     // are WinUI's SolidBackgroundFillColorBase — the color Mica is built on and falls back to —
     // so the rim reads as more window rather than as an edge drawn around it.
