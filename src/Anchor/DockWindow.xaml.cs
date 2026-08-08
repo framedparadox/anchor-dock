@@ -903,9 +903,14 @@ public sealed partial class DockWindow : Window
         OpenAddNew();
     }
 
-    private static async Task LoadOneIconAsync(DockItem item)
+    /// <summary>
+    /// Loads one item's icon at this dock's own display scale. An instance method, not a static
+    /// one, precisely so it can read that scale: the decode size has to follow the monitor the
+    /// dock is on, and on a mixed-DPI setup two docks disagree about what it is.
+    /// </summary>
+    private async Task LoadOneIconAsync(DockItem item)
     {
-        var icon = await IconService.LoadIconAsync(item);
+        var icon = await IconService.LoadIconAsync(item, NativeMethods.GetDpiForWindow(_hwnd) / 96.0);
         if (icon is not null)
             item.IconImage = icon;
     }

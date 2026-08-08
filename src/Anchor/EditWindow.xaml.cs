@@ -215,7 +215,16 @@ public sealed partial class EditWindow : Window
 
     private void ChangeIcon_Click(object sender, RoutedEventArgs e)
     {
-        var flyout = new Flyout { Placement = FlyoutPlacementMode.Bottom };
+        var flyout = new Flyout
+        {
+            Placement = FlyoutPlacementMode.Bottom,
+            // This window is a form barely 280 DIP tall, and a flyout is clipped to the window it
+            // belongs to unless told otherwise — so the picker was squeezed into whatever was left
+            // below the icon field and the presenter's own scroller took over, showing two rows of
+            // swatches at a time. Unconstrained, the popup gets its own top-level window and opens
+            // at the size of the whole grid, which is the point of showing the set unscrolled.
+            ShouldConstrainToRootBounds = false,
+        };
         flyout.Content = IconPickerPanel.Build(_hwnd, swatchStyle: null, selection =>
         {
             flyout.Hide();
@@ -223,7 +232,11 @@ public sealed partial class EditWindow : Window
             // choice, and the preview beside the button is what says it landed.
             _dock.ApplyIconSelection(_item, selection);
         });
-        flyout.ShowAt(ChangeIconButton);
+        flyout.ShowAt(ChangeIconButton, new FlyoutShowOptions
+        {
+            Placement = FlyoutPlacementMode.Bottom,
+            ShowMode = FlyoutShowMode.Standard,
+        });
     }
 
     private void ResetIcon_Click(object sender, RoutedEventArgs e) =>

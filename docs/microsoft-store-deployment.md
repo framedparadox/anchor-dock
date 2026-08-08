@@ -310,7 +310,7 @@ foreach ($p in 'x64', 'ARM64') {
 # 3. Bundle both into the single artifact Partner Center takes. Copy the two .msix from the Upload
 #    folders into one staging directory first — MakeAppx bundles a directory, not a file list.
 $makeappx = "$env:USERPROFILE\.nuget\packages\microsoft.windows.sdk.buildtools\10.0.26100.6901\bin\10.0.26100.0\x64\MakeAppx.exe"
-& $makeappx bundle /d <staging-dir> /p Anchor_1.0.0.0_x64_arm64.msixbundle /bv 1.0.0.0 /o
+& $makeappx bundle /d <staging-dir> /p Anchor_1.1.0.0_x64_arm64.msixbundle /bv 1.1.0.0 /o
 ```
 
 A `.msixupload` is just a zip containing that `.msixbundle`; Partner Center accepts either, and it
@@ -344,8 +344,8 @@ $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=93C75305-77D7-448E-B
   -KeyUsage DigitalSignature -FriendlyName "Anchor sideload" -CertStoreLocation "Cert:\CurrentUser\My" `
   -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 # Export it and trust it under Local Machine ▸ Trusted People, then:
-signtool sign /fd SHA256 /a /f anchor-test.pfx /p <password> Anchor_1.0.0.0_x64.msix
-Add-AppxPackage .\Anchor_1.0.0.0_x64.msix
+signtool sign /fd SHA256 /a /f anchor-test.pfx /p <password> Anchor_1.1.0.0_x64.msix
+Add-AppxPackage .\Anchor_1.1.0.0_x64.msix
 ```
 
 This certificate is for **local testing only** — never ship it. Uninstall with
@@ -420,7 +420,7 @@ date.
 
 ## 8. Updating the app
 
-1. Increase the manifest `Version` (keep the **revision at 0**, e.g. `1.0.0.0 → 1.1.0.0`).
+1. Increase the manifest `Version` (keep the **revision at 0**, e.g. `1.1.0.0 → 1.2.0.0`).
 2. Rebuild the `.msixupload` (§5) and run WACK (§6).
 3. In Partner Center, create a **new submission**, upload the new package, adjust the listing if
    needed, and submit. The Store delivers the update to installed users automatically.
@@ -478,7 +478,7 @@ a plain desktop utility.
 
 - [x] Partner Center account active; app **name reserved**; `Identity Name` / `Publisher` /
       `PublisherDisplayName` are the real values, verbatim (§3).
-- [x] Manifest `Version` revision is **0** (`1.0.0.0`).
+- [x] Manifest `Version` revision is **0** (`1.1.0.0`).
 - [x] Visual assets generated (`Square44x44`, `Square150x150`, `StoreLogo`, splash) — §4.2.
 - [x] Only `runFullTrust` declared — `broadFileSystemAccess` was dropped after being denied on
       review; `IconService` resolves all icons via Win32 (§2.3). Justification wording is in §7.2.
@@ -502,7 +502,7 @@ a plain desktop utility.
 - [ ] Uninstall the sideloaded package and confirm nothing is left behind (policy 10.2.7).
 - [x] `.msixupload` produced in **StoreUpload** mode for **x64 and ARM64** (§5) — built and its
       bundle manifest read back: identity `44492ajaykontham.AnchorDock`, publisher
-      `CN=93C75305-…`, version `1.0.0.0`, payload packages `application x64` + `application arm64`.
+      `CN=93C75305-…`, version `1.1.0.0`, payload packages `application x64` + `application arm64`.
 - [ ] **WACK passes.** Installed at
       `C:\Program Files (x86)\Windows Kits\10\App Certification Kit\appcert.exe`; run it from an
       **elevated** prompt against the bundle:
@@ -527,12 +527,12 @@ a plain desktop utility.
 
 > Reminder on what has and hasn't been proven here. The full §5 sequence — restore, an x64 build,
 > an ARM64 build, and `MakeAppx bundle` — was run against this repo's actual configuration and
-> produced `AppPackages\Anchor_1.0.0.0_StoreUpload\Anchor_1.0.0.0_x64_arm64.msixbundle` (and the
+> produced `AppPackages\Anchor_1.1.0.0_StoreUpload\Anchor_1.1.0.0_x64_arm64.msixbundle` (and the
 > equivalent `.msixupload`). Read back from the built artifacts, not the sources: each `.msix`
 > carries the real identity with the right `ProcessorArchitecture`, `runFullTrust`, the
 > `windows.startupTask` extension, `MinVersion=10.0.17763.0` / `MaxVersionTested=10.0.26100.0`, and
 > a payload containing `Anchor.exe`, `resources.pri` and every `Images\` tile; the bundle manifest
-> lists both architectures at `1.0.0.0`. **Not** exercised: signing, sideload install, WACK, and the
+> lists both architectures at `1.1.0.0`. **Not** exercised: signing, sideload install, WACK, and the
 > packaged-only runtime behavior (startup task, redirected config) — those need an elevated prompt
 > and an actual install, and are the remaining boxes in §11's second list. Symbols were not shipped
 > (`.appxsym` is optional, feeds only Store crash analytics; add with

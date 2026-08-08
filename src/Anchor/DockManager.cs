@@ -106,8 +106,8 @@ public sealed class DockManager
     public void Save() => DockStore.Save(Config);
 
     /// <summary>
-    /// Removes the tray icon and releases the global shortcut. Idempotent, and called both when
-    /// quitting and before the process is replaced on restart — the shell leaves a dead icon
+    /// Removes the tray icon and releases the global shortcut. Idempotent, so any shutdown path
+    /// can call it without checking whether another already has — the shell leaves a dead icon
     /// behind (until it is next hovered) if the process goes away without a <c>NIM_DELETE</c>.
     /// </summary>
     public void ReleaseShellIntegration()

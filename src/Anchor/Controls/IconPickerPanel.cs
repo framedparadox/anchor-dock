@@ -6,8 +6,8 @@ using Microsoft.UI.Xaml.Media;
 namespace Anchor.Controls;
 
 /// <summary>
-/// The "choose an icon" panel: the built-in glyphs as a swatch grid, plus the two routes to an
-/// image of the user's own.
+/// The "choose an icon" panel: every built-in glyph as one unscrolled swatch grid, plus the two
+/// routes to an image of the user's own.
 /// <para>
 /// Built as a plain panel rather than a control or a flyout of its own, because the two places it
 /// appears host it differently — the item editor puts it in a flyout beside its icon field, and
@@ -47,12 +47,10 @@ internal static class IconPickerPanel
             header.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         panel.Children.Add(header);
 
-        panel.Children.Add(new ScrollViewer
-        {
-            MaxHeight = 280,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = BuildGrid(swatchStyle, onSelected),
-        });
+        // Every glyph at once, in no scroller. There are few enough of them (six rows of six) that
+        // the whole set fits a flyout without one, and a scrolling panel of icons hides half the
+        // choice behind a gesture — the point of a swatch grid is that you can see all of it.
+        panel.Children.Add(BuildGrid(swatchStyle, onSelected));
 
         var browseImage = BrowseButton(Loc.Get("IconPicker.Browse"));
         browseImage.Click += async (_, _) =>

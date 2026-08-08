@@ -2,7 +2,6 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using Anchor.Interop;
 using Anchor.Models;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage.Streams;
@@ -33,9 +32,15 @@ public static class IconService
         return c;
     }
 
-    public static async Task<ImageSource?> LoadIconAsync(DockItem item)
+    /// <summary>
+    /// Resolves <paramref name="item"/>'s icon, decoded for a display at
+    /// <paramref name="rasterizationScale"/> (physical pixels per DIP — 1.0 at 96 DPI, 2.0 at
+    /// 200%). The caller supplies it because the scale belongs to the dock's own monitor, and
+    /// two docks on a mixed-DPI setup want different ones.
+    /// </summary>
+    public static async Task<ImageSource?> LoadIconAsync(DockItem item, double rasterizationScale)
     {
-        int decodeSize = TargetDecodeSize();
+        int decodeSize = TargetDecodeSize(rasterizationScale);
         try
         {
             // 0. A built-in glyph the user picked from the icon picker is final — it needs no
@@ -100,21 +105,22 @@ public static class IconService
         }
     }
 
-    private static int TargetDecodeSize()
+    /// <summary>
+    /// Pixel size to decode an icon at: the item's logical size, scaled for the display, then
+    /// doubled so magnification (which grows an icon well past its resting size) has real pixels
+    /// to draw rather than an upscaled blur.
+    /// <para>
+    /// The scale is passed in rather than read from <c>Window.Current</c>, which is a UWP API
+    /// that always returns null in a WinUI 3 desktop app — reading it here silently pinned every
+    /// decode to 1.0 and left icons soft on any display above 100%.
+    /// </para>
+    /// </summary>
+    private static int TargetDecodeSize(double rasterizationScale)
     {
-        double icon = DockMetrics.Icon;
-        double scale = 1.0;
-        try
-        {
-            scale = Microsoft.UI.Xaml.Window.Current?.Content is FrameworkElement root
-                ? root.XamlRoot.RasterizationScale
-                : 1.0;
-        }
-        catch
-        {
-            // Window.Current may be null during background loads.
-        }
-        return (int)Math.Ceiling(icon * Math.Max(1.0, scale) * 2);
+        // Guard the scale rather than trust it: a caller that asks before its window has a DPI
+        // yet would otherwise decode at zero.
+        double scale = double.IsFinite(rasterizationScale) ? Math.Max(1.0, rasterizationScale) : 1.0;
+        return (int)Math.Ceiling(DockMetrics.Icon * scale * 2);
     }
 
     /// <summary>
@@ -174,9 +180,6 @@ public static class IconService
             ? hIcon
             : nint.Zero;
     }
-
-    // Legacy name kept for any callers — delegates to TryGetShellIcon jumbo list.
-    private static nint TryGetJumboIcon(string path) => TryGetShellIcon(path, NativeMethods.SHIL_JUMBO);
 
     /// <summary>Decodes an image file the user pointed at (a custom icon can be any path on
     /// disk). Plain Win32 file I/O — a full-trust process needs no broker capability for it.</summary>
