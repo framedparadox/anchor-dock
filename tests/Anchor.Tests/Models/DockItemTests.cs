@@ -317,15 +317,25 @@ public class DockItemTests
     [Fact]
     public void Magnification_grows_the_icon_but_never_past_its_cell()
     {
-        var item = new DockItem();
-        double resting = item.RenderIconSize;
+        // Reduced motion applies the target size synchronously; otherwise it only eases toward
+        // it over successive AnimateVisuals ticks driven by the dock's own timer.
+        DockItemAnimations.ReducedMotion = true;
+        try
+        {
+            var item = new DockItem();
+            double resting = item.RenderIconSize;
 
-        item.SetMagnification(1.5);
-        Assert.True(item.RenderIconSize > resting);
+            item.SetMagnification(1.5);
+            Assert.True(item.RenderIconSize > resting);
 
-        // An unbounded swell would just clip against a cell that never changes size.
-        item.SetMagnification(10);
-        Assert.True(item.RenderIconSize <= DockMetrics.Cell);
+            // An unbounded swell would just clip against a cell that never changes size.
+            item.SetMagnification(10);
+            Assert.True(item.RenderIconSize <= DockMetrics.Cell);
+        }
+        finally
+        {
+            DockItemAnimations.ReducedMotion = false;
+        }
     }
 
     [Fact]
@@ -384,13 +394,23 @@ public class DockItemTests
     [Fact]
     public void An_item_shows_no_highlight_until_the_cursor_is_on_it()
     {
-        var item = new DockItem();
+        // Reduced motion applies the hover target synchronously; otherwise HoverOpacity only
+        // eases toward it over successive AnimateVisuals ticks driven by the dock's own timer.
+        DockItemAnimations.ReducedMotion = true;
+        try
+        {
+            var item = new DockItem();
 
-        Assert.Equal(0, item.HoverOpacity);
-        item.SetHovered(true);
-        Assert.Equal(1, item.HoverOpacity);
-        item.SetHovered(false);
-        Assert.Equal(0, item.HoverOpacity);
+            Assert.Equal(0, item.HoverOpacity);
+            item.SetHovered(true);
+            Assert.Equal(1, item.HoverOpacity);
+            item.SetHovered(false);
+            Assert.Equal(0, item.HoverOpacity);
+        }
+        finally
+        {
+            DockItemAnimations.ReducedMotion = false;
+        }
     }
 
     [Fact]
@@ -409,14 +429,24 @@ public class DockItemTests
     public void Hovering_raises_a_change_notification_for_the_highlight()
     {
         // The cell's Opacity is bound OneWay to HoverOpacity; without the notification the
-        // highlight would never actually appear.
-        var item = new DockItem();
-        var changed = new List<string?>();
-        item.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        // highlight would never actually appear. Reduced motion applies (and notifies) the
+        // hover target synchronously; otherwise the notification only comes from the dock's own
+        // AnimateVisuals ticks, not from SetHovered itself.
+        DockItemAnimations.ReducedMotion = true;
+        try
+        {
+            var item = new DockItem();
+            var changed = new List<string?>();
+            item.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
 
-        item.SetHovered(true);
-        item.SetHovered(true); // no-op: already hovered
+            item.SetHovered(true);
+            item.SetHovered(true); // no-op: already hovered
 
-        Assert.Equal(new[] { nameof(DockItem.HoverOpacity) }, changed);
+            Assert.Equal(new[] { nameof(DockItem.HoverOpacity) }, changed);
+        }
+        finally
+        {
+            DockItemAnimations.ReducedMotion = false;
+        }
     }
 }

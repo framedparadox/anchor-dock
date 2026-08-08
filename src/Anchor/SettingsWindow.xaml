@@ -66,7 +66,11 @@
             <muxc:NavigationView.MenuItems>
                 <muxc:NavigationViewItem x:Name="GeneralNav" Content="{loc:Localize Key=Nav.General}"
                                          AutomationProperties.AutomationId="SettingsNavGeneral"
-                                         IsSelected="True" Icon="Setting" Tag="general" />
+                                         IsSelected="True" Tag="general">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
                 <muxc:NavigationViewItem x:Name="AppearanceNav" Content="{loc:Localize Key=Nav.Appearance}"
                                          AutomationProperties.AutomationId="SettingsNavAppearance"
                                          Tag="appearance">
@@ -90,7 +94,11 @@
                 </muxc:NavigationViewItem>
                 <muxc:NavigationViewItem x:Name="AppsNav" Content="{loc:Localize Key=Nav.Apps}"
                                          AutomationProperties.AutomationId="SettingsNavApps"
-                                         Icon="AllApps" Tag="apps" />
+                                         Tag="apps">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE71D;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
                 <muxc:NavigationViewItem x:Name="AboutNav" Content="{loc:Localize Key=Nav.About}" Tag="about"
                                          AutomationProperties.AutomationId="SettingsNavAbout">
                     <muxc:NavigationViewItem.Icon>
@@ -680,7 +688,8 @@
                                 <!-- HyperlinkButton opens the URI with the default browser; no
                                      code-behind needed. Margin trims the button's built-in padding
                                      so the links line up with the text above. -->
-                                <StackPanel Orientation="Horizontal" Spacing="4" Margin="-12,0,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="4"
+                                            HorizontalAlignment="Center">
                                     <HyperlinkButton Content="{loc:Localize Key=About.SourceCode}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock" />
                                     <HyperlinkButton Content="{loc:Localize Key=About.ReportIssue}"
@@ -709,30 +718,31 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <FontIcon Grid.Column="0" Glyph="&#xE895;"
-                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{loc:Localize Key=Settings.Updates}"
-                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="{loc:Localize Key=Settings.UpdatesDesc}"
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Center"
-                                                HorizontalAlignment="Right">
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{loc:Localize Key=Settings.Updates}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                               VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
+                                                VerticalAlignment="Center" HorizontalAlignment="Right">
                                         <ToggleSwitch x:Name="UpdatesSwitch"
                                                       OnContent="" OffContent="" MinWidth="0"
-                                                      HorizontalAlignment="Right"
                                                       AutomationProperties.Name="{loc:Localize Key=Settings.Updates}"
                                                       Toggled="UpdatesSwitch_Toggled" />
-                                        <Button x:Name="CheckUpdatesButton" MinWidth="150"
-                                                HorizontalAlignment="Right"
-                                                Content="{loc:Localize Key=Update.CheckNow}"
-                                                Click="CheckUpdates_Click" />
+                                        <Button x:Name="CheckUpdatesButton"
+                                                Width="32" Height="32" Padding="0"
+                                                Click="CheckUpdates_Click"
+                                                AutomationProperties.Name="{loc:Localize Key=Update.CheckNow}"
+                                                ToolTipService.ToolTip="{loc:Localize Key=Update.CheckNow}">
+                                            <FontIcon Glyph="&#xE72C;"
+                                                      FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                      FontSize="15" />
+                                        </Button>
                                     </StackPanel>
                                 </Grid>
 
                                 <muxc:InfoBar x:Name="UpdateBar" IsOpen="False" IsClosable="False"
+                                              Visibility="Collapsed"
                                               Severity="Informational" />
                             </StackPanel>
                         </Border>

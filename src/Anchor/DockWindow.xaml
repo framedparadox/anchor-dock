@@ -101,10 +101,10 @@
                         Visibility="Collapsed"
                         AutomationProperties.AutomationId="AnchorAddNewButton"
                         AutomationProperties.Name="{loc:Localize Key=Dock.AddNewName}"
-                        ToolTipService.ToolTip="{loc:Localize Key=Dock.AddNewTip}"
-                        ToolTipService.InitialShowDelay="0"
-                        ToolTipService.ShowDuration="60000"
                         Click="AddNew_Click">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="{loc:Localize Key=Dock.AddNewTip}" />
+                    </ToolTipService.ToolTip>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <FontIcon Glyph="&#xE710;"
                                   FontFamily="{ThemeResource SymbolThemeFontFamily}"
@@ -182,11 +182,11 @@
                                         Visibility="{x:Bind ButtonVisibility}"
                                         AutomationProperties.Name="{x:Bind DisplayName, Mode=OneWay}"
                                         AutomationProperties.ItemStatus="{x:Bind RunningStatus, Mode=OneWay}"
-                                        ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}"
                                         ToolTipService.Placement="Top"
-                                        ToolTipService.InitialShowDelay="0"
-                                        ToolTipService.ShowDuration="60000"
                                         Click="Item_Click">
+                                    <ToolTipService.ToolTip>
+                                        <ToolTip Content="{x:Bind DisplayName, Mode=OneWay}" />
+                                    </ToolTipService.ToolTip>
                                     <StackPanel VerticalAlignment="Center" Spacing="2">
                                         <Grid HorizontalAlignment="Center">
                                         <Image Source="{x:Bind IconImage, Mode=OneWay}"
@@ -266,10 +266,10 @@
                         MinHeight="0"
                         AutomationProperties.AutomationId="AnchorSettingsButton"
                         AutomationProperties.Name="{loc:Localize Key=Dock.Settings}"
-                        ToolTipService.ToolTip="{loc:Localize Key=Dock.Settings}"
-                        ToolTipService.InitialShowDelay="0"
-                        ToolTipService.ShowDuration="60000"
                         Click="Settings_Click">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="{loc:Localize Key=Dock.Settings}" />
+                    </ToolTipService.ToolTip>
                     <FontIcon x:Name="SettingsGlyph"
                               Glyph="&#xE713;"
                               FontFamily="{ThemeResource SymbolThemeFontFamily}"

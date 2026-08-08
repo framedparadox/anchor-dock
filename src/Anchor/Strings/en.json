@@ -25,6 +25,7 @@
   "Menu.RemoveFromGroup": "Move out of group",
   "Menu.Ungroup": "Ungroup",
   "Menu.ShowFolderContents": "Show folder contents",
+  "Menu.OpenFolderInExplorer": "Open in File Explorer instead",
   "Menu.PinToDock": "Pin to dock",
   "Menu.Shortcut": "Shortcut",
   "Menu.ShortcutAssign": "Assign a shortcut…",

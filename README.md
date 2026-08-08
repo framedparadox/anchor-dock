@@ -579,7 +579,7 @@ src/Anchor/
   Interop/
     NativeMethods.cs           Win32/DWM P/Invoke (corners, Z-order, DPI, cursor, shell icons,
                                tray icon, popup menus, global hotkeys, window/process enumeration).
-  Assets/Anchor.ico            Win32 app icon (ApplicationIcon), generated from docs/anchor.png.
+  Assets/Anchor.ico            Win32 app icon (ApplicationIcon), generated from docs/anchor - v2.png.
   Images/                      MSIX tile/logo set (StorePackage=true builds only), same source.
   Package.appxmanifest         MSIX manifest for Store packaging (placeholder identity).
 tests/Anchor.Tests/            xUnit unit tests for the pure-logic Models/Services.
@@ -786,6 +786,12 @@ are welcome — open an issue first for the bigger items.
   natural fit for a large density on a big screen.
 - **Sync the config between machines** — export/import covers the manual case; watching a folder in
   OneDrive/Dropbox would make it automatic.
+- **A circular dock.** An alternate shape for the strip itself — items arranged around a ring
+  instead of a line, with related items/operations opening into their own layered ring one level
+  out (a group's fly-out as a surrounding arc rather than a second bar). Mainly a
+  `DockMetrics`/hit-testing and drag-reorder-angle problem rather than a glass/theming one, since
+  the acrylic backdrop and window-chrome pieces are shape-agnostic already.
+
 ## Contributing
 
 Contributions are welcome. A few things that keep the bar consistent:

@@ -550,7 +550,7 @@ public sealed partial class SettingsWindow : Window
         // Cleared, not just replaced: a previous check may have left "Get it / Skip" buttons in
         // the bar, and they must not sit under a later "up to date" message.
         UpdateBar.Content = null;
-        UpdateBar.IsOpen = true;
+        SetUpdateBarOpen(true);
         try
         {
             // promptOnly: false — the user asked, so tell them what is actually out there even if
@@ -590,12 +590,24 @@ public sealed partial class SettingsWindow : Window
         skip.Click += (_, _) =>
         {
             _manager.SkipUpdate(release);
-            UpdateBar.IsOpen = false;
+            SetUpdateBarOpen(false);
         };
         actions.Children.Add(skip);
 
         UpdateBar.Content = actions;
-        UpdateBar.IsOpen = true;
+        SetUpdateBarOpen(true);
+    }
+
+    /// <summary>
+    /// <see cref="InfoBar.IsOpen"/> alone still leaves the bar's row reserved in the card's
+    /// layout when closed, which read as a strip of trailing empty space under the update
+    /// controls. Collapsing it explicitly removes that row entirely until there is something to
+    /// say.
+    /// </summary>
+    private void SetUpdateBarOpen(bool open)
+    {
+        UpdateBar.IsOpen = open;
+        UpdateBar.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ---- Import / export ---------------------------------------------------

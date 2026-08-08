@@ -82,12 +82,11 @@ public sealed partial class DockWindow
             Text = Loc.Get("Hotkey.ItemHint"),
         };
 
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(FlyoutHeader(Loc.Get("Menu.Shortcut")));
+        var panel = PanelBody(Loc.Get("Menu.Shortcut"));
         panel.Children.Add(capture);
         panel.Children.Add(message);
 
-        var flyout = new Flyout { Content = panel };
+        var flyout = PanelFlyout(panel);
 
         capture.NeedsModifier += () => message.Text = Loc.Get("Hotkey.NeedModifier");
         capture.Assigned += gesture =>
@@ -103,12 +102,10 @@ public sealed partial class DockWindow
             flyout.Hide();
         };
 
-        // The pointer is about to leave the strip for the flyout; hold auto-hide out the same way
-        // the fly-out bars and the new-group dialog do.
-        PauseAutoHideForDrag();
-        flyout.Closed += (_, _) => ResumeAutoHideAfterDrag();
-
-        flyout.ShowAt(target);
+        // Opened as the same panel as every other in-place edit: anchored on the dock window and
+        // free of its bounds, so the capture button is not drawn inside the strip. Auto-hide is
+        // held out for the life of the panel by ShowPanelFlyout.
+        ShowPanelFlyout(flyout, target);
         capture.Focus(FocusState.Programmatic);
     }
 }

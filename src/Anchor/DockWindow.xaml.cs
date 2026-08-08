@@ -105,7 +105,7 @@ public sealed partial class DockWindow : Window
         DockItemAnimations.SetShowLabels(_manager.Config.ShowItemLabels);
         _showLabelsHandler = RefreshItemLabels;
         DockItemAnimations.ShowLabelsChanged += _showLabelsHandler;
-        ApplyInstantTooltips();
+        HookFastTooltips();
         HookVisualAnimationTimer();
 
         if (IsHighContrast())
@@ -434,17 +434,17 @@ public sealed partial class DockWindow : Window
         int dividerIndex = leading ? 1 : Strip.Children.Count - 2;
 
         if (Strip.Children.IndexOf(SettingsButton) != gearIndex)
-            Strip.Children.Move(Strip.Children.IndexOf(SettingsButton), gearIndex);
+            Strip.Children.Move((uint)Strip.Children.IndexOf(SettingsButton), (uint)gearIndex);
         if (Strip.Children.IndexOf(Divider) != dividerIndex)
-            Strip.Children.Move(Strip.Children.IndexOf(Divider), dividerIndex);
+            Strip.Children.Move((uint)Strip.Children.IndexOf(Divider), (uint)dividerIndex);
 
         int itemsIndex = leading ? 2 : 1;
         if (Strip.Children.IndexOf(ItemsHost) != itemsIndex)
-            Strip.Children.Move(Strip.Children.IndexOf(ItemsHost), itemsIndex);
+            Strip.Children.Move((uint)Strip.Children.IndexOf(ItemsHost), (uint)itemsIndex);
 
         int addNewIndex = leading ? Strip.Children.Count - 1 : 0;
         if (Strip.Children.IndexOf(AddNewButton) != addNewIndex)
-            Strip.Children.Move(Strip.Children.IndexOf(AddNewButton), addNewIndex);
+            Strip.Children.Move((uint)Strip.Children.IndexOf(AddNewButton), (uint)addNewIndex);
     }
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _visualAnimTimer;
@@ -463,12 +463,6 @@ public sealed partial class DockWindow : Window
     }
 
     public void QueueRelayoutPublic() => QueueRelayout();
-
-    private void ApplyInstantTooltips()
-    {
-        ToolTipService.SetInitialShowDelay(RootGrid, 0);
-        ToolTipService.SetShowDuration(RootGrid, 60000);
-    }
 
     private void HookVisualAnimationTimer()
     {
@@ -741,12 +735,12 @@ public sealed partial class DockWindow : Window
             else
             {
                 menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => LaunchOrFocus(item)));
-                menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditDialog(item)));
+                menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditFlyout(target, item)));
             }
 
-            menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameDialog(item)));
+            menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameFlyout(target, item)));
             menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () =>
-                ShowIconPickerDialog(sel => ApplyIconSelection(item, sel))));
+                ShowIconPickerFlyout(target, sel => ApplyIconSelection(item, sel))));
             if (item.HasCustomIcon)
                 menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(item, null)));
             if (!item.IsSeparator && !item.IsGroup)
@@ -759,17 +753,19 @@ public sealed partial class DockWindow : Window
             else
             {
                 // A folder can either hand itself to Explorer or open a stack of its contents.
-                // A check mark rather than two commands: it is one setting with two states, and
-                // the menu should say which one is in force.
+                // One entry that always names the other state, and deliberately NOT a
+                // ToggleMenuFlyoutItem: a single checkable entry makes WinUI reserve a check
+                // column for *every* item in the same menu (the CheckPlaceholder visual state,
+                // worth 28px), so a folder's menu sat noticeably further right than an app's for
+                // the sake of one row. The label carries the state instead, and every item's menu
+                // lines up the same way.
                 if (item.Kind == DockItemKind.Folder)
                 {
-                    var stack = new ToggleMenuFlyoutItem
-                    {
-                        Text = Loc.Get("Menu.ShowFolderContents"),
-                        IsChecked = item.FolderFlyout,
-                    };
-                    stack.Click += (_, _) => SetFolderFlyout(item, stack.IsChecked);
-                    menu.Items.Add(stack);
+                    menu.Items.Add(Mi(
+                        Loc.Get(item.FolderFlyout
+                            ? "Menu.OpenFolderInExplorer"
+                            : "Menu.ShowFolderContents"),
+                        () => SetFolderFlyout(item, !item.FolderFlyout)));
                 }
 
                 menu.Items.Add(BuildMoveToGroupMenu(target, item));
