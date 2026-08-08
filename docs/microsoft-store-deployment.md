@@ -286,23 +286,52 @@ Store distributes the Windows App SDK framework package as a dependency automati
 works; self-contained is the safer default and is what the repo already uses.
 
 ### Build with MSBuild (Option A)
+
+Three steps: restore once, build each architecture, then bundle the two by hand. The whole thing
+was run against this repo and produced the artifacts named below.
+
 ```powershell
-# Restore, then produce a Store-signable package for x64.
-msbuild src\Anchor\Anchor.csproj `
-  /restore `
-  /p:Configuration=Release `
-  /p:Platform=x64 `
-  /p:StorePackage=true `
-  /p:UapAppxPackageBuildMode=StoreUpload `
-  /p:AppxPackageSigningEnabled=false
+$msbuild = "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe"
+
+# 1. Restore ONCE. Both RIDs come from <RuntimeIdentifiers> in Anchor.csproj — see the warning below.
+& $msbuild src\Anchor\Anchor.csproj /t:Restore /p:Configuration=Release /p:Platform=x64 /p:StorePackage=true
+
+# 2. Build each architecture. Each pass emits one .msix under
+#    src\Anchor\bin\<Platform>\Release\<tfm>\win-<arch>\Upload\Anchor_<version>\.
+foreach ($p in 'x64', 'ARM64') {
+  & $msbuild src\Anchor\Anchor.csproj `
+    /p:Configuration=Release `
+    /p:Platform=$p `
+    /p:StorePackage=true `
+    /p:UapAppxPackageBuildMode=StoreUpload `
+    /p:AppxPackageSigningEnabled=false
+}
+
+# 3. Bundle both into the single artifact Partner Center takes. Copy the two .msix from the Upload
+#    folders into one staging directory first — MakeAppx bundles a directory, not a file list.
+$makeappx = "$env:USERPROFILE\.nuget\packages\microsoft.windows.sdk.buildtools\10.0.26100.6901\bin\10.0.26100.0\x64\MakeAppx.exe"
+& $makeappx bundle /d <staging-dir> /p Anchor_1.0.0.0_x64_arm64.msixbundle /bv 1.0.0.0 /o
 ```
-The output lands under `src\Anchor\AppPackages\`. `StoreUpload` mode is the format Partner Center
-expects. `AppxBundle=Always` is already set, so building **x64** and **ARM64** puts both into one
-`.msixupload` — do both, since the app supports both.
+
+A `.msixupload` is just a zip containing that `.msixbundle`; Partner Center accepts either, and it
+equally accepts the two per-architecture `.msix` files uploaded separately into one submission.
+
+> **`AppxBundlePlatforms` does nothing here — don't rely on it.** The usual
+> `-p:AppxBundlePlatforms="x64|arm64"` one-liner is a *packaging-project* (`.wapproj`) idiom. Under
+> Windows App SDK 1.8's single-project MSIX targets it is silently ignored: the build runs
+> `GenerateUploadMsixPackage`, emits a `.msix` for the one `$(Platform)` it was given, and never
+> runs a bundle target — no ARM64 pass, no `.msixupload`, and **no warning**. It looks like a clean
+> success. Hence the explicit per-architecture loop and the manual `MakeAppx bundle` above.
+
+> **Restore once, not per platform.** Both architectures share this project's single
+> `obj\project.assets.json`, so a per-platform restore makes the second overwrite the first and the
+> next build fails with `NETSDK1047` ("Assets file doesn't have a target for …/win-x64"). That is
+> what `<RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>` in `Anchor.csproj` is for — it
+> is restore-time only and does not change what any single build compiles.
 
 `dotnet build` with the same properties gets you a valid, inspectable `.msix` (useful for checking
-the merged manifest, and for sideload testing once signed) but not the `.msixupload` bundle — that
-step needs MSBuild or Visual Studio.
+the merged manifest, and for sideload testing once signed) but not the bundle — `MakeAppx` is a
+Windows SDK tool and the MSIX toolchain is Windows-only throughout.
 
 ### Sideload the built package to test it
 The packaged behavior — the startup task, the redirected config folder, the collapsed update card —
@@ -471,8 +500,13 @@ a plain desktop utility.
       `…\Packages\<PackageFamilyName>\LocalCache\Roaming\Anchor` when packaged, not
       `%AppData%\Anchor` — an existing unpackaged `dock.json` will **not** be picked up).
 - [ ] Uninstall the sideloaded package and confirm nothing is left behind (policy 10.2.7).
-- [ ] `.msixupload` produced in **StoreUpload** mode for **x64 and ARM64** (needs MSBuild/VS — §5).
-- [ ] **WACK passes.**
+- [x] `.msixupload` produced in **StoreUpload** mode for **x64 and ARM64** (§5) — built and its
+      bundle manifest read back: identity `44492ajaykontham.AnchorDock`, publisher
+      `CN=93C75305-…`, version `1.0.0.0`, payload packages `application x64` + `application arm64`.
+- [ ] **WACK passes.** Installed at
+      `C:\Program Files (x86)\Windows Kits\10\App Certification Kit\appcert.exe`; run it from an
+      **elevated** prompt against the bundle:
+      `appcert.exe test -appxpackagepath <…>.msixbundle -reportoutputpath wack-report.xml`
 - [ ] Partner Center **Properties → Support Info**: valid support contact or developer website URL
       (a prior submission was rejected for this alone).
 - [ ] Partner Center **Properties**: category (*Utilities & tools*), `runFullTrust` justification
@@ -491,11 +525,15 @@ a plain desktop utility.
 - Windows App Certification Kit: <https://learn.microsoft.com/windows/win32/win_cert/windows-app-certification-kit>
 - Microsoft Store Developer CLI: <https://learn.microsoft.com/windows/apps/publish/msstore-dev-cli/overview>
 
-> Reminder on what has and hasn't been proven here. `dotnet build src\Anchor\Anchor.csproj -c
-> Release -p:Platform=x64 -p:StorePackage=true` was run against this repo's actual configuration
-> and produced `AppPackages\Anchor_1.0.0.0_Test\Anchor_1.0.0.0_x64.msix`; its embedded
-> `AppxManifest.xml` was read back and carries the real identity, the `runFullTrust` capability,
-> the `windows.startupTask` extension and the `Images\` assets. **Not** exercised end-to-end: the
-> `.msixupload` bundle, signing, sideload install, WACK, and the packaged-only runtime behavior
-> (startup task, redirected config) — those need MSBuild/VS and an install, and are the first four
-> boxes in §11's second list. The MSIX toolchain is Windows-only throughout.
+> Reminder on what has and hasn't been proven here. The full §5 sequence — restore, an x64 build,
+> an ARM64 build, and `MakeAppx bundle` — was run against this repo's actual configuration and
+> produced `AppPackages\Anchor_1.0.0.0_StoreUpload\Anchor_1.0.0.0_x64_arm64.msixbundle` (and the
+> equivalent `.msixupload`). Read back from the built artifacts, not the sources: each `.msix`
+> carries the real identity with the right `ProcessorArchitecture`, `runFullTrust`, the
+> `windows.startupTask` extension, `MinVersion=10.0.17763.0` / `MaxVersionTested=10.0.26100.0`, and
+> a payload containing `Anchor.exe`, `resources.pri` and every `Images\` tile; the bundle manifest
+> lists both architectures at `1.0.0.0`. **Not** exercised: signing, sideload install, WACK, and the
+> packaged-only runtime behavior (startup task, redirected config) — those need an elevated prompt
+> and an actual install, and are the remaining boxes in §11's second list. Symbols were not shipped
+> (`.appxsym` is optional, feeds only Store crash analytics; add with
+> `-p:AppxSymbolPackageEnabled=true`). The MSIX toolchain is Windows-only throughout.

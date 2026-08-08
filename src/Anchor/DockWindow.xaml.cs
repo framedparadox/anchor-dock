@@ -723,28 +723,23 @@ public sealed partial class DockWindow : Window
         int index = Items.IndexOf(item);
         var menu = new MenuFlyout();
 
-        // A separator has no target to open or edit, no name to rename and no icon to change, so
-        // its menu is just the placement/removal commands below. A group has a name and an icon
-        // but no target, so it gets everything except "Edit…" — plus "Ungroup".
+        // A separator has no target to open, no name and no icon, so its menu is just the
+        // placement/removal commands below. A group has both a name and an icon, so it is edited
+        // here like anything else — the editor simply leaves out the target field it has no use
+        // for.
         if (!item.IsSeparator)
         {
-            if (item.IsGroup)
-            {
-                menu.Items.Add(Mi(Loc.Get("Menu.OpenGroup"), () => ShowGroupFlyout(target, item)));
-            }
-            else
-            {
-                menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => LaunchOrFocus(item)));
-                menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => ShowEditFlyout(target, item)));
-            }
+            menu.Items.Add(item.IsGroup
+                ? Mi(Loc.Get("Menu.OpenGroup"), () => ShowGroupFlyout(target, item))
+                : Mi(Loc.Get("Menu.Open"), () => LaunchOrFocus(item)));
 
-            menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => ShowRenameFlyout(target, item)));
-            menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () =>
-                ShowIconPickerFlyout(target, sel => ApplyIconSelection(item, sel))));
+            // Rename and "change icon" are not separate commands any more: both are fields of this
+            // one editor, which is a single panel where the menu used to carry three entries
+            // opening three of them. Dropping back to the item's own icon stays a command of its
+            // own, since it is one action with no form to fill in.
+            menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () => _manager.OpenItemEditor(this, item)));
             if (item.HasCustomIcon)
                 menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(item, null)));
-            if (!item.IsSeparator && !item.IsGroup)
-                menu.Items.Add(Mi(Loc.Get("Menu.RefreshIcon"), () => RefreshItemIcon(item)));
 
             if (item.IsGroup)
             {
@@ -769,11 +764,19 @@ public sealed partial class DockWindow : Window
                 }
 
                 menu.Items.Add(BuildMoveToGroupMenu(target, item));
-                menu.Items.Add(BuildMoveToDockMenu(item));
+
+                // Both of these are hidden rather than shown greyed out: with one dock there is
+                // nowhere to move an item to, and with per-item shortcuts switched off nothing an
+                // item is given here would fire. An entry that can only be disabled is one more
+                // line to read past every time the menu opens.
+                if (_manager.Docks.Count > 1)
+                    menu.Items.Add(BuildMoveToDockMenu(item));
+
                 // Groups are excluded: a shortcut fires with the dock hidden and possibly
                 // off-screen, and a group has nothing to do except open a fly-out that would have
                 // nowhere to appear.
-                menu.Items.Add(BuildItemHotkeyMenu(target, item));
+                if (_manager.Config.ItemHotkeysEnabled)
+                    menu.Items.Add(BuildItemHotkeyMenu(target, item));
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -841,13 +844,21 @@ public sealed partial class DockWindow : Window
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        var snap = new MenuFlyoutSubItem { Text = Loc.Get("Menu.SnapToEdge") };
+        var snap = new MenuFlyoutSubItem { Text = Loc.Get("Menu.Snap") };
         snap.Items.Add(SnapItem(Loc.Get("Edge.Bottom"), DockEdge.Bottom));
         snap.Items.Add(SnapItem(Loc.Get("Edge.Top"), DockEdge.Top));
         snap.Items.Add(SnapItem(Loc.Get("Edge.Left"), DockEdge.Left));
         snap.Items.Add(SnapItem(Loc.Get("Edge.Right"), DockEdge.Right));
         menu.Items.Add(snap);
-        menu.Items.Add(MenuItem(Loc.Get("Menu.Float"), () => SetSnap(null)));
+
+        // Where the gear sits on the strip. One entry naming the end it will move to, rather than
+        // a checkable pair: a single checkable entry makes WinUI indent every other item in the
+        // menu by a check column (see the folder entry in Item_ContextRequested).
+        bool gearLeading = _manager.Config.SettingsPosition == SettingsPosition.Leading;
+        menu.Items.Add(MenuItem(
+            Loc.Get(gearLeading ? "Menu.SettingsToEnd" : "Menu.SettingsToStart"),
+            () => _manager.SetSettingsPosition(
+                gearLeading ? SettingsPosition.Trailing : SettingsPosition.Leading)));
 
         menu.Items.Add(new MenuFlyoutSeparator());
 

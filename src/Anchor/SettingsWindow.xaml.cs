@@ -83,6 +83,10 @@ public sealed partial class SettingsWindow : Window
         WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 880, 640);
         WindowChrome.CenterOnCursor(_appWindow, windowId);
 
+        // The two bars the user can dismiss themselves; the rest are only ever closed in code.
+        StartupBlockedBar.Closed += OnBarClosed;
+        BackupBar.Closed += OnBarClosed;
+
         BuildLanguageList();
         BuildShortcutCaptures();
         LoadGeneral();
@@ -355,7 +359,7 @@ public sealed partial class SettingsWindow : Window
         // left showing "on" would be a lie. Put it back and name the place they can undo it.
         bool blocked = state is StartupService.StartupState.BlockedByUser
                             or StartupService.StartupState.BlockedByPolicy;
-        StartupBlockedBar.IsOpen = blocked;
+        SetBarOpen(StartupBlockedBar, blocked);
         if (blocked)
             SetStartupSwitchSilently(false);
     }
@@ -407,7 +411,7 @@ public sealed partial class SettingsWindow : Window
             if (gesture is not null && !registered && HotkeySwitch.IsOn)
                 ShowBar(HotkeyBar, "Hotkey.Taken");
             else
-                HotkeyBar.IsOpen = false;
+                SetBarOpen(HotkeyBar, false);
         };
         HotkeyColumn.Children.Add(_summonCapture);
 
@@ -427,7 +431,7 @@ public sealed partial class SettingsWindow : Window
             if (gesture is not null && !registered)
                 ShowBar(SearchHotkeyBar, "Hotkey.Taken");
             else
-                SearchHotkeyBar.IsOpen = false;
+                SetBarOpen(SearchHotkeyBar, false);
         };
         SearchHotkeyColumn.Children.Add(_searchCapture);
     }
@@ -439,7 +443,7 @@ public sealed partial class SettingsWindow : Window
         if (!_manager.SetHotkeyEnabled(HotkeySwitch.IsOn))
             ShowBar(HotkeyBar, "Hotkey.Taken");
         else
-            HotkeyBar.IsOpen = false;
+            SetBarOpen(HotkeyBar, false);
     }
 
     private void ItemHotkeysSwitch_Toggled(object sender, RoutedEventArgs e)
@@ -530,7 +534,7 @@ public sealed partial class SettingsWindow : Window
     private static void ShowBar(InfoBar bar, string key)
     {
         bar.Message = Loc.Get(key);
-        bar.IsOpen = true;
+        SetBarOpen(bar, true);
     }
 
     // ---- Update check ------------------------------------------------------
@@ -550,7 +554,7 @@ public sealed partial class SettingsWindow : Window
         // Cleared, not just replaced: a previous check may have left "Get it / Skip" buttons in
         // the bar, and they must not sit under a later "up to date" message.
         UpdateBar.Content = null;
-        SetUpdateBarOpen(true);
+        SetBarOpen(UpdateBar, true);
         try
         {
             // promptOnly: false — the user asked, so tell them what is actually out there even if
@@ -590,25 +594,35 @@ public sealed partial class SettingsWindow : Window
         skip.Click += (_, _) =>
         {
             _manager.SkipUpdate(release);
-            SetUpdateBarOpen(false);
+            SetBarOpen(UpdateBar, false);
         };
         actions.Children.Add(skip);
 
         UpdateBar.Content = actions;
-        SetUpdateBarOpen(true);
+        SetBarOpen(UpdateBar, true);
     }
 
     /// <summary>
-    /// <see cref="InfoBar.IsOpen"/> alone still leaves the bar's row reserved in the card's
-    /// layout when closed, which read as a strip of trailing empty space under the update
-    /// controls. Collapsing it explicitly removes that row entirely until there is something to
-    /// say.
+    /// Opens or closes one of the page's info bars.
+    /// <para>
+    /// <see cref="InfoBar.IsOpen"/> alone is not enough. A closed bar collapses its own template
+    /// but stays a <em>visible</em> child of the card's <see cref="StackPanel"/>, which goes on
+    /// spending its <c>Spacing</c> on it — so every card carrying one sat with a strip of dead
+    /// space under its controls, whether or not there was anything to say. Collapsing the element
+    /// itself takes the row out of the layout entirely.
+    /// </para>
     /// </summary>
-    private void SetUpdateBarOpen(bool open)
+    private static void SetBarOpen(InfoBar bar, bool open)
     {
-        UpdateBar.IsOpen = open;
-        UpdateBar.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        bar.IsOpen = open;
+        bar.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    /// <summary>Keeps a bar the user dismissed themselves out of the layout too — closing it from
+    /// its own X clears <see cref="InfoBar.IsOpen"/> without going through
+    /// <see cref="SetBarOpen"/>.</summary>
+    private static void OnBarClosed(InfoBar sender, InfoBarClosedEventArgs args) =>
+        sender.Visibility = Visibility.Collapsed;
 
     // ---- Import / export ---------------------------------------------------
 
@@ -686,7 +700,7 @@ public sealed partial class SettingsWindow : Window
     {
         BackupBar.Message = message;
         BackupBar.Severity = severity;
-        BackupBar.IsOpen = true;
+        SetBarOpen(BackupBar, true);
     }
 
     // Resetting wipes every pinned app/file/folder/link with no undo, so — unlike the
@@ -1025,6 +1039,26 @@ public sealed partial class SettingsWindow : Window
             Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center,
         };
+
+        // Edit: the same panel the dock's own right-click menu opens, carrying the item's name,
+        // its target and its icon. A separator has none of the three, so it gets no button.
+        if (!item.IsSeparator)
+        {
+            var edit = new Button
+            {
+                Content = new FontIcon
+                {
+                    Glyph = "", // Edit
+                    FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                    FontSize = 14,
+                },
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            ToolTipService.SetToolTip(edit, Loc.Get("Flyout.Edit"));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(edit, Loc.Get("Flyout.Edit"));
+            edit.Click += (_, _) => _manager.OpenItemEditor(dock, item);
+            actions.Children.Add(edit);
+        }
 
         // Show/hide switch (On = shown on the dock). No on/off caption — the switch state alone
         // conveys it; the accessible name/tooltip carry the meaning for AT users.

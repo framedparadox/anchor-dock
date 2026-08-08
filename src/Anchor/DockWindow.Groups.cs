@@ -157,19 +157,12 @@ public sealed partial class DockWindow
     {
         var menu = new MenuFlyout();
         menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => { owner.Hide(); LaunchOrFocus(child); }));
-        // Anchored on the dock window rather than on the cell the menu was raised on: closing the
-        // bar first (so the panel is not opened behind it) disconnects that cell from the tree,
-        // and an anchor that is no longer in the tree has no position to hang a panel off. The
-        // dock itself always has one, and the panel opens over it either way.
-        menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () =>
+        // The same one editor the strip's own menu opens — name, target and icon together — in a
+        // window of its own, so closing the bar first takes nothing with it.
+        menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () =>
         {
             owner.Hide();
-            ShowRenameFlyout(RootGrid, child);
-        }));
-        menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () =>
-        {
-            owner.Hide();
-            ShowIconPickerFlyout(RootGrid, sel => ApplyIconSelection(child, sel));
+            _manager.OpenItemEditor(this, child);
         }));
         if (child.HasCustomIcon)
             menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(child, null)));

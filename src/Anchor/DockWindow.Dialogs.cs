@@ -1,9 +1,9 @@
+using Anchor.Controls;
 using Anchor.Models;
 using Anchor.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media;
 
 namespace Anchor;
 
@@ -11,23 +11,31 @@ namespace Anchor;
 /// picked via "Browse for an image…". Never both.</summary>
 internal readonly record struct IconSelection(string? Glyph, string? FilePath);
 
-/// <summary>In-place item edits — rename, edit target, change icon — each opened as a panel
-/// floating above the dock. Partial of <see cref="DockWindow"/>.</summary>
+/// <summary>
+/// The small panels the dock opens over itself, and the edits its own windows apply back to it.
+/// Partial of <see cref="DockWindow"/>.
+/// <para>
+/// The item editor is <em>not</em> here: it is a window of its own (<see cref="EditWindow"/>),
+/// because the picker it opens has to be able to come and go without taking the edit with it.
+/// What remains are the panels small enough to live over the strip — the shortcut capture, and the
+/// icon picker when the new-group modal asks for one.
+/// </para>
+/// </summary>
 public sealed partial class DockWindow
 {
-    // ---- The edit panel ----------------------------------------------------
+    // ---- The panel ---------------------------------------------------------
     //
-    // Every in-place edit shares one surface: a popup that is NOT clipped to the dock window, hung
-    // off the dock the same way the fly-out bars are. Both halves of that matter — getting either
-    // wrong is what left these edits drawing inside the strip, where there is nothing to see.
+    // A panel is a popup that is NOT clipped to the dock window, hung off the dock the same way
+    // the fly-out bars are. Both halves of that matter — getting either wrong is what left these
+    // drawing inside the strip, where there is nothing to see.
 
     /// <summary>
     /// Wraps <paramref name="content"/> in a popup that is free of the dock window's bounds.
     /// <para>
     /// The dock is a strip one cell tall and only as wide as its own icons. A
-    /// <see cref="Flyout"/> is by default clipped to the window it belongs to, so a rename box or
-    /// a swatch grid opened against the dock was drawn <em>inside</em> that strip, which has room
-    /// for none of it — what showed was a sliver of a panel behind the icons. (A
+    /// <see cref="Flyout"/> is by default clipped to the window it belongs to, so a swatch grid or
+    /// a capture button opened against the dock was drawn <em>inside</em> that strip, which has
+    /// room for none of it — what showed was a sliver of a panel behind the icons. (A
     /// <see cref="ContentDialog"/> fares worse still: it centres itself in the same tiny window.)
     /// With <see cref="FlyoutBase.ShouldConstrainToRootBounds"/> off, the popup gets its own
     /// top-level window and renders at full size over the desktop, exactly as the fly-out bars do.
@@ -69,214 +77,54 @@ public sealed partial class DockWindow
         });
     }
 
-    /// <summary>The panel body every edit shares: a titled column its own controls go into.</summary>
+    /// <summary>The panel body every one of them shares: a titled column its own controls go
+    /// into.</summary>
     private static StackPanel PanelBody(string header)
     {
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
+        var panel = new StackPanel { Spacing = 10, Padding = new Thickness(4) };
         panel.Children.Add(FlyoutHeader(header));
         return panel;
     }
 
-    /// <summary>A panel's confirm button, right-aligned under its field.</summary>
-    private static Button PanelCommitButton(string text) => new()
-    {
-        Content = text,
-        HorizontalAlignment = HorizontalAlignment.Right,
-    };
-
-    // ---- Rename ------------------------------------------------------------
-
-    /// <summary>Renames an item in place. Enter or Save commits; dismissing the panel discards.</summary>
-    private void ShowRenameFlyout(FrameworkElement target, DockItem item)
-    {
-        var box = new TextBox { Text = item.DisplayName, Width = 280 };
-        var save = PanelCommitButton(Loc.Get("Common.Save"));
-
-        var panel = PanelBody(Loc.Get("Flyout.Rename"));
-        panel.Children.Add(box);
-        panel.Children.Add(save);
-
-        var flyout = PanelFlyout(panel);
-
-        void Commit()
-        {
-            var name = box.Text.Trim();
-            if (name.Length > 0)
-            {
-                item.DisplayName = name;
-                SaveConfig();
-                RaiseItemsChanged();
-            }
-            flyout.Hide();
-        }
-
-        save.Click += (_, _) => Commit();
-        box.KeyDown += (_, e) =>
-        {
-            if (e.Key == Windows.System.VirtualKey.Enter)
-            {
-                Commit();
-                e.Handled = true;
-            }
-        };
-
-        ShowPanelFlyout(flyout, target);
-        box.Focus(FocusState.Programmatic);
-        box.SelectAll();
-    }
-
-    // ---- Edit target -------------------------------------------------------
-
     /// <summary>
-    /// Edits what an item points at. Re-classifying the new target can change the item's kind (a
-    /// path swapped for a URL becomes a web link), so the icon is dropped and re-resolved, and the
-    /// item is re-inserted at its own index to make the strip rebuild that one cell.
+    /// Keeps the dock on screen while one of its own windows is editing it, and releases it
+    /// afterwards. Auto-hide is polled from the cursor position, and the cursor is about to be
+    /// somewhere else entirely — sliding the strip away underneath an open editor helps nobody.
     /// </summary>
-    private void ShowEditFlyout(FrameworkElement target, DockItem item)
+    internal void HoldAutoHide(bool hold)
     {
-        var box = new TextBox { Text = item.Target, Width = 320 };
-        var save = PanelCommitButton(Loc.Get("Common.Save"));
-
-        var panel = PanelBody(Loc.Get("Flyout.EditTarget"));
-        panel.Children.Add(box);
-        panel.Children.Add(save);
-
-        var flyout = PanelFlyout(panel);
-
-        void Commit()
-        {
-            var t = box.Text.Trim();
-            if (t.Length > 0)
-            {
-                item.Target = t;
-                item.Kind = DockItemFactory.Classify(t);
-                item.IconImage = null;
-                int i = Items.IndexOf(item);
-                if (i >= 0)
-                {
-                    Items.RemoveAt(i);
-                    Items.Insert(i, item);
-                }
-                SaveConfig();
-                RaiseItemsChanged();
-                _ = LoadOneIconAsync(item);
-            }
-            flyout.Hide();
-        }
-
-        save.Click += (_, _) => Commit();
-        box.KeyDown += (_, e) =>
-        {
-            if (e.Key == Windows.System.VirtualKey.Enter)
-            {
-                Commit();
-                e.Handled = true;
-            }
-        };
-
-        ShowPanelFlyout(flyout, target);
-        box.Focus(FocusState.Programmatic);
-        box.SelectAll();
+        if (hold)
+            PauseAutoHideForDrag();
+        else
+            ResumeAutoHideAfterDrag();
     }
 
     // ---- Change icon -------------------------------------------------------
 
     /// <summary>
-    /// The icon picker: the built-in glyphs as a swatch grid, plus the two "browse" routes to an
-    /// icon of the user's own. Opens as the same panel as the edits above — the grid is both wider
-    /// and taller than the dock window, which makes it the plainest case of a surface that has to
-    /// live outside the strip rather than inside it.
+    /// The icon picker over the strip, for a caller with no window of its own to put it in: the
+    /// new-group modal, choosing an icon for an item that does not exist yet. The editor opens the
+    /// same panel as an ordinary flyout inside <see cref="EditWindow"/>.
     /// </summary>
     private void ShowIconPickerFlyout(FrameworkElement target, Action<IconSelection> onSelected)
     {
-        var panel = PanelBody(Loc.Get("IconPicker.Title"));
-        panel.MaxWidth = 320;
-
-        var flyout = PanelFlyout(panel);
-
-        void Pick(IconSelection selection)
-        {
-            flyout.Hide();
-            onSelected(selection);
-        }
-
-        panel.Children.Add(new ScrollViewer
-        {
-            MaxHeight = 280,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = BuildIconPickerGrid(Pick),
-        });
-
-        var browseImage = PanelBrowseButton(Loc.Get("IconPicker.Browse"));
-        browseImage.Click += async (_, _) =>
-        {
-            if (await PickIconFileAsync() is { } path)
-                Pick(new IconSelection(null, path));
-        };
-        panel.Children.Add(browseImage);
-
-        var browseApp = PanelBrowseButton(Loc.Get("IconPicker.BrowseApp"));
-        browseApp.Click += async (_, _) =>
-        {
-            if (await PickExecutableIconAsync() is { } path)
-                Pick(new IconSelection(null, path));
-        };
-        panel.Children.Add(browseApp);
-
+        var host = new Grid();
+        var flyout = PanelFlyout(host);
+        host.Children.Add(IconPickerPanel.Build(
+            _hwnd,
+            // The dock's own glass chrome, so the swatches match the strip the panel opens over.
+            (Style)RootGrid.Resources["DockGlassButtonStyle"],
+            selection =>
+            {
+                flyout.Hide();
+                onSelected(selection);
+            }));
         ShowPanelFlyout(flyout, target);
     }
 
-    /// <summary>One of the picker's full-width "browse…" buttons.</summary>
-    private static Button PanelBrowseButton(string text) => new()
-    {
-        Content = text,
-        HorizontalAlignment = HorizontalAlignment.Stretch,
-        HorizontalContentAlignment = HorizontalAlignment.Center,
-    };
-
-    private Grid BuildIconPickerGrid(Action<IconSelection> onSelected)
-    {
-        var choices = IconChoices.All;
-        int columns = Math.Min(IconPickerColumns, choices.Count);
-        int rows = (choices.Count + columns - 1) / columns;
-
-        var grid = new Grid { ColumnSpacing = 4, RowSpacing = 4 };
-        for (int c = 0; c < columns; c++)
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        for (int r = 0; r < rows; r++)
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        for (int i = 0; i < choices.Count; i++)
-        {
-            var choice = choices[i];
-            var swatch = new Button
-            {
-                Style = (Style)RootGrid.Resources["DockGlassButtonStyle"],
-                Width = 36,
-                Height = 36,
-                MinWidth = 0,
-                MinHeight = 0,
-                Content = new FontIcon
-                {
-                    Glyph = choice.Glyph,
-                    FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                    FontSize = 16,
-                },
-            };
-            ToolTipService.SetToolTip(swatch, choice.Name);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(swatch, choice.Name);
-            var captured = choice;
-            swatch.Click += (_, _) => onSelected(new IconSelection(captured.Glyph, null));
-            Grid.SetColumn(swatch, i % columns);
-            Grid.SetRow(swatch, i / columns);
-            grid.Children.Add(swatch);
-        }
-        return grid;
-    }
-
-    /// <summary>Applies a picker result to an existing item: a glyph or a file path, never both,
-    /// and each clears whichever the other kind of custom icon was set.</summary>
-    private void ApplyIconSelection(DockItem item, IconSelection selection)
+    /// <summary>Applies a picker result to an item: a glyph or a file path, never both, and each
+    /// clears whichever the other kind of custom icon was set.</summary>
+    internal void ApplyIconSelection(DockItem item, IconSelection selection)
     {
         if (selection.Glyph is not null)
             SetCustomGlyph(item, selection.Glyph);
@@ -284,56 +132,45 @@ public sealed partial class DockWindow
             SetCustomIcon(item, selection.FilePath);
     }
 
-    /// <summary>Opens the OS file picker for an icon image, returning the chosen path or null if
-    /// cancelled or the picker itself failed.</summary>
-    private async Task<string?> PickIconFileAsync()
+    // ---- The editor's result ----------------------------------------------
+
+    /// <summary>
+    /// Writes an edit from <see cref="EditWindow"/> back onto one of this dock's items: its name,
+    /// and — for everything except a group, which points at nothing — its target.
+    /// <para>
+    /// Re-classifying a new target can change the item's kind (a path swapped for a URL becomes a
+    /// web link), so the icon is dropped and re-resolved, and the item is re-inserted at its own
+    /// index to make the strip rebuild that one cell. Blank fields are ignored rather than
+    /// applied: an item with no name is a cell with no tooltip, and one with no target does
+    /// nothing when it is clicked.
+    /// </para>
+    /// </summary>
+    /// <param name="target">The new target, or null for an item that has none.</param>
+    internal void ApplyItemEdit(DockItem item, string name, string? target)
     {
-        try
-        {
-            var picker = new Windows.Storage.Pickers.FileOpenPicker();
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, _hwnd);
-            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
-            // Formats the XAML imaging stack decodes. Deliberately no .exe/.dll: pulling an icon
-            // out of a binary means choosing an index too, which is a picker of its own.
-            foreach (var ext in new[] { ".png", ".ico", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff" })
-                picker.FileTypeFilter.Add(ext);
+        name = name.Trim();
+        if (name.Length > 0)
+            item.DisplayName = name;
 
-            var file = await picker.PickSingleFileAsync();
-            return file?.Path;
-        }
-        catch (Exception ex)
+        bool retargeted = false;
+        if (target?.Trim() is { Length: > 0 } t && t != item.Target)
         {
-            Diag.Log($"Change icon failed: {ex.GetType().Name}: {ex.Message}");
-            return null;
-        }
-    }
+            item.Target = t;
+            item.Kind = DockItemFactory.Classify(t);
+            item.IconImage = null;
+            retargeted = true;
 
-    private async Task<string?> PickExecutableIconAsync()
-    {
-        try
-        {
-            var picker = new Windows.Storage.Pickers.FileOpenPicker();
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, _hwnd);
-            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.ComputerFolder;
-            foreach (var ext in new[] { ".exe", ".dll", ".ico" })
-                picker.FileTypeFilter.Add(ext);
-
-            var file = await picker.PickSingleFileAsync();
-            return file?.Path;
+            int i = Items.IndexOf(item);
+            if (i >= 0)
+            {
+                Items.RemoveAt(i);
+                Items.Insert(i, item);
+            }
         }
-        catch (Exception ex)
-        {
-            Diag.Log($"Pick executable icon failed: {ex.GetType().Name}: {ex.Message}");
-            return null;
-        }
-    }
 
-    public void RefreshItemIcon(DockItem item)
-    {
-        IconService.ClearCachedIcon(item);
-        item.IconImage = null;
         SaveConfig();
         RaiseItemsChanged();
-        _ = LoadOneIconAsync(item);
+        if (retargeted)
+            _ = LoadOneIconAsync(item);
     }
 }

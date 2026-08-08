@@ -113,8 +113,9 @@ other thing that ever could (an update check) is off until you switch it on (see
   the way the Windows 11 taskbar does. Turn the whole thing off in Settings ▸ General.
 - **Separators** — a thin divider you can drop anywhere on the strip to group icons visually.
   Add one from the dock's right-click menu or the Add window; drag it like any other item.
-- **Custom icons** — *Change icon…* on an item's right-click menu points it at any PNG / ICO / JPG
-  / BMP / GIF, and *Use the default icon* puts the shell or favicon icon back.
+- **Custom icons** — *Edit…* ▸ *Change icon…* points an item at any PNG / ICO / JPG / BMP / GIF (or
+  a glyph from the built-in set), and *Use the default icon* on the right-click menu puts the shell
+  or favicon icon back.
 - **Settings window** — a gear button opens a Windows-Settings-style window (Mica, left
   navigation) with a **General** page (theme, language, running-app indicators, start-with-Windows,
   update check, import/export, reset), an **Appearance** page (icon size, glass, accent tint,
@@ -147,8 +148,9 @@ other thing that ever could (an update check) is off until you switch it on (see
 - **Show / hide without deleting** — hide items from the dock (Settings ▸ Apps, or an icon's
   right-click menu) while keeping them in the list.
 - **Empty state** — with no items the dock shows a **"＋ Add New"** button.
-- **Per-item menu** — right-click an icon: Open, Edit, Rename, Change icon, Show folder contents
-  (folders), Move to group, Move to dock, Shortcut, Move left/right, Hide, Remove.
+- **Per-item menu** — right-click an icon: Open, Edit (name, target and icon in one panel), Show
+  folder contents (folders), Move to group, Move to dock (with more than one dock), Shortcut (with
+  per-item shortcuts on), Move left/right, Hide, Remove.
 - **Keyboard & screen-reader friendly** — items and the gear are real `Button`s: Tab / arrow-key
   focus, Space/Enter to launch, focus visuals, and Narrator names. Context menus are reachable
   with the Menu key / Shift+F10; auto-hide honors the *reduced-motion* and *high-contrast*
@@ -312,14 +314,19 @@ documented in `docs/design-guidelines-review.md`.
   and auto-hide behind that edge, or anywhere else to float.
 - **Drag a file from Explorer** onto the dock to add it, onto an **app icon** to open it with that
   app, or onto a **group** to file it in there. The target icon swells to show which it will be.
-- **Right-click an icon** → *Open, Edit…, Rename…, Change icon…, Move to group ▸, Move to dock ▸,
-  Shortcut ▸, Move left, Move right, Hide, Remove* — plus *Show folder contents* on a folder. A
-  group instead offers *Open group, Rename…, Change icon…, Ungroup*; a separator only the
-  placement and removal commands.
+- **Right-click an icon** → *Open, Edit…, Move to group ▸, Move left, Move right, Hide, Remove* —
+  plus *Show folder contents* on a folder, *Move to dock ▸* once there is a second dock, and
+  *Shortcut ▸* once per-item shortcuts are switched on. A group instead offers *Open group, Edit…,
+  Ungroup*; a separator only the placement and removal commands.
+- **Edit…** opens a small window carrying the item's **name**, its **target** and its **icon**,
+  with the icon picker as a fly-out beside the icon field. It is reachable from Settings ▸ Apps &
+  links too, from the pencil button on each row.
 - **Gear button** → opens **Settings** (General + Appearance + Shortcuts + Docks + Apps & links +
   About).
 - **Right-click the dock background** → *Add New…*, *Add separator*, *New group…*, *Search…*,
-  *Settings…*, *Snap to edge*, *Float (unsnap)*, *Add another dock*, *Remove this dock*, *Quit*.
+  *Settings…*, *Snap ▸*, *Gear to start/end*, *Add another dock*,
+  *Remove this dock*, *Quit*. To unsnap, drag the dock away from the edge (or use
+  Settings ▸ Docks ▸ *Dock position*).
 - **Tray icon** (notification area) → **left-click** to bring every dock to the front;
   **right-click** for *Show/Hide dock*, *Search…*, *Add new…*, *Settings…*, *Quit Anchor*.
 - **Ctrl+Alt+A** (default) from anywhere brings the docks to the front — the quickest way back to a
@@ -695,8 +702,8 @@ monitor you dropped it on (and on an edge that borders another monitor it stays 
 instead of sliding into the neighbor). Or give each screen its own: **Settings ▸ Docks ▸ Add dock**,
 then pick its monitor — each dock keeps its own items and edge.
 
-**Can I use my own icon for an item?** Right-click it → **Change icon…** and pick a PNG, ICO, JPG,
-BMP or GIF. **Use the default icon** puts the shell/favicon icon back. (It's still the
+**Can I use my own icon for an item?** Right-click it → **Edit…** → **Change icon…** and pick a
+PNG, ICO, JPG, BMP or GIF. **Use the default icon** puts the shell/favicon icon back. (It's still the
 `CustomIconPath` field in `dock.json` underneath, if you'd rather edit that.)
 
 **How do I keep a long dock short?** Put related items in a group: right-click one →

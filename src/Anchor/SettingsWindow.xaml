@@ -201,6 +201,7 @@
                                      disabled in Task Manager cannot be re-enabled by the app, so
                                      the switch springs back and this says who can. -->
                                 <muxc:InfoBar x:Name="StartupBlockedBar" IsOpen="False" IsClosable="True"
+                                              Visibility="Collapsed"
                                               Severity="Warning"
                                               Message="{loc:Localize Key=Settings.StartupBlocked}" />
                             </StackPanel>
@@ -235,6 +236,7 @@
                                 </Grid>
 
                                 <muxc:InfoBar x:Name="BackupBar" IsOpen="False" IsClosable="True"
+                                              Visibility="Collapsed"
                                               Severity="Success" />
                             </StackPanel>
                         </Border>
@@ -333,60 +335,6 @@
                             </Grid>
                         </Border>
 
-                        <!-- Glass frostiness -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE81E;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Glass}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.GlassDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <!-- Percent rather than 0–1: a slider reading "0.9" means nothing
-                                     to the person moving it. -->
-                                <Slider x:Name="GlassSlider" Grid.Column="2" Width="170"
-                                        Minimum="30" Maximum="100" StepFrequency="5"
-                                        VerticalAlignment="Center" HorizontalAlignment="Right"
-                                        AutomationProperties.Name="{loc:Localize Key=Settings.Glass}"
-                                        ValueChanged="GlassSlider_ValueChanged" />
-                            </Grid>
-                        </Border>
-
-                        <!-- Accent tint -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE790;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTint}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTintDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ToggleSwitch x:Name="AccentTintSwitch" Grid.Column="2"
-                                              OnContent="" OffContent="" MinWidth="0"
-                                              HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.AccentTint}"
-                                              Toggled="AccentTintSwitch_Toggled" />
-                            </Grid>
-                        </Border>
-
                         <!-- Settings gear position -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">
@@ -412,6 +360,32 @@
                                     <ComboBoxItem Content="{loc:Localize Key=SettingsPosition.Trailing}" />
                                     <ComboBoxItem Content="{loc:Localize Key=SettingsPosition.Leading}" />
                                 </ComboBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Magnification -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE8A3;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Magnify}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.MagnifyDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="MagnifySwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.Magnify}"
+                                              Toggled="MagnifySwitch_Toggled" />
                             </Grid>
                         </Border>
 
@@ -441,7 +415,7 @@
                             </Grid>
                         </Border>
 
-                        <!-- Magnification -->
+                        <!-- Accent tint -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
@@ -449,21 +423,49 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE8A3;"
+                                <FontIcon Grid.Column="0" Glyph="&#xE790;"
                                           FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Magnify}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTint}"
                                                Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.MagnifyDesc}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTintDesc}"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <ToggleSwitch x:Name="MagnifySwitch" Grid.Column="2"
+                                <ToggleSwitch x:Name="AccentTintSwitch" Grid.Column="2"
                                               OnContent="" OffContent="" MinWidth="0"
                                               HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.Magnify}"
-                                              Toggled="MagnifySwitch_Toggled" />
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.AccentTint}"
+                                              Toggled="AccentTintSwitch_Toggled" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Glass frostiness -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE81E;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Glass}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.GlassDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <!-- Percent rather than 0–1: a slider reading "0.9" means nothing
+                                     to the person moving it. -->
+                                <Slider x:Name="GlassSlider" Grid.Column="2" Width="170"
+                                        Minimum="30" Maximum="100" StepFrequency="5"
+                                        VerticalAlignment="Center" HorizontalAlignment="Right"
+                                        AutomationProperties.Name="{loc:Localize Key=Settings.Glass}"
+                                        ValueChanged="GlassSlider_ValueChanged" />
                             </Grid>
                         </Border>
                     </StackPanel>
@@ -514,6 +516,7 @@
                                 </Grid>
 
                                 <muxc:InfoBar x:Name="HotkeyBar" IsOpen="False" IsClosable="False"
+                                              Visibility="Collapsed"
                                               Severity="Warning" />
                             </StackPanel>
                         </Border>
@@ -542,6 +545,7 @@
                                 </Grid>
 
                                 <muxc:InfoBar x:Name="SearchHotkeyBar" IsOpen="False" IsClosable="False"
+                                              Visibility="Collapsed"
                                               Severity="Warning" />
                             </StackPanel>
                         </Border>
