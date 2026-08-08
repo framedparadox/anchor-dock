@@ -157,11 +157,12 @@ public sealed partial class DockWindow
     {
         var menu = new MenuFlyout();
         menu.Items.Add(Mi(Loc.Get("Menu.Open"), () => { owner.Hide(); LaunchOrFocus(child); }));
-        menu.Items.Add(Mi(Loc.Get("Menu.Rename"), () => { owner.Hide(); ShowRenameFlyout(target, child); }));
-        menu.Items.Add(Mi(Loc.Get("Menu.ChangeIcon"), () =>
+        // The same one editor the strip's own menu opens — name, target and icon together — in a
+        // window of its own, so closing the bar first takes nothing with it.
+        menu.Items.Add(Mi(Loc.Get("Menu.Edit"), () =>
         {
             owner.Hide();
-            ShowIconPicker(target, sel => ApplyIconSelection(child, sel));
+            _manager.OpenItemEditor(this, child);
         }));
         if (child.HasCustomIcon)
             menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(child, null)));
@@ -271,7 +272,7 @@ public sealed partial class DockWindow
             }
         }
         RenderIconBox();
-        iconBox.Click += (_, _) => ShowIconPicker(iconBox, sel =>
+        iconBox.Click += (_, _) => ShowIconPickerFlyout(iconBox, sel =>
         {
             pending = sel;
             RenderIconBox();

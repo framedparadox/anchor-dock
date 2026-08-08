@@ -98,6 +98,7 @@ public sealed partial class DockWindow
     {
         bool magnify = MagnifyActive;
         double edge = 0;
+        int index = 0;
         foreach (var item in Items)
         {
             double extent = item.CellExtent;
@@ -110,9 +111,14 @@ public sealed partial class DockWindow
             item.SetHovered(inside);
             item.SetMagnification(
                 inside && magnify ? DockMetrics.HoverMagnificationAt(offset / extent) : 1);
+            if (inside)
+                SetFastTooltip(ItemsHost.TryGetElement(index) as FrameworkElement, true);
 
             edge += extent + CellSpacing;
+            index++;
         }
+
+        EnsureVisualAnimationRunning();
     }
 
     /// <summary>Drops both cues — on pointer exit, and whenever the strip is rebuilt under a
@@ -124,6 +130,8 @@ public sealed partial class DockWindow
             item.SetHovered(false);
             item.SetMagnification(1);
         }
+        SetFastTooltip(null, false);
+        EnsureVisualAnimationRunning();
     }
 
     /// <summary>Returns every icon to its resting size, leaving the highlight alone — for the
@@ -143,6 +151,7 @@ public sealed partial class DockWindow
     /// </summary>
     public void ApplyGlass()
     {
+        _backdrop?.SyncWithSystemColors();
         _backdrop?.Personalize(_manager.Config.GlassOpacity, _manager.Config.AccentTint);
         // The window rim is mixed from the same two settings, so it has to be re-mixed with them
         // or it goes on advertising the glass the dock used to have.

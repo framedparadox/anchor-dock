@@ -19,9 +19,10 @@ namespace Anchor;
 public sealed partial class DockWindow
 {
     /// <summary>
-    /// The <c>Shortcut ▸</c> submenu for an item: what it currently has, a way to assign a new
-    /// one, and — when the master switch is off — a note saying why nothing is firing. Separators
-    /// and groups are excluded by the caller; a group has nothing to launch.
+    /// The <c>Shortcut ▸</c> submenu for an item: what it currently has, and a way to assign a new
+    /// one. The caller builds it only while the per-item master switch is on — a combination
+    /// assigned with it off would quietly never fire — and never for a separator or a group, which
+    /// have nothing to launch.
     /// </summary>
     private MenuFlyoutSubItem BuildItemHotkeyMenu(FrameworkElement target, DockItem item)
     {
@@ -41,17 +42,6 @@ public sealed partial class DockWindow
             var clear = new MenuFlyoutItem { Text = Loc.Get("Menu.ShortcutClear") };
             clear.Click += (_, _) => _manager.SetItemHotkey(item, null);
             sub.Items.Add(clear);
-        }
-
-        // The per-item shortcuts are off by default (they claim system-wide combinations), so an
-        // assignment that quietly does nothing is the likeliest confusion here. Say so, and offer
-        // the switch rather than sending the user to Settings to find it.
-        if (!_manager.Config.ItemHotkeysEnabled)
-        {
-            sub.Items.Add(new MenuFlyoutSeparator());
-            var enable = new MenuFlyoutItem { Text = Loc.Get("Menu.ShortcutEnableAll") };
-            enable.Click += (_, _) => _manager.SetItemHotkeysEnabled(true);
-            sub.Items.Add(enable);
         }
 
         return sub;
@@ -82,12 +72,11 @@ public sealed partial class DockWindow
             Text = Loc.Get("Hotkey.ItemHint"),
         };
 
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(FlyoutHeader(Loc.Get("Menu.Shortcut")));
+        var panel = PanelBody(Loc.Get("Menu.Shortcut"));
         panel.Children.Add(capture);
         panel.Children.Add(message);
 
-        var flyout = new Flyout { Content = panel };
+        var flyout = PanelFlyout(panel);
 
         capture.NeedsModifier += () => message.Text = Loc.Get("Hotkey.NeedModifier");
         capture.Assigned += gesture =>
@@ -103,12 +92,10 @@ public sealed partial class DockWindow
             flyout.Hide();
         };
 
-        // The pointer is about to leave the strip for the flyout; hold auto-hide out the same way
-        // the fly-out bars and the new-group dialog do.
-        PauseAutoHideForDrag();
-        flyout.Closed += (_, _) => ResumeAutoHideAfterDrag();
-
-        flyout.ShowAt(target);
+        // Opened as the same panel as every other in-place edit: anchored on the dock window and
+        // free of its bounds, so the capture button is not drawn inside the strip. Auto-hide is
+        // held out for the life of the panel by ShowPanelFlyout.
+        ShowPanelFlyout(flyout, target);
         capture.Focus(FocusState.Programmatic);
     }
 }

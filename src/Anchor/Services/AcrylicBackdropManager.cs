@@ -2,6 +2,7 @@ using Microsoft.UI.Composition;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Windows.UI;
+using Windows.UI.ViewManagement;
 using WinRT;
 
 namespace Anchor.Services;
@@ -23,22 +24,15 @@ public sealed class AcrylicBackdropManager : IDisposable
     private SystemBackdropConfiguration? _config;
     private FrameworkElement? _themeRoot;
     private bool _disposed;
+    private UISettings? _uiSettings;
 
     public AcrylicBackdropManager(Window window) => _window = window;
 
     /// <summary>Recipe used in dark mode. Tunable to match the Win11 dark taskbar exactly.</summary>
-    public AcrylicRecipe Dark { get; set; } = new(
-        Tint: Rgb(0x1C, 0x1C, 0x1C),
-        TintOpacity: 0.55,
-        LuminosityOpacity: 0.90,
-        Fallback: Rgb(0x2C, 0x2C, 0x2C));
+    public AcrylicRecipe Dark { get; set; } = DefaultDarkRecipe();
 
     /// <summary>Recipe used in light mode.</summary>
-    public AcrylicRecipe Light { get; set; } = new(
-        Tint: Rgb(0xF2, 0xF2, 0xF2),
-        TintOpacity: 0.55,
-        LuminosityOpacity: 0.90,
-        Fallback: Rgb(0xF3, 0xF3, 0xF3));
+    public AcrylicRecipe Light { get; set; } = DefaultLightRecipe();
 
     /// <summary>
     /// The recipe currently in force — whichever of <see cref="Dark"/> / <see cref="Light"/> the
@@ -66,6 +60,10 @@ public sealed class AcrylicBackdropManager : IDisposable
         if (_themeRoot is not null)
             _themeRoot.ActualThemeChanged += OnThemeChanged;
 
+        _uiSettings = new UISettings();
+        _uiSettings.ColorValuesChanged += OnSystemColorsChanged;
+        SyncWithSystemColors();
+
         _controller = new DesktopAcrylicController
         {
             Kind = DesktopAcrylicKind.Base,
@@ -78,7 +76,49 @@ public sealed class AcrylicBackdropManager : IDisposable
         return true;
     }
 
-    private void OnThemeChanged(FrameworkElement sender, object args) => UpdateTheme();
+    private void OnThemeChanged(FrameworkElement sender, object args)
+    {
+        SyncWithSystemColors();
+        UpdateTheme();
+    }
+
+    private void OnSystemColorsChanged(UISettings sender, object args)
+    {
+        SyncWithSystemColors();
+        UpdateTheme();
+    }
+
+    /// <summary>
+    /// Retunes the base recipes from the shell's current background color so the dock reads like
+    /// the Windows 11 taskbar rather than a hand-picked grey.
+    /// </summary>
+    public void SyncWithSystemColors()
+    {
+        try
+        {
+            var settings = _uiSettings ?? new UISettings();
+            var bg = settings.GetColorValue(UIColorType.Background);
+            bool dark = (_themeRoot?.ActualTheme ?? ElementTheme.Dark) != ElementTheme.Light;
+
+            if (dark)
+            {
+                var surface = Rgb(0x20, 0x20, 0x20);
+                var tint = Darken(bg, 0.15);
+                Dark = Dark with { Tint = tint, Fallback = surface, LuminosityOpacity = 0.88 };
+            }
+            else
+            {
+                var surface = Rgb(0xF3, 0xF3, 0xF3);
+                var tint = Lighten(bg, 0.08);
+                Light = Light with { Tint = tint, Fallback = surface, LuminosityOpacity = 0.88 };
+            }
+        }
+        catch
+        {
+            Dark = DefaultDarkRecipe();
+            Light = DefaultLightRecipe();
+        }
+    }
 
     /// <summary>
     /// Re-applies the current recipes. <see cref="Dark"/> and <see cref="Light"/> are plain
@@ -154,12 +194,39 @@ public sealed class AcrylicBackdropManager : IDisposable
         if (_themeRoot is not null)
             _themeRoot.ActualThemeChanged -= OnThemeChanged;
 
+        if (_uiSettings is not null)
+            _uiSettings.ColorValuesChanged -= OnSystemColorsChanged;
+
         _controller?.Dispose();
         _controller = null;
         _config = null;
     }
 
     private static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
+
+    private static Color Darken(Color color, double amount)
+    {
+        byte Mix(byte v) => (byte)Math.Round(v * (1 - amount));
+        return Color.FromArgb(255, Mix(color.R), Mix(color.G), Mix(color.B));
+    }
+
+    private static Color Lighten(Color color, double amount)
+    {
+        byte Mix(byte v) => (byte)Math.Round(v + (255 - v) * amount);
+        return Color.FromArgb(255, Mix(color.R), Mix(color.G), Mix(color.B));
+    }
+
+    private static AcrylicRecipe DefaultDarkRecipe() => new(
+        Tint: Rgb(0x1C, 0x1C, 0x1C),
+        TintOpacity: 0.55,
+        LuminosityOpacity: 0.88,
+        Fallback: Rgb(0x20, 0x20, 0x20));
+
+    private static AcrylicRecipe DefaultLightRecipe() => new(
+        Tint: Rgb(0xF2, 0xF2, 0xF2),
+        TintOpacity: 0.55,
+        LuminosityOpacity: 0.88,
+        Fallback: Rgb(0xF3, 0xF3, 0xF3));
 }
 
 /// <summary>A tunable acrylic material recipe.</summary>

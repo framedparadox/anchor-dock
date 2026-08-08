@@ -55,7 +55,6 @@
     <!-- Self-contained so no separate Windows App Runtime install is required. -->
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
-
     <DefaultLanguage>en-US</DefaultLanguage>
     <EnableDefaultCssItems>false</EnableDefaultCssItems>
 
@@ -65,10 +64,17 @@
     <Company>Anchor</Company>
     <Authors>Anchor</Authors>
     <Description>A floating dock for Windows 11.</Description>
-    <Version>1.0.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>1.1.0.0</Version>
+    <FileVersion>1.1.0.0</FileVersion>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
     <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+  <!-- Optional framework-dependent publish (~60–80 MB vs ~215 MB self-contained). Pass
+       -p:FrameworkDependent=true on publish; users need the Windows App Runtime installed. -->
+  <PropertyGroup Condition="'$(FrameworkDependent)' == 'true'">
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
 
   <!-- MSIX packaging for the Microsoft Store, built on demand with -p:StorePackage=true.

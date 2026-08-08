@@ -115,6 +115,18 @@ public sealed class DockConfig
     public bool Magnify { get; set; }
 
     /// <summary>
+    /// Where the settings gear sits on every dock strip. Defaults to the trailing end, after
+    /// user items and the divider.
+    /// </summary>
+    public SettingsPosition SettingsPosition { get; set; } = SettingsPosition.Trailing;
+
+    /// <summary>
+    /// When true, each item's display name is always visible under its icon rather than only in
+    /// a hover tooltip.
+    /// </summary>
+    public bool ShowItemLabels { get; set; }
+
+    /// <summary>
     /// Per-item shortcuts (<c>DockItem.Hotkey</c>) are only registered with Windows while this is
     /// on. Off by default: a handful of extra system-wide combinations is a decision the user
     /// should make deliberately, not one that arrives with an update.
@@ -246,6 +258,8 @@ public sealed class DockConfig
         GlassOpacity = other.GlassOpacity;
         AccentTint = other.AccentTint;
         Magnify = other.Magnify;
+        SettingsPosition = other.SettingsPosition;
+        ShowItemLabels = other.ShowItemLabels;
         ItemHotkeysEnabled = other.ItemHotkeysEnabled;
         SearchHotkey = other.SearchHotkey;
         CheckForUpdates = other.CheckForUpdates;

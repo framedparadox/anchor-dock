@@ -352,7 +352,7 @@ public sealed partial class DockWindow
     // one) and never quite arrives, so it ended on a snap. This runs a fixed duration through a
     // cubic ease-out and lands exactly on the target.
 
-    private const double SlideDurationMs = 220;
+    private const double SlideDurationMs = 270;
     private DateTime _slideStart;
     private double _slideFrom;
 
@@ -384,9 +384,8 @@ public sealed partial class DockWindow
             return;
         }
 
-        // Cubic ease-out: quick off the mark, settling into the edge — the curve the shell's own
-        // fly-outs use, and the one that reads as "it slid" rather than "it moved".
-        double eased = 1 - Math.Pow(1 - progress, 3);
+        // Quint ease-out: quick off the mark, settling smoothly into the edge.
+        double eased = 1 - Math.Pow(1 - progress, 5);
         _currentCoord = _slideFrom + (_targetCoord - _slideFrom) * eased;
         MoveWindowCoord((int)Math.Round(_currentCoord));
     }
