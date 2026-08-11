@@ -71,6 +71,15 @@ public partial class App : Application
         return createdNew;
     }
 
+    /// <summary>Releases the single-instance mutex early, for <see cref="DockManager.Restart"/>.
+    /// Without this the new copy it is about to spawn would find the name still taken by this
+    /// (about-to-exit) process and immediately exit itself as a "second instance".</summary>
+    internal static void ReleaseSingleInstanceLock()
+    {
+        _instanceMutex?.Dispose();
+        _instanceMutex = null;
+    }
+
     /// <summary>A short, stable, path-character-free token identifying the data directory.</summary>
     private static string DataDirectoryKey()
     {

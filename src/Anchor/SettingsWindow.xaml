@@ -306,6 +306,34 @@
                             </Grid>
                         </Border>
 
+                        <!-- Restart. A theme switch re-tints the live glass in place (no window
+                             rebuild), which is instant for the vast majority of setups; this is a
+                             manual fallback for the rare one where the acrylic backdrop itself
+                             falls behind — see AcrylicBackdropManager. -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE72C;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.Restart}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.RestartDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Content="{loc:Localize Key=Settings.RestartNow}"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.AutomationId="SettingsRestartButton"
+                                        Click="Restart_Click" />
+                            </Grid>
+                        </Border>
+
                         <!-- Icon size / density -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">

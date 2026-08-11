@@ -97,6 +97,10 @@
   "Theme.Dark": "Sombre",
   "Theme.System": "Utiliser le réglage système",
 
+  "Settings.Restart": "Redémarrer Anchor",
+  "Settings.RestartDesc": "Si un changement de thème semble bloqué ou que le verre ne s'affiche pas correctement, redémarrez pour le réappliquer entièrement.",
+  "Settings.RestartNow": "Redémarrer maintenant",
+
   "Settings.Language": "Langue",
   "Settings.LanguageDesc": "La langue des fenêtres et des menus d'Anchor. Elle s'applique immédiatement.",
   "Language.System": "Comme Windows",

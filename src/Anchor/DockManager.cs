@@ -507,10 +507,50 @@ public sealed class DockManager
         Config.Theme = theme;
         Save();
         foreach (var dock in _docks)
+        {
             dock.ApplyTheme();
+            // ApplyTheme's RequestedTheme assignment raises ActualThemeChanged synchronously, which
+            // is what drives AcrylicBackdropManager's own re-tint (SyncWithSystemColors + the base
+            // recipe) — but that handler only restores the *system* colors, not the user's glass
+            // opacity / accent-tint personalization on top of them, and the dock's window-rim color
+            // (ApplyWindowBorder, wired to the same event) can run before or after it depending on
+            // subscription order. Explicitly re-applying glass here, after the theme is fully
+            // switched, re-personalizes the recipe and repaints the rim from it — so a theme change
+            // does not read as a half-updated dock that only looks right after a restart.
+            dock.ApplyGlass();
+        }
         _settingsWindow?.ApplyTheme(theme);
         _addNewWindow?.ApplyTheme(theme);
         _editWindow?.ApplyTheme(theme);
+    }
+
+    /// <summary>Relaunches Anchor: starts a fresh copy of the exe, then shuts this one down.
+    /// Everything persisted (docks, items, every app-wide setting) survives the round trip via the
+    /// config file; this exists for state that only resets cleanly by tearing down and rebuilding
+    /// every window from scratch, such as the dock's acrylic backdrop.</summary>
+    public void Restart()
+    {
+        var exe = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(exe))
+        {
+            Diag.Log("Restart: Environment.ProcessPath is unavailable; ignoring restart request");
+            return;
+        }
+
+        // App holds the single-instance mutex open for its whole lifetime (see
+        // App.IsFirstInstance), so the new copy has to find the name free at the moment it starts
+        // — otherwise it sees this about-to-exit process as still running and immediately bows out.
+        App.ReleaseSingleInstanceLock();
+        try
+        {
+            System.Diagnostics.Process.Start(exe);
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("Restart: failed to relaunch: " + ex);
+            return; // stay running rather than quit into nothing
+        }
+        Quit();
     }
 
     /// <summary>

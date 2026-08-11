@@ -97,6 +97,10 @@
   "Theme.Dark": "ダーク",
   "Theme.System": "システム設定を使う",
 
+  "Settings.Restart": "Anchor を再起動",
+  "Settings.RestartDesc": "テーマの変更が反映されないままだったり、ガラスの見た目がおかしい場合は、再起動して最初から適用し直してください。",
+  "Settings.RestartNow": "今すぐ再起動",
+
   "Settings.Language": "言語",
   "Settings.LanguageDesc": "Anchor のウィンドウとメニューの言語です。すぐに反映されます。",
   "Language.System": "Windows に合わせる",

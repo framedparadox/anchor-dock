@@ -97,6 +97,10 @@
   "Theme.Dark": "深色",
   "Theme.System": "使用系统设置",
 
+  "Settings.Restart": "重启 Anchor",
+  "Settings.RestartDesc": "如果主题切换后界面卡住，或玻璃效果显示不正常，请重启以重新应用。",
+  "Settings.RestartNow": "立即重启",
+
   "Settings.Language": "语言",
   "Settings.LanguageDesc": "Anchor 自身窗口和菜单使用的语言，立即生效。",
   "Language.System": "跟随 Windows",

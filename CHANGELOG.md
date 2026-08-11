@@ -6,6 +6,34 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Round 4 — theme switching
+
+#### Fixed
+
+- **Switching theme could leave a dock looking half-updated.** `DockManager.SetTheme` only set
+  each dock's `RequestedTheme`; the acrylic backdrop's own re-tint (`AcrylicBackdropManager`,
+  wired to the same `ActualThemeChanged` event) reset the glass to plain system colors without the
+  user's frostiness/accent-tint personalization, and the window's rounded-corner rim could repaint
+  from the *pre-switch* recipe depending on event subscription order — both correct themselves only
+  on the next unrelated re-tint (a personalization change, a window activation) or a restart, which
+  is what read as "theme changes need a restart to take." `SetTheme` now calls `dock.ApplyGlass()`
+  right after `dock.ApplyTheme()` for each dock, so the personalization and the rim are
+  deterministically re-applied from the fully-switched theme instead of racing it.
+
+#### Added
+
+- **A "Restart Anchor" action** in Settings ▸ Appearance, next to the Theme choice — a one-click,
+  non-destructive relaunch (`DockManager.Restart`) for the rare case the glass still looks off
+  after a theme change. Unlike the existing "Reset dock to defaults," nothing is lost: every dock,
+  item and setting round-trips through the config file exactly as it was. Releases the
+  single-instance mutex (`App.ReleaseSingleInstanceLock`) before spawning the new copy, so the
+  relaunch doesn't see itself as "already running" and bow out.
+- [`docs/windows-11-26200-acrylic-issues.md`](docs/windows-11-26200-acrylic-issues.md) — investigation
+  notes on a report that acrylic doesn't render on Windows 11 Enterprise, build 26200. Ranks likely
+  causes (transparency effects disabled by policy, running elevated, VDI/virtual GPU, an untested
+  OS build) against what Anchor's backdrop code can and can't detect, with a repro checklist for
+  confirming which one it actually is.
+
 ### Round 3 — Microsoft Store readiness
 
 A compliance and correctness pass over the MSIX/Store path. Two of these are behavior bugs that

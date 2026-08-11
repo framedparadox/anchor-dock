@@ -97,6 +97,10 @@
   "Theme.Dark": "Dunkel",
   "Theme.System": "Systemeinstellung verwenden",
 
+  "Settings.Restart": "Anchor neu starten",
+  "Settings.RestartDesc": "Wenn ein Design-Wechsel einmal hängen bleibt oder das Glas nicht richtig aussieht, starten Sie neu, um es von Grund auf neu anzuwenden.",
+  "Settings.RestartNow": "Jetzt neu starten",
+
   "Settings.Language": "Sprache",
   "Settings.LanguageDesc": "Die Sprache der Fenster und Menüs von Anchor. Sie wird sofort übernommen.",
   "Language.System": "Wie Windows",

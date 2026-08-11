@@ -97,6 +97,10 @@
   "Theme.Dark": "Dark",
   "Theme.System": "Use system setting",
 
+  "Settings.Restart": "Restart Anchor",
+  "Settings.RestartDesc": "If a theme change ever looks stuck or the glass looks off, restart to reapply it from scratch.",
+  "Settings.RestartNow": "Restart now",
+
   "Settings.Language": "Language",
   "Settings.LanguageDesc": "The language Anchor's own windows and menus use. It applies straight away.",
   "Language.System": "Match Windows",

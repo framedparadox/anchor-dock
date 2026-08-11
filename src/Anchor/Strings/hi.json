@@ -97,6 +97,10 @@
   "Theme.Dark": "गहरा",
   "Theme.System": "सिस्टम सेटिंग का उपयोग करें",
 
+  "Settings.Restart": "Anchor पुनः आरंभ करें",
+  "Settings.RestartDesc": "यदि थीम बदलने के बाद स्थिति अटकी हुई लगे या ग्लास सही न दिखे, तो इसे नए सिरे से लागू करने के लिए पुनः आरंभ करें।",
+  "Settings.RestartNow": "अभी पुनः आरंभ करें",
+
   "Settings.Language": "भाषा",
   "Settings.LanguageDesc": "Anchor की अपनी विंडो और मेन्यू की भाषा। यह तुरंत लागू होती है।",
   "Language.System": "Windows के अनुसार",

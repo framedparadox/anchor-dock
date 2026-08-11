@@ -97,6 +97,10 @@
   "Theme.Dark": "Oscuro",
   "Theme.System": "Usar la configuración del sistema",
 
+  "Settings.Restart": "Reiniciar Anchor",
+  "Settings.RestartDesc": "Si un cambio de tema alguna vez se queda atascado o el cristal no se ve bien, reinicia para volver a aplicarlo desde cero.",
+  "Settings.RestartNow": "Reiniciar ahora",
+
   "Settings.Language": "Idioma",
   "Settings.LanguageDesc": "El idioma de las ventanas y los menús de Anchor. Se aplica al instante.",
   "Language.System": "Igual que Windows",

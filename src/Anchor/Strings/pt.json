@@ -97,6 +97,10 @@
   "Theme.Dark": "Escuro",
   "Theme.System": "Usar a configuração do sistema",
 
+  "Settings.Restart": "Reiniciar o Anchor",
+  "Settings.RestartDesc": "Se uma mudança de tema parecer travada ou o vidro não parecer certo, reinicie para reaplicá-lo do zero.",
+  "Settings.RestartNow": "Reiniciar agora",
+
   "Settings.Language": "Idioma",
   "Settings.LanguageDesc": "O idioma das janelas e dos menus do Anchor. É aplicado na hora.",
   "Language.System": "Igual ao Windows",

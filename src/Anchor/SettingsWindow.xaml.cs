@@ -341,6 +341,11 @@ public sealed partial class SettingsWindow : Window
         _manager.SetTheme(theme);
     }
 
+    /// <summary>Relaunches Anchor. A manual fallback next to the Theme dropdown for the rare case
+    /// where the live re-tint (see <see cref="DockManager.SetTheme"/>) still leaves the glass
+    /// looking wrong — a fresh process re-applies everything from scratch.</summary>
+    private void Restart_Click(object sender, RoutedEventArgs e) => _manager.Restart();
+
     private void RunningIndicatorsSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_initializing)
