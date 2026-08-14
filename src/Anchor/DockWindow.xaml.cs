@@ -836,7 +836,7 @@ public sealed partial class DockWindow : Window
 
         menu.Items.Add(MenuItem(Loc.Get("Menu.AddNew"), OpenAddNew));
         menu.Items.Add(MenuItem(Loc.Get("Menu.AddSeparator"), AddSeparator));
-        menu.Items.Add(MenuItem(Loc.Get("Menu.NewGroup"), () => ShowNewGroupDialog(target, null)));
+        menu.Items.Add(MenuItem(Loc.Get("Menu.NewGroup"), () => _manager.OpenNewGroupWindow(this, null)));
         // Search has no shortcut until the user assigns one, so the dock's own menu is the other
         // way in — the tray menu alone would leave it undiscoverable from the dock itself.
         menu.Items.Add(MenuItem(Loc.Get("Menu.Search"), _manager.OpenSearch));

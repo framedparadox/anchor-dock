@@ -27,6 +27,7 @@ public sealed class DockManager
     private SettingsWindow? _settingsWindow;
     private AddNewWindow? _addNewWindow;
     private EditWindow? _editWindow;
+    private NewGroupWindow? _newGroupWindow;
     private SearchWindow? _searchWindow;
 
     /// <summary>True while the user has hidden the docks from the tray menu. Distinct from
@@ -447,6 +448,27 @@ public sealed class DockManager
     }
 
     /// <summary>
+    /// Opens the "create a group" window, adding to <paramref name="dock"/>. Given
+    /// <paramref name="pendingItem"/> (opened via an item's "Move to group ▸ New group…"), that
+    /// item is filed into the group the moment it's created.
+    /// <para>
+    /// One at a time, like every other child window here: asking again just brings the form
+    /// already open back to the front rather than stacking a second one beside it.
+    /// </para>
+    /// </summary>
+    public void OpenNewGroupWindow(DockWindow dock, DockItem? pendingItem)
+    {
+        if (_newGroupWindow is not null)
+        {
+            _newGroupWindow.Activate();
+            return;
+        }
+        _newGroupWindow = new NewGroupWindow(this, dock, pendingItem);
+        _newGroupWindow.Closed += (_, _) => _newGroupWindow = null;
+        _newGroupWindow.Activate();
+    }
+
+    /// <summary>
     /// Opens quick-launch search, or dismisses it if it is already up — the shortcut is a toggle,
     /// so the same keystroke that summoned the card puts it away again.
     /// </summary>
@@ -511,6 +533,7 @@ public sealed class DockManager
         _settingsWindow?.ApplyTheme(theme);
         _addNewWindow?.ApplyTheme(theme);
         _editWindow?.ApplyTheme(theme);
+        _newGroupWindow?.ApplyTheme(theme);
     }
 
     /// <summary>
@@ -748,10 +771,12 @@ public sealed class DockManager
         foreach (var dock in _docks)
             dock.Activate();
 
-        // The Add and Edit windows are built from the string table too, and there is nothing in
-        // either worth preserving across the change — both are forms that have not been submitted.
+        // The Add, Edit and New-group windows are built from the string table too, and there is
+        // nothing in any of them worth preserving across the change — all three are forms that
+        // have not been submitted.
         _addNewWindow?.Close();
         _editWindow?.Close();
+        _newGroupWindow?.Close();
 
         DocksChanged?.Invoke();
     }

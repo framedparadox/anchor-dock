@@ -1217,7 +1217,7 @@ public sealed partial class SettingsWindow : Window
             menu.Items.Add(new MenuFlyoutSeparator());
 
         var create = new MenuFlyoutItem { Text = Loc.Get("Menu.NewGroup") };
-        create.Click += (_, _) => dock.ShowNewGroupDialog(anchor, item);
+        create.Click += (_, _) => dock.Manager.OpenNewGroupWindow(dock, item);
         menu.Items.Add(create);
 
         menu.ShowAt(anchor);
