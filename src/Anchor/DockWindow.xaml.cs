@@ -1186,6 +1186,12 @@ public sealed partial class DockWindow : Window
     private bool _reorderVertical;   // captured at gesture start so mid-drag stays consistent
     private const int DragThreshold = 12;
 
+    /// <summary>How much the dragged cell itself swells for the life of the gesture — the same
+    /// magnification channel the group drop-target cue uses (see
+    /// <see cref="DockWindow.SetDropTarget"/>), so the icon actually being moved reads as
+    /// unmistakably different from the rest of the strip reflowing around it.</summary>
+    private const double DragItemSwell = 1.15;
+
     private void Dock_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (!e.GetCurrentPoint((UIElement)sender).Properties.IsLeftButtonPressed)
@@ -1306,6 +1312,12 @@ public sealed partial class DockWindow : Window
         _reorderOriginPx = _reorderVertical
             ? _appWindow.Position.Y + origin.Y * _reorderScale
             : _appWindow.Position.X + origin.X * _reorderScale;
+
+        // Swell the dragged cell itself so it reads as "this is what's moving" rather than just
+        // another cell in a strip that's shuffling around it — a reorder used to give no visual
+        // cue at all for which icon was actually being held.
+        _reorderItem?.SetMagnification(DragItemSwell);
+        EnsureVisualAnimationRunning();
     }
 
     /// <summary>
@@ -1364,6 +1376,9 @@ public sealed partial class DockWindow : Window
         // cleared before anything else, so an early return below can't leave a cell swelled.
         var group = _dropTarget;
         SetDropTarget(null);
+        // Un-swell the dragged cell itself, the other half of the cue BeginItemReorder set.
+        dragged?.SetMagnification(1);
+        EnsureVisualAnimationRunning();
 
         if (group is not null && dragged is not null && !ReferenceEquals(group, dragged))
         {
