@@ -273,9 +273,35 @@
                 <ScrollViewer x:Name="AppearancePanel" Visibility="Collapsed"
                               AutomationProperties.AutomationId="SettingsAppearancePanel">
                     <StackPanel Spacing="6" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock Text="{loc:Localize Key=Nav.Appearance}"
-                                   Style="{ThemeResource TitleTextBlockStyle}"
-                                   Margin="0,0,0,12" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="{loc:Localize Key=Nav.Appearance}"
+                                       Style="{ThemeResource TitleTextBlockStyle}"
+                                       VerticalAlignment="Center" />
+                            <!-- Only shown once the theme choice has actually changed from what it
+                                 was when Settings opened (see SettingsWindow.xaml.cs,
+                                 ThemeChoice_SelectionChanged) — the live switch doesn't always
+                                 finish repainting the glass cleanly, so this is the reliable
+                                 fallback: a fresh process always renders clean. -->
+                            <Button x:Name="RestartButton" Grid.Column="1"
+                                    Visibility="Collapsed"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.AutomationId="SettingsRestartButton"
+                                    Click="RestartButton_Click">
+                                <ToolTipService.ToolTip>
+                                    <ToolTip Content="{loc:Localize Key=Settings.RestartToApplyTip}" />
+                                </ToolTipService.ToolTip>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE72C;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                              FontSize="14" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.RestartToApply}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
 
                         <!-- Theme -->
                         <Border Style="{StaticResource Card}">

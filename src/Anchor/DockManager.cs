@@ -130,6 +130,46 @@ public sealed class DockManager
         Application.Current.Exit();
     }
 
+    /// <summary>
+    /// Relaunches Anchor and shuts this instance down. Some things — the acrylic theme switch
+    /// chief among them — don't always finish repainting live, so this is the reliable escape
+    /// hatch: a fresh process always renders clean.
+    /// <para>
+    /// The packaged (MSIX) build asks the OS to do it via <c>RequestRestartAsync</c>, the
+    /// supported path there, which handles terminating and relaunching itself. The portable exe
+    /// starts its own replacement and exits — releasing the single-instance lock first, or the new
+    /// copy would find it still held and immediately bow out (see
+    /// <see cref="App.ReleaseInstanceLock"/>).
+    /// </para>
+    /// </summary>
+    public void Restart()
+    {
+        _shuttingDown = true;
+        Running.Dispose();
+        ReleaseShellIntegration();
+
+        if (PackagedRuntime.IsPackaged)
+        {
+            App.ReleaseInstanceLock();
+            _ = Windows.ApplicationModel.Core.CoreApplication.RequestRestartAsync(string.Empty);
+            return;
+        }
+
+        try
+        {
+            if (Environment.ProcessPath is { Length: > 0 } exe)
+            {
+                App.ReleaseInstanceLock();
+                System.Diagnostics.Process.Start(exe);
+            }
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("Restart: failed to relaunch — " + ex.Message);
+        }
+        Application.Current.Exit();
+    }
+
     private void SetUpTrayAndHotkey()
     {
         try

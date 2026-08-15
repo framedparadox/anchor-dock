@@ -870,6 +870,7 @@ public sealed partial class DockWindow : Window
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
+        menu.Items.Add(MenuItem(Loc.Get("Menu.Restart"), _manager.Restart));
         menu.Items.Add(MenuItem(Loc.Get("Menu.Quit"), _manager.Quit));
 
         menu.ShowAt(target, at);
@@ -1037,10 +1038,29 @@ public sealed partial class DockWindow : Window
         };
     }
 
-    /// <summary>Applies the configured theme to the dock's root. The acrylic backdrop re-tints
-    /// itself via its own <c>ActualThemeChanged</c> subscription. Called by
-    /// <see cref="DockManager.SetTheme"/> on every dock, since the theme is app-wide.</summary>
-    public void ApplyTheme() => RootGrid.RequestedTheme = ResolveTheme(_manager.Config.Theme);
+    /// <summary>
+    /// Applies the configured theme to the dock's root. Called by <see cref="DockManager.SetTheme"/>
+    /// on every dock, since the theme is app-wide.
+    /// <para>
+    /// Setting <c>RequestedTheme</c> fires <c>RootGrid.ActualThemeChanged</c> synchronously, which
+    /// runs both this window's own handler (re-paints the DWM rim, subscribed in the constructor)
+    /// and the backdrop's handler (re-tints the acrylic for the new theme) — in subscription
+    /// order, rim first. That leaves the rim reading the backdrop's <em>outgoing</em> tint for one
+    /// pass, and it visibly lingers (a mismatched ring around freshly-retinted glass) until
+    /// something else repaints it. Re-syncing and re-painting explicitly afterward, in the right
+    /// order, makes the switch atomic instead of leaving that stale frame on screen.
+    /// </para>
+    /// </summary>
+    public void ApplyTheme()
+    {
+        RootGrid.RequestedTheme = ResolveTheme(_manager.Config.Theme);
+        // Re-mix the glass through ApplyGlass rather than re-syncing the backdrop directly:
+        // syncing alone re-derives the recipe from the shell colors and drops the frostiness and
+        // accent-tint choices Personalize had folded in, so a theme switch would quietly reset
+        // the user's glass to the neutral default until they touched those settings again.
+        ApplyGlass();
+        ApplyWindowChrome();
+    }
 
     /// <summary>
     /// Re-colors the rounded DWM rim to disappear into the dock's glass. The color is the glass's
@@ -1182,6 +1202,7 @@ public sealed partial class DockWindow : Window
     private PointInt32 _dragStartWindow;
     private DockItem? _reorderItem; // non-null while a press started on an item
     private double _reorderOriginPx; // screen px of the item host's leading edge along the flow axis
+    private Windows.Foundation.Point _reorderOriginDip; // same origin, in RootGrid-relative DIPs (for the drag ghost)
     private double _reorderScale;    // physical px per DIP, captured at gesture start
     private bool _reorderVertical;   // captured at gesture start so mid-drag stays consistent
     private const int DragThreshold = 12;
@@ -1312,12 +1333,70 @@ public sealed partial class DockWindow : Window
         _reorderOriginPx = _reorderVertical
             ? _appWindow.Position.Y + origin.Y * _reorderScale
             : _appWindow.Position.X + origin.X * _reorderScale;
+        _reorderOriginDip = origin;
 
         // Swell the dragged cell itself so it reads as "this is what's moving" rather than just
         // another cell in a strip that's shuffling around it — a reorder used to give no visual
         // cue at all for which icon was actually being held.
         _reorderItem?.SetMagnification(DragItemSwell);
         EnsureVisualAnimationRunning();
+
+        if (_reorderItem is not null)
+            ShowDragGhost(_reorderItem);
+    }
+
+    /// <summary>
+    /// Shows the floating copy of the dragged icon and dims its cell in the strip to a
+    /// placeholder (see <see cref="DockItem.CellOpacity"/>) — together these are what make the
+    /// reorder read as "you're holding this icon" instead of just watching the list reshuffle.
+    /// Sized off the density's nominal icon/glyph, not the (possibly still-easing) magnified
+    /// size, so the ghost doesn't visibly resize once the swell finishes animating in.
+    /// </summary>
+    private void ShowDragGhost(DockItem item)
+    {
+        item.SetDragging(true);
+
+        DragGhost.Width = item.CellWidth;
+        DragGhost.Height = item.CellHeight;
+        DragGhost.CornerRadius = item.CellCorner;
+
+        DragGhostImage.Source = item.IconImage;
+        DragGhostImage.Visibility = item.ImageVisibility;
+        DragGhostImage.Width = DragGhostImage.Height = DockMetrics.Icon;
+
+        DragGhostGlyph.Glyph = item.Glyph;
+        DragGhostGlyph.Visibility = item.GlyphVisibility;
+        DragGhostGlyph.FontSize = DockMetrics.Glyph;
+
+        DragGhost.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Moves the drag ghost to sit centered on the cursor along the strip's flow axis,
+    /// pinned to the strip's own cross-axis position (icons don't lift off the row, only slide
+    /// along it) — <paramref name="rel"/> is the same flow-axis DIP coordinate
+    /// <see cref="UpdateItemReorder"/> already computes for hit-testing the drop slot.</summary>
+    private void UpdateDragGhostPosition(double rel)
+    {
+        if (_reorderItem is null)
+            return;
+
+        double primary = rel - _reorderItem.CellExtent / 2;
+        if (_reorderVertical)
+        {
+            Canvas.SetLeft(DragGhost, _reorderOriginDip.X);
+            Canvas.SetTop(DragGhost, _reorderOriginDip.Y + primary);
+        }
+        else
+        {
+            Canvas.SetLeft(DragGhost, _reorderOriginDip.X + primary);
+            Canvas.SetTop(DragGhost, _reorderOriginDip.Y);
+        }
+    }
+
+    private void HideDragGhost(DockItem? item)
+    {
+        item?.SetDragging(false);
+        DragGhost.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>
@@ -1340,6 +1419,7 @@ public sealed partial class DockWindow : Window
 
         double coord = _reorderVertical ? cursorScreenY : cursorScreenX;
         double rel = (coord - _reorderOriginPx) / _reorderScale; // back into DIPs
+        UpdateDragGhostPosition(rel);
 
         int target = 0;
         double edge = 0;
@@ -1379,6 +1459,7 @@ public sealed partial class DockWindow : Window
         // Un-swell the dragged cell itself, the other half of the cue BeginItemReorder set.
         dragged?.SetMagnification(1);
         EnsureVisualAnimationRunning();
+        HideDragGhost(dragged);
 
         if (group is not null && dragged is not null && !ReferenceEquals(group, dragged))
         {

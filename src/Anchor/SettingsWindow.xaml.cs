@@ -42,6 +42,11 @@ public sealed partial class SettingsWindow : Window
     /// </summary>
     private bool _initializing = true;
 
+    /// <summary>The theme in force when this window (or its General/Appearance load) last ran —
+    /// the baseline <see cref="ThemeChoice_SelectionChanged"/> compares against to decide whether
+    /// the restart button should show at all.</summary>
+    private DockTheme _openedTheme;
+
     public SettingsWindow(DockManager manager)
     {
         _manager = manager;
@@ -204,6 +209,8 @@ public sealed partial class SettingsWindow : Window
         _initializing = true;
 
         var cfg = _manager.Config;
+        _openedTheme = cfg.Theme;
+        RestartButton.Visibility = Visibility.Collapsed;
         ThemeChoice.SelectedIndex = cfg.Theme switch
         {
             DockTheme.Light => 0,
@@ -339,7 +346,14 @@ public sealed partial class SettingsWindow : Window
             _ => DockTheme.Dark,
         };
         _manager.SetTheme(theme);
+        // The live switch doesn't always finish repainting the glass cleanly (see
+        // DockWindow.ApplyTheme) — offer the reliable fallback only once there is actually
+        // something to restart for, and hide it again if the user flips back to where they
+        // started.
+        RestartButton.Visibility = theme != _openedTheme ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private void RestartButton_Click(object sender, RoutedEventArgs e) => _manager.Restart();
 
     private void RunningIndicatorsSwitch_Toggled(object sender, RoutedEventArgs e)
     {
