@@ -71,6 +71,18 @@ public partial class App : Application
         return createdNew;
     }
 
+    /// <summary>
+    /// Releases the single-instance lock. Called right before <see cref="DockManager.Restart"/>
+    /// replaces this process — the mutex is named and held for the process lifetime (see
+    /// <see cref="_instanceMutex"/>), so without this a relaunched copy would find it still held
+    /// and immediately bow out thinking another Anchor is already running.
+    /// </summary>
+    public static void ReleaseInstanceLock()
+    {
+        _instanceMutex?.Dispose();
+        _instanceMutex = null;
+    }
+
     /// <summary>A short, stable, path-character-free token identifying the data directory.</summary>
     private static string DataDirectoryKey()
     {

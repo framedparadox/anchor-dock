@@ -145,16 +145,16 @@ public sealed partial class DockWindow
     // ---- Glass personalization ---------------------------------------------
 
     /// <summary>
-    /// Re-tints the acrylic for the current glass-opacity and accent-tint settings. A no-op under
-    /// High Contrast, where there is no backdrop to tint (the dock paints an opaque system color
-    /// instead so the shell's high-contrast palette comes through).
+    /// Re-tints the acrylic for the current accent-tint setting. A no-op under High Contrast,
+    /// where there is no backdrop to tint (the dock paints an opaque system color instead so the
+    /// shell's high-contrast palette comes through).
     /// </summary>
     public void ApplyGlass()
     {
         _backdrop?.SyncWithSystemColors();
-        _backdrop?.Personalize(_manager.Config.GlassOpacity, _manager.Config.AccentTint);
-        // The window rim is mixed from the same two settings, so it has to be re-mixed with them
-        // or it goes on advertising the glass the dock used to have.
+        _backdrop?.Personalize(_manager.Config.AccentTint);
+        // The window rim is mixed from the same tint, so it has to be re-mixed with it or it goes
+        // on advertising the glass the dock used to have.
         ApplyWindowBorder();
     }
 }

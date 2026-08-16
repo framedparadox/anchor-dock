@@ -5,7 +5,6 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 
 namespace Anchor;
@@ -32,15 +31,19 @@ public sealed partial class SettingsWindow : Window
     /// config, so filling the page in cannot be mistaken for editing it.
     /// <para>
     /// Starts <b>true</b>, before any control exists, and <see cref="LoadGeneral"/> clears it when
-    /// the page is loaded. That is not belt-and-braces: <c>InitializeComponent</c> itself provokes
-    /// a change. The frostiness <c>Slider</c> is declared <c>Minimum="30"</c> while its Value is
-    /// still the property default of 0, so the parser's own assignment coerces Value up to 30 and
-    /// raises ValueChanged — with the flag defaulting to false, that ran the real handler and wrote
-    /// 30% frostiness to the config. Every open of this window silently reset the glass, whatever
-    /// the user had chosen and whatever the default was.
+    /// the page is loaded. That is not belt-and-braces: <c>InitializeComponent</c> itself can
+    /// provoke a change — a control whose XAML-declared bounds coerce its default Value away from
+    /// the property default raises its ValueChanged during parsing, and with the flag defaulting to
+    /// false that would run the real handler and write a bogus value to the config before the page
+    /// ever shows it. Every open of this window would silently reset that setting.
     /// </para>
     /// </summary>
     private bool _initializing = true;
+
+    /// <summary>The theme in force when this window (or its General/Appearance load) last ran —
+    /// the baseline <see cref="ThemeChoice_SelectionChanged"/> compares against to decide whether
+    /// the restart button should show at all.</summary>
+    private DockTheme _openedTheme;
 
     public SettingsWindow(DockManager manager)
     {
@@ -204,6 +207,8 @@ public sealed partial class SettingsWindow : Window
         _initializing = true;
 
         var cfg = _manager.Config;
+        _openedTheme = cfg.Theme;
+        RestartButton.Visibility = Visibility.Collapsed;
         ThemeChoice.SelectedIndex = cfg.Theme switch
         {
             DockTheme.Light => 0,
@@ -240,7 +245,6 @@ public sealed partial class SettingsWindow : Window
             DockDensity.Large => 2,
             _ => 1,
         };
-        GlassSlider.Value = Math.Round(cfg.GlassOpacity * 100);
         AccentTintSwitch.IsOn = cfg.AccentTint;
         MagnifySwitch.IsOn = cfg.Magnify;
         SettingsPositionChoice.SelectedIndex = cfg.SettingsPosition == SettingsPosition.Leading ? 1 : 0;
@@ -262,13 +266,6 @@ public sealed partial class SettingsWindow : Window
             2 => DockDensity.Large,
             _ => DockDensity.Medium,
         });
-    }
-
-    private void GlassSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
-    {
-        if (_initializing)
-            return;
-        _manager.SetGlassOpacity(e.NewValue / 100.0);
     }
 
     private void AccentTintSwitch_Toggled(object sender, RoutedEventArgs e)
@@ -339,7 +336,14 @@ public sealed partial class SettingsWindow : Window
             _ => DockTheme.Dark,
         };
         _manager.SetTheme(theme);
+        // The live switch doesn't always finish repainting the glass cleanly (see
+        // DockWindow.ApplyTheme) — offer the reliable fallback only once there is actually
+        // something to restart for, and hide it again if the user flips back to where they
+        // started.
+        RestartButton.Visibility = theme != _openedTheme ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private void RestartButton_Click(object sender, RoutedEventArgs e) => _manager.Restart();
 
     private void RunningIndicatorsSwitch_Toggled(object sender, RoutedEventArgs e)
     {
@@ -1217,7 +1221,7 @@ public sealed partial class SettingsWindow : Window
             menu.Items.Add(new MenuFlyoutSeparator());
 
         var create = new MenuFlyoutItem { Text = Loc.Get("Menu.NewGroup") };
-        create.Click += (_, _) => dock.ShowNewGroupDialog(anchor, item);
+        create.Click += (_, _) => dock.Manager.OpenNewGroupWindow(dock, item);
         menu.Items.Add(create);
 
         menu.ShowAt(anchor);

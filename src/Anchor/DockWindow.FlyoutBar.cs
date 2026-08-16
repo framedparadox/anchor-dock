@@ -179,30 +179,9 @@ public sealed partial class DockWindow
         if (_backdrop is null)
             return (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"];
 
-        return new SolidColorBrush(_backdrop.Current.Tint) { Opacity = BarTintOpacity };
-    }
-
-    /// <summary>
-    /// How solid the bar's tint sits over the desktop, for the dock's current frostiness.
-    /// <para>
-    /// Anchored at both ends rather than guessed across the range. At full frostiness the dock's
-    /// acrylic is opaque and simply <em>is</em> its tint, so an opaque tint brush matches it
-    /// exactly — that end is not an approximation at all. The clear end is the measured one: at
-    /// the slider's minimum, 0.45 was what put the bar within a couple of levels per channel of
-    /// the dock over the same wallpaper. In between is a straight line, because the dock's
-    /// rendered color is the product of a blur, a tint pass and a luminosity pass that no single
-    /// alpha reproduces in closed form.
-    /// </para>
-    /// </summary>
-    private double BarTintOpacity
-    {
-        get
-        {
-            const double clearest = 0.3, clearestAlpha = 0.45;
-            double lit = Math.Clamp(_manager.Config.GlassOpacity, clearest, 1.0);
-            return clearestAlpha +
-                   (lit - clearest) * (1 - clearestAlpha) / (1 - clearest);
-        }
+        // The dock's acrylic is opaque and simply *is* its tint, so an opaque tint brush matches
+        // it exactly.
+        return new SolidColorBrush(_backdrop.Current.Tint);
     }
 
     /// <summary>

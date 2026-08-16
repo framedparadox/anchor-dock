@@ -94,9 +94,9 @@ other thing that ever could (an update check) is off until you switch it on (see
   right-click menu, including items tucked inside a group. Off by default behind one master switch,
   since every shortcut claims a combination from every other app; Settings ▸ Shortcuts lists the
   ones you've assigned.
-- **Icon size, glass and magnification** — Settings ▸ Appearance offers **Small / Medium / Large**
-  cells (Medium matches the taskbar), a frostiness slider for the acrylic, an **accent tint**
-  switch, and macOS-style **magnification** that swells icons under the cursor.
+- **Icon size, accent tint and magnification** — Settings ▸ Appearance offers **Small / Medium /
+  Large** cells (Medium matches the taskbar), an **accent tint** switch for the acrylic, and
+  macOS-style **magnification** that swells icons under the cursor.
 - **Drop a file onto an icon** — dropping a file on an **app** opens it with that app, the way
   dropping it on an exe in Explorer does; dropping one on a **group** files it in there. The target
   icon swells to say which will happen.
@@ -415,7 +415,6 @@ right then. Nothing is lost, and nothing needs doing by hand.
   "SearchHotkey": "",            // quick-launch search shortcut; "" = none (the default)
   "ItemHotkeysEnabled": false,   // master switch for the per-item Hotkey fields above
   "Density": "Medium",           // Small | Medium | Large — icon and cell size
-  "GlassOpacity": 0.9,           // acrylic frostiness, 0.3–1.0
   "AccentTint": false,           // tint the glass with the Windows accent colour
   "Magnify": false,              // swell icons under the cursor
   "CheckForUpdates": false,      // opt-in: ask GitHub for a newer release at startup. Ignored by

@@ -41,6 +41,7 @@
   "Menu.Snap": "Encaixar",
   "Menu.SettingsToStart": "Ajustes no início",
   "Menu.SettingsToEnd": "Ajustes no fim",
+  "Menu.Restart": "Reiniciar o Anchor",
   "Menu.Quit": "Sair do Anchor",
 
   "Edge.Bottom": "Inferior",
@@ -96,6 +97,8 @@
   "Theme.Light": "Claro",
   "Theme.Dark": "Escuro",
   "Theme.System": "Usar a configuração do sistema",
+  "Settings.RestartToApply": "Reiniciar",
+  "Settings.RestartToApplyTip": "Reinicie o Anchor para concluir a aplicação do novo tema",
 
   "Settings.Language": "Idioma",
   "Settings.LanguageDesc": "O idioma das janelas e dos menus do Anchor. É aplicado na hora.",
@@ -106,9 +109,6 @@
   "Density.Small": "Pequeno",
   "Density.Medium": "Médio",
   "Density.Large": "Grande",
-
-  "Settings.Glass": "Vidro",
-  "Settings.GlassDesc": "O quanto o acrílico do dock é fosco. Menos deixa a área de trabalho aparecer mais.",
 
   "Settings.AccentTint": "Cor de destaque",
   "Settings.AccentTintDesc": "Tingir o vidro com a sua cor de destaque do Windows em vez do cinza neutro da barra de tarefas.",

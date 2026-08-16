@@ -28,7 +28,10 @@ public sealed partial class SearchWindow : Window
     private const int MaxResults = ItemSearch.DefaultLimit;
 
     private const int CardWidth = 460;
-    private const int CardHeight = 380;
+    // Taller than the fixed-height rows this used to hold: each result row now carries its own
+    // vertical padding (see BuildRow) so the name and subtitle aren't crushed together, and the
+    // card grows to match so roughly the same number of matches still fit without scrolling.
+    private const int CardHeight = 440;
 
     private readonly DockManager _manager;
     private readonly nint _hwnd;
@@ -58,7 +61,7 @@ public sealed partial class SearchWindow : Window
         RootGrid.RequestedTheme = DockWindow.ResolveTheme(manager.Config.Theme);
         _backdrop = new AcrylicBackdropManager(this);
         if (_backdrop.TryApply())
-            _backdrop.Personalize(manager.Config.GlassOpacity, manager.Config.AccentTint);
+            _backdrop.Personalize(manager.Config.AccentTint);
 
         WindowChrome.SetClientSizeDip(_appWindow, _hwnd, CardWidth, CardHeight);
         CenterOnCursorDisplay();
@@ -135,7 +138,11 @@ public sealed partial class SearchWindow : Window
     /// when there is more than one dock, where "which one?" is the useful detail).</summary>
     private Grid BuildRow(DockItem item)
     {
-        var grid = new Grid { ColumnSpacing = 12, Height = 40 };
+        // Auto-height with its own vertical padding rather than a fixed 40 DIP: that left only the
+        // icon's own height between the name and subtitle lines and the row above and below, so
+        // every result read as one solid block of text. The padding both gives the two lines room
+        // to breathe and, since it's paid by every row, spaces consecutive results apart too.
+        var grid = new Grid { ColumnSpacing = 12, Padding = new Thickness(4, 8, 4, 8) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -151,7 +158,7 @@ public sealed partial class SearchWindow : Window
         Grid.SetColumn(icon, 0);
         grid.Children.Add(icon);
 
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2 };
         text.Children.Add(new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(item.DisplayName) ? Loc.Get("Apps.Unnamed") : item.DisplayName,

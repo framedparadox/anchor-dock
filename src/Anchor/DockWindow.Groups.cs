@@ -4,8 +4,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Anchor;
 
@@ -209,114 +207,12 @@ public sealed partial class DockWindow
         if (sub.Items.Count > 0)
             sub.Items.Add(new MenuFlyoutSeparator());
 
+        // Opens the same window the dock's own "New group" menu entry does, in a real window
+        // rather than a fly-out (see NewGroupWindow).
         var create = new MenuFlyoutItem { Text = Loc.Get("Menu.NewGroup") };
-        create.Click += (_, _) => ShowNewGroupDialog(target, item);
+        create.Click += (_, _) => _manager.OpenNewGroupWindow(this, item);
         sub.Items.Add(create);
 
         return sub;
-    }
-
-    /// <summary>
-    /// The default icon shown in the new-group dialog's icon box before the user picks one — the
-    /// same glyph a group gets if it's never customized (see <see cref="DockItem.Glyph"/>).
-    /// </summary>
-    private const string DefaultGroupGlyph = ""; // FolderOpen
-
-    /// <summary>
-    /// The modal for creating a group: an icon box (click it to open the same picker "Change
-    /// icon…" uses), a name field, and a confirm/cancel pair. A real <see cref="ContentDialog"/>
-    /// rather than the small inline flyout every other rename/edit action uses — unlike those,
-    /// this one also decides the group's icon, which needs enough room for a picker to open out
-    /// of, and reads better as a deliberate "create" step than a quick in-place edit.
-    /// <para>
-    /// When <paramref name="item"/> is given (opened via an item's "Move to group ▸ New group…")
-    /// it is filed into the group the moment it's created.
-    /// </para>
-    /// </summary>
-    internal async void ShowNewGroupDialog(FrameworkElement anchor, DockItem? item)
-    {
-        IconSelection? pending = null;
-
-        var iconBox = new Button
-        {
-            Width = 56,
-            Height = 56,
-            MinWidth = 0,
-            MinHeight = 0,
-            CornerRadius = new CornerRadius(10),
-            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorSecondaryBrush"],
-        };
-        ToolTipService.SetToolTip(iconBox, Loc.Get("IconPicker.Title"));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(iconBox, Loc.Get("IconPicker.Title"));
-
-        void RenderIconBox()
-        {
-            if (pending is { FilePath: { } path })
-            {
-                iconBox.Content = new Image
-                {
-                    Source = new BitmapImage(new Uri(path)),
-                    Width = 28,
-                    Height = 28,
-                    Stretch = Stretch.Uniform,
-                };
-            }
-            else
-            {
-                iconBox.Content = new FontIcon
-                {
-                    Glyph = pending?.Glyph ?? DefaultGroupGlyph,
-                    FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                    FontSize = 22,
-                };
-            }
-        }
-        RenderIconBox();
-        iconBox.Click += (_, _) => ShowIconPickerFlyout(iconBox, sel =>
-        {
-            pending = sel;
-            RenderIconBox();
-        });
-
-        var nameBox = new TextBox
-        {
-            Text = Loc.Get("Kind.Group"),
-            Width = 200,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(nameBox, Loc.Get("Docks.Name"));
-
-        var row = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        row.Children.Add(iconBox);
-        row.Children.Add(nameBox);
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = RootGrid.XamlRoot,
-            Title = Loc.Get("Flyout.NewGroup"),
-            Content = row,
-            PrimaryButtonText = Loc.Get("Flyout.CreateGroup"),
-            CloseButtonText = Loc.Get("Common.Cancel"),
-            DefaultButton = ContentDialogButton.Primary,
-        };
-        // The dialog itself is topmost-adjacent (same XamlRoot as the dock), but the pointer is
-        // about to leave the dock strip for it; hold auto-hide out for the same reason the group
-        // fly-out does.
-        PauseAutoHideForDrag();
-        dialog.Closed += (_, _) => ResumeAutoHideAfterDrag();
-
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            return;
-
-        var group = CreateGroup(nameBox.Text.Trim());
-        if (item is not null)
-            MoveItemToGroup(item, group);
-        if (pending is { } selection)
-            ApplyIconSelection(group, selection);
     }
 }

@@ -26,6 +26,10 @@ public sealed class AcrylicBackdropManager : IDisposable
     private bool _disposed;
     private UISettings? _uiSettings;
 
+    // The last personalization asked for, remembered so re-syncing the recipes from the shell
+    // colors can put it back.
+    private bool _accentTint;
+
     public AcrylicBackdropManager(Window window) => _window = window;
 
     /// <summary>Recipe used in dark mode. Tunable to match the Win11 dark taskbar exactly.</summary>
@@ -100,50 +104,74 @@ public sealed class AcrylicBackdropManager : IDisposable
             var bg = settings.GetColorValue(UIColorType.Background);
             bool dark = (_themeRoot?.ActualTheme ?? ElementTheme.Dark) != ElementTheme.Light;
 
+            // The shell color is only a usable base when Windows is in the same light/dark mode
+            // as the window. When the two disagree — Anchor set to Light while Windows is still
+            // Dark — the shell background is the opposite end of the scale, and tinting from it
+            // stamps near-black glass into the *light* recipe, so the dock goes on looking dark
+            // behind light-theme (dark) text. Fall back to the neutral base for the theme that is
+            // actually in force whenever they disagree.
+            bool systemDark = !IsLight(bg);
+
             if (dark)
             {
                 var surface = Rgb(0x20, 0x20, 0x20);
-                var tint = Darken(bg, 0.15);
+                var tint = systemDark ? Darken(bg, 0.15) : DefaultDarkRecipe().Tint;
                 Dark = Dark with { Tint = tint, Fallback = surface, LuminosityOpacity = 0.88 };
             }
             else
             {
                 var surface = Rgb(0xF3, 0xF3, 0xF3);
-                var tint = Lighten(bg, 0.08);
+                var tint = systemDark ? DefaultLightRecipe().Tint : Lighten(bg, 0.08);
                 Light = Light with { Tint = tint, Fallback = surface, LuminosityOpacity = 0.88 };
             }
+
+            // Re-syncing rebuilds the recipes from scratch, which would drop the accent tint the
+            // user chose. Fold it back in — this runs on every theme change, including an OS
+            // light/dark flip while Anchor follows the system, where nothing else would restore it.
+            ApplyPersonalization();
         }
         catch
         {
             Dark = DefaultDarkRecipe();
             Light = DefaultLightRecipe();
+            ApplyPersonalization();
         }
     }
 
     /// <summary>
     /// Re-applies the current recipes. <see cref="Dark"/> and <see cref="Light"/> are plain
     /// properties, so assigning one changes what the <em>next</em> theme update would use but
-    /// leaves the live controller alone; the personalization settings (glass opacity, accent
-    /// tint) need it to take effect now.
+    /// leaves the live controller alone; the personalization setting (accent tint) needs it to
+    /// take effect now.
     /// </summary>
     public void Refresh() => UpdateTheme();
 
     /// <summary>
-    /// Re-tints both recipes for the given personalization settings, and applies them.
+    /// Re-tints both recipes for the given personalization setting, and applies it.
     /// </summary>
-    /// <param name="luminosityOpacity">How frosted the glass is (0.3–1.0).</param>
     /// <param name="accentTint">Tint with the Windows accent color rather than the neutral grey
     /// the taskbar uses. The accent is darkened for the dark recipe and lightened for the light
     /// one, because the raw accent at full strength overwhelms a 40px strip of icons.</param>
-    public void Personalize(double luminosityOpacity, bool accentTint)
+    public void Personalize(bool accentTint)
     {
-        double luminosity = Math.Clamp(luminosityOpacity, 0.3, 1.0);
-        var darkTint = accentTint ? Blend(AccentColor(), Rgb(0x00, 0x00, 0x00), 0.55) : Rgb(0x1C, 0x1C, 0x1C);
-        var lightTint = accentTint ? Blend(AccentColor(), Rgb(0xFF, 0xFF, 0xFF), 0.60) : Rgb(0xF2, 0xF2, 0xF2);
-
-        Dark = Dark with { Tint = darkTint, LuminosityOpacity = luminosity };
-        Light = Light with { Tint = lightTint, LuminosityOpacity = luminosity };
+        _accentTint = accentTint;
+        ApplyPersonalization();
         Refresh();
+    }
+
+    /// <summary>Stamps the remembered personalization onto both recipes. No-op without an accent
+    /// tint, so an unpersonalized window keeps its synced neutral tint.</summary>
+    private void ApplyPersonalization()
+    {
+        // Without an accent tint, the neutral grey below is exactly what SyncWithSystemColors
+        // already computed (including its light/dark-mismatch fallback), so leave Tint alone.
+        if (!_accentTint)
+            return;
+
+        var darkTint = Blend(AccentColor(), Rgb(0x00, 0x00, 0x00), 0.55);
+        var lightTint = Blend(AccentColor(), Rgb(0xFF, 0xFF, 0xFF), 0.60);
+        Dark = Dark with { Tint = darkTint };
+        Light = Light with { Tint = lightTint };
     }
 
     /// <summary>The Windows accent color, or Anchor's fallback blue if it can't be read.</summary>
@@ -201,6 +229,10 @@ public sealed class AcrylicBackdropManager : IDisposable
         _controller = null;
         _config = null;
     }
+
+    /// <summary>Perceived-luminance test, used to tell which end of the light/dark scale a
+    /// system color sits on.</summary>
+    private static bool IsLight(Color c) => (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) >= 128.0;
 
     private static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
 

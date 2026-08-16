@@ -228,6 +228,28 @@ public sealed class DockItem : INotifyPropertyChanged
     [JsonIgnore]
     public double HoverOpacity => _hoverOpacityDisplay;
 
+    // ---- Dragging (runtime-only) --------------------------------------------
+
+    private bool _dragging;
+
+    /// <summary>
+    /// Marks this item as the one currently picked up for a reorder. Its own cell in the strip
+    /// dims to a placeholder while the dock draws a floating ghost that tracks the pointer
+    /// instead — without this, the cell just reflowed silently as the list reordered underneath
+    /// it, with no visual tying the motion to the cursor.
+    /// </summary>
+    public void SetDragging(bool dragging)
+    {
+        if (_dragging == dragging)
+            return;
+        _dragging = dragging;
+        OnPropertyChanged(nameof(CellOpacity));
+    }
+
+    /// <summary>Full opacity at rest; dimmed to a placeholder while this item is being dragged.</summary>
+    [JsonIgnore]
+    public double CellOpacity => _dragging ? 0.35 : 1;
+
     /// <summary>Advances hover/magnify easing. Returns true if any displayed value changed.</summary>
     internal bool AnimateVisuals(double hoverStep, double magnifyStep)
     {

@@ -37,7 +37,6 @@ public class DockStoreTests : IDisposable
             Density = DockDensity.Large,
             Language = "de",
             Magnify = true,
-            GlassOpacity = 0.55,
             ItemHotkeysEnabled = true,
         };
         config.Docks.Add(new DockProfile
@@ -79,7 +78,6 @@ public class DockStoreTests : IDisposable
         Assert.Equal(DockDensity.Large, restored.Density);
         Assert.Equal("de", restored.Language);
         Assert.True(restored.Magnify);
-        Assert.Equal(0.55, restored.GlassOpacity);
         Assert.True(restored.ItemHotkeysEnabled);
 
         var dock = Assert.Single(restored.Docks);

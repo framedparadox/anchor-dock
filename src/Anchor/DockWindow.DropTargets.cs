@@ -142,5 +142,10 @@ public sealed partial class DockWindow
         _dropTarget?.SetMagnification(1);
         _dropTarget = item;
         _dropTarget?.SetMagnification(DropTargetSwell);
+        // A target change needs the animation timer running to ever be seen — SetMagnification
+        // only records where to lerp to, and nothing else on this path is guaranteed to already
+        // have it ticking (the item-reorder path suppresses hover, the only other thing that
+        // reliably kicks it, for the whole gesture; see Strip_PointerMoved).
+        EnsureVisualAnimationRunning();
     }
 }

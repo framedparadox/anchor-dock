@@ -1,4 +1,3 @@
-using Anchor.Controls;
 using Anchor.Models;
 using Anchor.Services;
 using Microsoft.UI.Xaml;
@@ -16,9 +15,9 @@ internal readonly record struct IconSelection(string? Glyph, string? FilePath);
 /// Partial of <see cref="DockWindow"/>.
 /// <para>
 /// The item editor is <em>not</em> here: it is a window of its own (<see cref="EditWindow"/>),
-/// because the picker it opens has to be able to come and go without taking the edit with it.
-/// What remains are the panels small enough to live over the strip — the shortcut capture, and the
-/// icon picker when the new-group modal asks for one.
+/// because the picker it opens has to be able to come and go without taking the edit with it. The
+/// new-group window is the same way. What remains is the one panel small enough to live over the
+/// strip itself: the shortcut capture.
 /// </para>
 /// </summary>
 public sealed partial class DockWindow
@@ -100,27 +99,6 @@ public sealed partial class DockWindow
     }
 
     // ---- Change icon -------------------------------------------------------
-
-    /// <summary>
-    /// The icon picker over the strip, for a caller with no window of its own to put it in: the
-    /// new-group modal, choosing an icon for an item that does not exist yet. The editor opens the
-    /// same panel as an ordinary flyout inside <see cref="EditWindow"/>.
-    /// </summary>
-    private void ShowIconPickerFlyout(FrameworkElement target, Action<IconSelection> onSelected)
-    {
-        var host = new Grid();
-        var flyout = PanelFlyout(host);
-        host.Children.Add(IconPickerPanel.Build(
-            _hwnd,
-            // The dock's own glass chrome, so the swatches match the strip the panel opens over.
-            (Style)RootGrid.Resources["DockGlassButtonStyle"],
-            selection =>
-            {
-                flyout.Hide();
-                onSelected(selection);
-            }));
-        ShowPanelFlyout(flyout, target);
-    }
 
     /// <summary>Applies a picker result to an item: a glyph or a file path, never both, and each
     /// clears whichever the other kind of custom icon was set.</summary>

@@ -146,6 +146,7 @@
                                  only when they take one of those two paths). -->
                             <Grid Width="{x:Bind CellWidth, Mode=OneWay}"
                                   Height="{x:Bind CellHeight, Mode=OneWay}"
+                                  Opacity="{x:Bind CellOpacity, Mode=OneWay}"
                                   Background="Transparent"
                                   Tag="{x:Bind}"
                                   AllowDrop="True"
@@ -295,5 +296,28 @@
                 Opacity="0.9"
                 IsHitTestVisible="False"
                 AutomationProperties.AccessibilityView="Raw" />
+
+        <!-- Drag ghost: while an item reorder is in progress (see DockWindow.xaml.cs,
+             UpdateItemReorder), this floating copy of the dragged icon tracks the pointer along
+             the strip's flow axis, positioned each tick via Canvas.Left/Top. The item's own cell
+             stays in the strip (dimmed via CellOpacity) so the list still visibly reorders under
+             it; this is what makes the reorder read as "holding" the icon rather than just
+             watching the list reshuffle. Last in z-order so it draws above every cell. -->
+        <Canvas IsHitTestVisible="False">
+            <Border x:Name="DragGhost"
+                    Visibility="Collapsed"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                    AutomationProperties.AccessibilityView="Raw">
+                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Image x:Name="DragGhostImage"
+                           Stretch="Uniform"
+                           AutomationProperties.AccessibilityView="Raw" />
+                    <FontIcon x:Name="DragGhostGlyph"
+                              FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                              Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                              AutomationProperties.AccessibilityView="Raw" />
+                </Grid>
+            </Border>
+        </Canvas>
     </Grid>
 </Window>

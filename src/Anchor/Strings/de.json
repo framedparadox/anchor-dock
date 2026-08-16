@@ -41,6 +41,7 @@
   "Menu.Snap": "Andocken",
   "Menu.SettingsToStart": "Zahnrad an den Anfang",
   "Menu.SettingsToEnd": "Zahnrad ans Ende",
+  "Menu.Restart": "Anchor neu starten",
   "Menu.Quit": "Anchor beenden",
 
   "Edge.Bottom": "Unten",
@@ -96,6 +97,8 @@
   "Theme.Light": "Hell",
   "Theme.Dark": "Dunkel",
   "Theme.System": "Systemeinstellung verwenden",
+  "Settings.RestartToApply": "Neu starten",
+  "Settings.RestartToApplyTip": "Starten Sie Anchor neu, um das neue Design vollständig zu übernehmen",
 
   "Settings.Language": "Sprache",
   "Settings.LanguageDesc": "Die Sprache der Fenster und Menüs von Anchor. Sie wird sofort übernommen.",
@@ -106,9 +109,6 @@
   "Density.Small": "Klein",
   "Density.Medium": "Mittel",
   "Density.Large": "Groß",
-
-  "Settings.Glass": "Glas",
-  "Settings.GlassDesc": "Wie milchig das Acryl des Docks ist. Niedriger lässt mehr vom Desktop durchscheinen.",
 
   "Settings.AccentTint": "Akzentfarbe",
   "Settings.AccentTintDesc": "Das Glas mit Ihrer Windows-Akzentfarbe einfärben statt mit dem neutralen Grau der Taskleiste.",

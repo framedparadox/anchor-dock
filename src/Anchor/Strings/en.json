@@ -41,6 +41,7 @@
   "Menu.Snap": "Snap",
   "Menu.SettingsToStart": "Gear to start",
   "Menu.SettingsToEnd": "Gear to end",
+  "Menu.Restart": "Restart Anchor",
   "Menu.Quit": "Quit Anchor",
 
   "Edge.Bottom": "Bottom",
@@ -96,6 +97,8 @@
   "Theme.Light": "Light",
   "Theme.Dark": "Dark",
   "Theme.System": "Use system setting",
+  "Settings.RestartToApply": "Restart",
+  "Settings.RestartToApplyTip": "Restart Anchor to finish applying the new theme",
 
   "Settings.Language": "Language",
   "Settings.LanguageDesc": "The language Anchor's own windows and menus use. It applies straight away.",
@@ -106,9 +109,6 @@
   "Density.Small": "Small",
   "Density.Medium": "Medium",
   "Density.Large": "Large",
-
-  "Settings.Glass": "Glass",
-  "Settings.GlassDesc": "How frosted the dock's acrylic is. Lower lets more of the desktop show through.",
 
   "Settings.AccentTint": "Accent tint",
   "Settings.AccentTintDesc": "Tint the glass with your Windows accent colour instead of the taskbar's neutral grey.",

@@ -41,6 +41,7 @@
   "Menu.Snap": "スナップ",
   "Menu.SettingsToStart": "歯車を先頭へ",
   "Menu.SettingsToEnd": "歯車を末尾へ",
+  "Menu.Restart": "Anchor を再起動",
   "Menu.Quit": "Anchor を終了",
 
   "Edge.Bottom": "下",
@@ -96,6 +97,8 @@
   "Theme.Light": "ライト",
   "Theme.Dark": "ダーク",
   "Theme.System": "システム設定を使う",
+  "Settings.RestartToApply": "再起動",
+  "Settings.RestartToApplyTip": "新しいテーマを完全に適用するには Anchor を再起動してください",
 
   "Settings.Language": "言語",
   "Settings.LanguageDesc": "Anchor のウィンドウとメニューの言語です。すぐに反映されます。",
@@ -106,9 +109,6 @@
   "Density.Small": "小",
   "Density.Medium": "中",
   "Density.Large": "大",
-
-  "Settings.Glass": "ガラス",
-  "Settings.GlassDesc": "ドックのアクリルのすりガラス具合です。低くするほどデスクトップが透けて見えます。",
 
   "Settings.AccentTint": "アクセント色",
   "Settings.AccentTintDesc": "ガラスをタスクバーの中間色のグレーではなく、Windows のアクセント色で色付けします。",
