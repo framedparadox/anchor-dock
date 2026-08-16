@@ -107,9 +107,6 @@
   "Density.Medium": "Mittel",
   "Density.Large": "Groß",
 
-  "Settings.Glass": "Glas",
-  "Settings.GlassDesc": "Wie milchig das Acryl des Docks ist. Niedriger lässt mehr vom Desktop durchscheinen.",
-
   "Settings.AccentTint": "Akzentfarbe",
   "Settings.AccentTintDesc": "Das Glas mit Ihrer Windows-Akzentfarbe einfärben statt mit dem neutralen Grau der Taskleiste.",
 

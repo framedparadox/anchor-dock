@@ -99,7 +99,7 @@ public sealed class DockSmokeTests
     [UIFact]
     public void The_Appearance_page_offers_the_personalization_controls()
     {
-        // Density, glass and magnification are app-wide and live on their own page. Finding the
+        // Density, accent tint and magnification are app-wide and live on their own page. Finding the
         // page's own automation id proves the nav entry, the tag routing and the panel all line
         // up — the wiring that silently rots whenever a page is added.
         using var app = AnchorApp.Launch();

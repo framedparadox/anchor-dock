@@ -107,9 +107,6 @@
   "Density.Medium": "中",
   "Density.Large": "大",
 
-  "Settings.Glass": "ガラス",
-  "Settings.GlassDesc": "ドックのアクリルのすりガラス具合です。低くするほどデスクトップが透けて見えます。",
-
   "Settings.AccentTint": "アクセント色",
   "Settings.AccentTintDesc": "ガラスをタスクバーの中間色のグレーではなく、Windows のアクセント色で色付けします。",
 

@@ -61,7 +61,7 @@ public sealed partial class SearchWindow : Window
         RootGrid.RequestedTheme = DockWindow.ResolveTheme(manager.Config.Theme);
         _backdrop = new AcrylicBackdropManager(this);
         if (_backdrop.TryApply())
-            _backdrop.Personalize(manager.Config.GlassOpacity, manager.Config.AccentTint);
+            _backdrop.Personalize(manager.Config.AccentTint);
 
         WindowChrome.SetClientSizeDip(_appWindow, _hwnd, CardWidth, CardHeight);
         CenterOnCursorDisplay();

@@ -107,9 +107,6 @@
   "Density.Medium": "中",
   "Density.Large": "大",
 
-  "Settings.Glass": "玻璃",
-  "Settings.GlassDesc": "程序坞亚克力的磨砂程度。数值越低，透出的桌面越多。",
-
   "Settings.AccentTint": "主题色着色",
   "Settings.AccentTintDesc": "用你的 Windows 主题色为玻璃着色，取代任务栏的中性灰。",
 

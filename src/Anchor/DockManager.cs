@@ -620,16 +620,6 @@ public sealed class DockManager
             dock.ApplyDensity();
     }
 
-    /// <summary>Sets how frosted the glass is (clamped to a range that stays legible at both
-    /// ends: fully transparent glass would leave unreadable icons over a busy desktop).</summary>
-    public void SetGlassOpacity(double opacity)
-    {
-        Config.GlassOpacity = Math.Clamp(opacity, 0.3, 1.0);
-        Save();
-        foreach (var dock in _docks)
-            dock.ApplyGlass();
-    }
-
     /// <summary>Tints the glass with the Windows accent color, or back to the neutral default.</summary>
     public void SetAccentTint(bool on)
     {

@@ -120,7 +120,7 @@ public sealed partial class DockWindow : Window
             // ActualThemeChanged subscription, so a later SetTheme re-tints it automatically.
             _backdrop = new AcrylicBackdropManager(this);
             _backdrop.TryApply();
-            ApplyGlass(); // the user's frostiness / accent-tint choice on top of the base recipe
+            ApplyGlass(); // the user's accent-tint choice on top of the base recipe
         }
 
         ItemsHost.ItemsSource = Items;
@@ -1055,20 +1055,17 @@ public sealed partial class DockWindow : Window
     {
         RootGrid.RequestedTheme = ResolveTheme(_manager.Config.Theme);
         // Re-mix the glass through ApplyGlass rather than re-syncing the backdrop directly:
-        // syncing alone re-derives the recipe from the shell colors and drops the frostiness and
-        // accent-tint choices Personalize had folded in, so a theme switch would quietly reset
-        // the user's glass to the neutral default until they touched those settings again.
+        // syncing alone re-derives the recipe from the shell colors and drops the accent-tint
+        // choice Personalize had folded in, so a theme switch would quietly reset the user's
+        // glass to the neutral default until they touched that setting again.
         ApplyGlass();
         ApplyWindowChrome();
     }
 
     /// <summary>
     /// Re-colors the rounded DWM rim to disappear into the dock's glass. The color is the glass's
-    /// own tint dimmed by how much of the desktop the frostiness setting lets through, so it
-    /// tracks the theme, the accent-tint option and the frostiness slider together: at full
-    /// frostiness the glass really is the tint and the rim matches it exactly, and as the glass
-    /// clears the rim darkens with it instead of staying a bright ring around a translucent strip
-    /// (which is what light mode's fixed surface color used to draw).
+    /// own tint, so it tracks the theme and the accent-tint option together and the rim matches
+    /// the glass exactly.
     /// <para>
     /// Erring dark is deliberate. The rim cannot be right for every wallpaper — the glass's
     /// rendered color depends on what is behind the window, which is unknowable from here — and a
@@ -1080,12 +1077,8 @@ public sealed partial class DockWindow : Window
     {
         bool dark = RootGrid.ActualTheme != ElementTheme.Light;
         var tint = _backdrop?.Current.Tint ?? (dark ? Rgb(0x20, 0x20, 0x20) : Rgb(0xF3, 0xF3, 0xF3));
-        double lit = Math.Clamp(_manager.Config.GlassOpacity, 0.3, 1.0);
 
-        WindowChrome.SetWindowBorderColor(_hwnd, dark, Rgb(
-            (byte)Math.Round(tint.R * lit),
-            (byte)Math.Round(tint.G * lit),
-            (byte)Math.Round(tint.B * lit)));
+        WindowChrome.SetWindowBorderColor(_hwnd, dark, tint);
 
         static Windows.UI.Color Rgb(byte r, byte g, byte b) =>
             Windows.UI.Color.FromArgb(255, r, g, b);

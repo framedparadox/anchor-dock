@@ -27,8 +27,7 @@ public sealed class AcrylicBackdropManager : IDisposable
     private UISettings? _uiSettings;
 
     // The last personalization asked for, remembered so re-syncing the recipes from the shell
-    // colors can put it back. Null until Personalize has been called at least once.
-    private double? _luminosityOpacity;
+    // colors can put it back.
     private bool _accentTint;
 
     public AcrylicBackdropManager(Window window) => _window = window;
@@ -126,10 +125,9 @@ public sealed class AcrylicBackdropManager : IDisposable
                 Light = Light with { Tint = tint, Fallback = surface, LuminosityOpacity = 0.88 };
             }
 
-            // Re-syncing rebuilds the recipes from scratch, which would drop the frostiness and
-            // accent-tint the user chose. Fold them back in — this runs on every theme change,
-            // including an OS light/dark flip while Anchor follows the system, where nothing
-            // else would restore them.
+            // Re-syncing rebuilds the recipes from scratch, which would drop the accent tint the
+            // user chose. Fold it back in — this runs on every theme change, including an OS
+            // light/dark flip while Anchor follows the system, where nothing else would restore it.
             ApplyPersonalization();
         }
         catch
@@ -143,48 +141,37 @@ public sealed class AcrylicBackdropManager : IDisposable
     /// <summary>
     /// Re-applies the current recipes. <see cref="Dark"/> and <see cref="Light"/> are plain
     /// properties, so assigning one changes what the <em>next</em> theme update would use but
-    /// leaves the live controller alone; the personalization settings (glass opacity, accent
-    /// tint) need it to take effect now.
+    /// leaves the live controller alone; the personalization setting (accent tint) needs it to
+    /// take effect now.
     /// </summary>
     public void Refresh() => UpdateTheme();
 
     /// <summary>
-    /// Re-tints both recipes for the given personalization settings, and applies them.
+    /// Re-tints both recipes for the given personalization setting, and applies it.
     /// </summary>
-    /// <param name="luminosityOpacity">How frosted the glass is (0.3–1.0).</param>
     /// <param name="accentTint">Tint with the Windows accent color rather than the neutral grey
     /// the taskbar uses. The accent is darkened for the dark recipe and lightened for the light
     /// one, because the raw accent at full strength overwhelms a 40px strip of icons.</param>
-    public void Personalize(double luminosityOpacity, bool accentTint)
+    public void Personalize(bool accentTint)
     {
-        _luminosityOpacity = Math.Clamp(luminosityOpacity, 0.3, 1.0);
         _accentTint = accentTint;
         ApplyPersonalization();
         Refresh();
     }
 
-    /// <summary>Stamps the remembered personalization onto both recipes. No-op before the first
-    /// <see cref="Personalize"/> call, so an unpersonalized window keeps its synced tint.</summary>
+    /// <summary>Stamps the remembered personalization onto both recipes. No-op without an accent
+    /// tint, so an unpersonalized window keeps its synced neutral tint.</summary>
     private void ApplyPersonalization()
     {
-        if (_luminosityOpacity is not double luminosity)
+        // Without an accent tint, the neutral grey below is exactly what SyncWithSystemColors
+        // already computed (including its light/dark-mismatch fallback), so leave Tint alone.
+        if (!_accentTint)
             return;
 
-        // Without an accent tint, the neutral grey below is exactly what SyncWithSystemColors
-        // already computed (including its light/dark-mismatch fallback), so leave Tint alone and
-        // only carry the opacity forward — overwriting it here would silently undo that fallback.
-        if (_accentTint)
-        {
-            var darkTint = Blend(AccentColor(), Rgb(0x00, 0x00, 0x00), 0.55);
-            var lightTint = Blend(AccentColor(), Rgb(0xFF, 0xFF, 0xFF), 0.60);
-            Dark = Dark with { Tint = darkTint, LuminosityOpacity = luminosity };
-            Light = Light with { Tint = lightTint, LuminosityOpacity = luminosity };
-        }
-        else
-        {
-            Dark = Dark with { LuminosityOpacity = luminosity };
-            Light = Light with { LuminosityOpacity = luminosity };
-        }
+        var darkTint = Blend(AccentColor(), Rgb(0x00, 0x00, 0x00), 0.55);
+        var lightTint = Blend(AccentColor(), Rgb(0xFF, 0xFF, 0xFF), 0.60);
+        Dark = Dark with { Tint = darkTint };
+        Light = Light with { Tint = lightTint };
     }
 
     /// <summary>The Windows accent color, or Anchor's fallback blue if it can't be read.</summary>

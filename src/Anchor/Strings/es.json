@@ -107,9 +107,6 @@
   "Density.Medium": "Mediano",
   "Density.Large": "Grande",
 
-  "Settings.Glass": "Cristal",
-  "Settings.GlassDesc": "Cuánto esmerilado tiene el acrílico del dock. Menos deja ver más del escritorio.",
-
   "Settings.AccentTint": "Tinte de acento",
   "Settings.AccentTintDesc": "Teñir el cristal con tu color de acento de Windows en lugar del gris neutro de la barra de tareas.",
 

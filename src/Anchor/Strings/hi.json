@@ -107,9 +107,6 @@
   "Density.Medium": "मध्यम",
   "Density.Large": "बड़ा",
 
-  "Settings.Glass": "काँच",
-  "Settings.GlassDesc": "डॉक का ऐक्रेलिक कितना धुँधला है। कम रखने पर डेस्कटॉप ज़्यादा दिखता है।",
-
   "Settings.AccentTint": "एक्सेंट रंग",
   "Settings.AccentTintDesc": "काँच को टास्कबार के तटस्थ स्लेटी के बजाय आपके Windows एक्सेंट रंग से रंगें।",
 

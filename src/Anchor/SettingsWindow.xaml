@@ -466,34 +466,6 @@
                                               Toggled="AccentTintSwitch_Toggled" />
                             </Grid>
                         </Border>
-
-                        <!-- Glass frostiness -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE81E;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Glass}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.GlassDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <!-- Percent rather than 0–1: a slider reading "0.9" means nothing
-                                     to the person moving it. -->
-                                <Slider x:Name="GlassSlider" Grid.Column="2" Width="170"
-                                        Minimum="30" Maximum="100" StepFrequency="5"
-                                        VerticalAlignment="Center" HorizontalAlignment="Right"
-                                        AutomationProperties.Name="{loc:Localize Key=Settings.Glass}"
-                                        ValueChanged="GlassSlider_ValueChanged" />
-                            </Grid>
-                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 

@@ -110,9 +110,6 @@
   "Density.Medium": "Medium",
   "Density.Large": "Large",
 
-  "Settings.Glass": "Glass",
-  "Settings.GlassDesc": "How frosted the dock's acrylic is. Lower lets more of the desktop show through.",
-
   "Settings.AccentTint": "Accent tint",
   "Settings.AccentTintDesc": "Tint the glass with your Windows accent colour instead of the taskbar's neutral grey.",
 

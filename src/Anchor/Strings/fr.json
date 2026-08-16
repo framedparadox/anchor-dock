@@ -107,9 +107,6 @@
   "Density.Medium": "Moyenne",
   "Density.Large": "Grande",
 
-  "Settings.Glass": "Verre",
-  "Settings.GlassDesc": "Le degré de dépoli de l'acrylique du dock. Plus bas laisse davantage voir le bureau.",
-
   "Settings.AccentTint": "Teinte d'accentuation",
   "Settings.AccentTintDesc": "Teinter le verre avec votre couleur d'accentuation Windows plutôt qu'avec le gris neutre de la barre des tâches.",
 

@@ -326,12 +326,10 @@ public class DockConfigTests
     [Fact]
     public void A_config_saved_before_the_personalization_options_loads_with_the_old_look()
     {
-        // Density, glass, magnification, per-item shortcuts and the update check all arrived
-        // together. Their defaults have to reproduce how Anchor behaved before they existed, or an
-        // upgrade would silently change the dock — and, for the update check, silently start
-        // contacting the network.
-        //
-        // Glass is the one deliberate exception; it has a test of its own below.
+        // Density, magnification, per-item shortcuts and the update check all arrived together.
+        // Their defaults have to reproduce how Anchor behaved before they existed, or an upgrade
+        // would silently change the dock — and, for the update check, silently start contacting
+        // the network.
         var cfg = JsonSerializer.Deserialize<DockConfig>("{ \"Seeded\": true }", Options);
 
         Assert.NotNull(cfg);
@@ -341,27 +339,6 @@ public class DockConfigTests
         Assert.False(cfg.ItemHotkeysEnabled);
         Assert.Equal(string.Empty, cfg.SearchHotkey);
         Assert.False(cfg.CheckForUpdates);
-    }
-
-    [Fact]
-    public void The_glass_default_is_fully_frosted_in_both_themes()
-    {
-        // The top of the slider's range, and deliberately NOT the 0.90 the setting shipped with.
-        // Glass is a theme-independent number here — one default covers Light and Dark — and full
-        // frost is the only value whose result does not depend on the wallpaper behind it: below
-        // it the dock takes its color from whatever it is sitting on.
-        //
-        // The cost is accepted with open eyes: a config written before the glass setting existed
-        // carries no value to restore, so it picks up the new default and those docks do change
-        // appearance on upgrade. Anyone who had touched the slider has a value saved and keeps it.
-        Assert.Equal(1.00, new DockConfig().GlassOpacity);
-
-        var preFeature = JsonSerializer.Deserialize<DockConfig>("{ \"Seeded\": true }", Options);
-        Assert.Equal(1.00, preFeature!.GlassOpacity);
-
-        // A saved value still wins over the default, which is what protects everyone else.
-        var saved = JsonSerializer.Deserialize<DockConfig>("{ \"GlassOpacity\": 0.3 }", Options);
-        Assert.Equal(0.30, saved!.GlassOpacity);
     }
 
     [Fact]
@@ -378,7 +355,6 @@ public class DockConfigTests
             HotkeyEnabled = false,
             SearchHotkey = "Ctrl+Alt+Space",
             ItemHotkeysEnabled = true,
-            GlassOpacity = 0.4,
             AccentTint = true,
             Magnify = true,
             LaunchAtStartup = true,
@@ -400,7 +376,6 @@ public class DockConfigTests
         Assert.False(target.HotkeyEnabled);
         Assert.Equal("Ctrl+Alt+Space", target.SearchHotkey);
         Assert.True(target.ItemHotkeysEnabled);
-        Assert.Equal(0.4, target.GlassOpacity);
         Assert.True(target.AccentTint);
         Assert.True(target.Magnify);
         Assert.True(target.LaunchAtStartup);
