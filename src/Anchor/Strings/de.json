@@ -41,6 +41,7 @@
   "Menu.Snap": "Andocken",
   "Menu.SettingsToStart": "Zahnrad an den Anfang",
   "Menu.SettingsToEnd": "Zahnrad ans Ende",
+  "Menu.Restart": "Anchor neu starten",
   "Menu.Quit": "Anchor beenden",
 
   "Edge.Bottom": "Unten",
@@ -96,6 +97,8 @@
   "Theme.Light": "Hell",
   "Theme.Dark": "Dunkel",
   "Theme.System": "Systemeinstellung verwenden",
+  "Settings.RestartToApply": "Neu starten",
+  "Settings.RestartToApplyTip": "Starten Sie Anchor neu, um das neue Design vollständig zu übernehmen",
 
   "Settings.Language": "Sprache",
   "Settings.LanguageDesc": "Die Sprache der Fenster und Menüs von Anchor. Sie wird sofort übernommen.",

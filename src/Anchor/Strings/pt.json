@@ -41,6 +41,7 @@
   "Menu.Snap": "Encaixar",
   "Menu.SettingsToStart": "Ajustes no início",
   "Menu.SettingsToEnd": "Ajustes no fim",
+  "Menu.Restart": "Reiniciar o Anchor",
   "Menu.Quit": "Sair do Anchor",
 
   "Edge.Bottom": "Inferior",
@@ -96,6 +97,8 @@
   "Theme.Light": "Claro",
   "Theme.Dark": "Escuro",
   "Theme.System": "Usar a configuração do sistema",
+  "Settings.RestartToApply": "Reiniciar",
+  "Settings.RestartToApplyTip": "Reinicie o Anchor para concluir a aplicação do novo tema",
 
   "Settings.Language": "Idioma",
   "Settings.LanguageDesc": "O idioma das janelas e dos menus do Anchor. É aplicado na hora.",

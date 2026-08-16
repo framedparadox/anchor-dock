@@ -41,6 +41,7 @@
   "Menu.Snap": "吸附",
   "Menu.SettingsToStart": "齿轮移至开头",
   "Menu.SettingsToEnd": "齿轮移至末尾",
+  "Menu.Restart": "重启 Anchor",
   "Menu.Quit": "退出 Anchor",
 
   "Edge.Bottom": "下",
@@ -96,6 +97,8 @@
   "Theme.Light": "浅色",
   "Theme.Dark": "深色",
   "Theme.System": "使用系统设置",
+  "Settings.RestartToApply": "重启",
+  "Settings.RestartToApplyTip": "重启 Anchor 以完成应用新主题",
 
   "Settings.Language": "语言",
   "Settings.LanguageDesc": "Anchor 自身窗口和菜单使用的语言，立即生效。",

@@ -41,6 +41,7 @@
   "Menu.Snap": "स्नैप",
   "Menu.SettingsToStart": "गियर शुरुआत में",
   "Menu.SettingsToEnd": "गियर अंत में",
+  "Menu.Restart": "Anchor पुनः आरंभ करें",
   "Menu.Quit": "Anchor बंद करें",
 
   "Edge.Bottom": "नीचे",
@@ -96,6 +97,8 @@
   "Theme.Light": "हल्का",
   "Theme.Dark": "गहरा",
   "Theme.System": "सिस्टम सेटिंग का उपयोग करें",
+  "Settings.RestartToApply": "पुनः आरंभ करें",
+  "Settings.RestartToApplyTip": "नई थीम पूरी तरह लागू करने के लिए Anchor को पुनः आरंभ करें",
 
   "Settings.Language": "भाषा",
   "Settings.LanguageDesc": "Anchor की अपनी विंडो और मेन्यू की भाषा। यह तुरंत लागू होती है।",

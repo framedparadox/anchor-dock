@@ -41,6 +41,7 @@
   "Menu.Snap": "スナップ",
   "Menu.SettingsToStart": "歯車を先頭へ",
   "Menu.SettingsToEnd": "歯車を末尾へ",
+  "Menu.Restart": "Anchor を再起動",
   "Menu.Quit": "Anchor を終了",
 
   "Edge.Bottom": "下",
@@ -96,6 +97,8 @@
   "Theme.Light": "ライト",
   "Theme.Dark": "ダーク",
   "Theme.System": "システム設定を使う",
+  "Settings.RestartToApply": "再起動",
+  "Settings.RestartToApplyTip": "新しいテーマを完全に適用するには Anchor を再起動してください",
 
   "Settings.Language": "言語",
   "Settings.LanguageDesc": "Anchor のウィンドウとメニューの言語です。すぐに反映されます。",
