@@ -1409,17 +1409,20 @@ public sealed partial class DockWindow : Window
     /// </summary>
     private void UpdateItemReorder(int cursorScreenX, int cursorScreenY)
     {
-        int count = Items.Count;
-        if (count < 2 || _reorderItem is null || _reorderScale <= 0)
-            return;
-
-        int from = Items.IndexOf(_reorderItem);
-        if (from < 0)
+        if (_reorderItem is null || _reorderScale <= 0)
             return;
 
         double coord = _reorderVertical ? cursorScreenY : cursorScreenX;
         double rel = (coord - _reorderOriginPx) / _reorderScale; // back into DIPs
         UpdateDragGhostPosition(rel);
+
+        int count = Items.Count;
+        if (count < 2)
+            return;
+
+        int from = Items.IndexOf(_reorderItem);
+        if (from < 0)
+            return;
 
         int target = 0;
         double edge = 0;

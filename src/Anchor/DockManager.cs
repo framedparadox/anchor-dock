@@ -142,7 +142,7 @@ public sealed class DockManager
     /// <see cref="App.ReleaseInstanceLock"/>).
     /// </para>
     /// </summary>
-    public void Restart()
+    public async void Restart()
     {
         _shuttingDown = true;
         Running.Dispose();
@@ -151,7 +151,11 @@ public sealed class DockManager
         if (PackagedRuntime.IsPackaged)
         {
             App.ReleaseInstanceLock();
-            _ = Windows.ApplicationModel.Core.CoreApplication.RequestRestartAsync(string.Empty);
+            // On success the OS terminates this process before the call returns; any return
+            // value here is therefore always a failure reason.
+            var result = await Windows.ApplicationModel.Core.CoreApplication.RequestRestartAsync(string.Empty);
+            Diag.Log("Restart: RequestRestartAsync did not relaunch — " + result);
+            Application.Current.Exit();
             return;
         }
 
@@ -161,6 +165,10 @@ public sealed class DockManager
             {
                 App.ReleaseInstanceLock();
                 System.Diagnostics.Process.Start(exe);
+            }
+            else
+            {
+                Diag.Log("Restart: failed to relaunch — Environment.ProcessPath was unavailable");
             }
         }
         catch (Exception ex)
@@ -498,10 +506,15 @@ public sealed class DockManager
     /// </summary>
     public void OpenNewGroupWindow(DockWindow dock, DockItem? pendingItem)
     {
-        if (_newGroupWindow is not null)
+        if (_newGroupWindow is { } open)
         {
-            _newGroupWindow.Activate();
-            return;
+            if (ReferenceEquals(open.PendingItem, pendingItem) && ReferenceEquals(open.Dock, dock))
+            {
+                open.Activate();
+                return;
+            }
+            _newGroupWindow = null;
+            open.Close();
         }
         _newGroupWindow = new NewGroupWindow(this, dock, pendingItem);
         _newGroupWindow.Closed += (_, _) => _newGroupWindow = null;

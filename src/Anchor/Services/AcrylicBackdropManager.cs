@@ -170,11 +170,21 @@ public sealed class AcrylicBackdropManager : IDisposable
         if (_luminosityOpacity is not double luminosity)
             return;
 
-        var darkTint = _accentTint ? Blend(AccentColor(), Rgb(0x00, 0x00, 0x00), 0.55) : Rgb(0x1C, 0x1C, 0x1C);
-        var lightTint = _accentTint ? Blend(AccentColor(), Rgb(0xFF, 0xFF, 0xFF), 0.60) : Rgb(0xF2, 0xF2, 0xF2);
-
-        Dark = Dark with { Tint = darkTint, LuminosityOpacity = luminosity };
-        Light = Light with { Tint = lightTint, LuminosityOpacity = luminosity };
+        // Without an accent tint, the neutral grey below is exactly what SyncWithSystemColors
+        // already computed (including its light/dark-mismatch fallback), so leave Tint alone and
+        // only carry the opacity forward — overwriting it here would silently undo that fallback.
+        if (_accentTint)
+        {
+            var darkTint = Blend(AccentColor(), Rgb(0x00, 0x00, 0x00), 0.55);
+            var lightTint = Blend(AccentColor(), Rgb(0xFF, 0xFF, 0xFF), 0.60);
+            Dark = Dark with { Tint = darkTint, LuminosityOpacity = luminosity };
+            Light = Light with { Tint = lightTint, LuminosityOpacity = luminosity };
+        }
+        else
+        {
+            Dark = Dark with { LuminosityOpacity = luminosity };
+            Light = Light with { LuminosityOpacity = luminosity };
+        }
     }
 
     /// <summary>The Windows accent color, or Anchor's fallback blue if it can't be read.</summary>

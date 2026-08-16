@@ -35,6 +35,15 @@ public sealed partial class NewGroupWindow : Window
 
     private readonly DockWindow _dock;
     private readonly DockItem? _pendingItem;
+
+    /// <summary>The dock this group is added to, so <see cref="DockManager.OpenNewGroupWindow"/>
+    /// can tell whether a re-invocation targets the same window or must replace it.</summary>
+    public DockWindow Dock => _dock;
+
+    /// <summary>The item to be filed into the group once created, or null. Exposed for the same
+    /// reason as <see cref="Dock"/>.</summary>
+    public DockItem? PendingItem => _pendingItem;
+
     private readonly nint _hwnd;
     private readonly AppWindow _appWindow;
     private IconSelection? _pendingIcon;
