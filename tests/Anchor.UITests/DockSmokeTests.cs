@@ -155,11 +155,39 @@ public sealed class DockSmokeTests
         using var app = AnchorApp.Launch();
         var dock = app.WaitForDock();
 
+        var group = CreateGroupWithFileExplorer(app, dock);
+        AnchorApp.Press(group);
+
+        var child = AnchorApp.Retry(() => AnchorApp.FindButtonByName(dock, "File Explorer"));
+        Assert.NotNull(child);
+    }
+
+    [UIFact]
+    public void A_group_opens_a_fly_out_bar_on_hover_too()
+    {
+        // Same fly-out as above, but landed on rather than clicked: the strip's own pointer
+        // tracking (DockWindow.TrackStripPointer) opens a group's bar as soon as the cursor is
+        // over its icon, so the bar comes up without an Invoke/Click at all.
+        using var app = AnchorApp.Launch();
+        var dock = app.WaitForDock();
+
+        var group = CreateGroupWithFileExplorer(app, dock);
+        FlaUI.Core.Input.Mouse.MoveTo(group.GetClickablePoint());
+
+        var child = AnchorApp.Retry(() => AnchorApp.FindButtonByName(dock, "File Explorer"));
+        Assert.NotNull(child);
+    }
+
+    /// <summary>
+    /// Builds a group holding "File Explorer" through the Settings list — the one route to "move
+    /// to group" that does not depend on driving a context menu over the dock strip — and returns
+    /// the group's own button on the strip.
+    /// </summary>
+    private static AutomationElement CreateGroupWithFileExplorer(AnchorApp app, Window dock)
+    {
         var notepad = AnchorApp.FindButtonByName(dock, "Notepad");
         Assert.NotNull(notepad);
 
-        // Build the group through the Settings list: it is the one route to "move to group" that
-        // does not depend on driving a context menu over the dock strip.
         AnchorApp.Press(AnchorApp.FindById(dock, "AnchorSettingsButton")!);
         var settings = app.WaitForWindow("Anchor Settings");
         AnchorApp.Press(AnchorApp.FindById(settings, "SettingsNavApps")!);
@@ -178,13 +206,10 @@ public sealed class DockSmokeTests
 
         settings.Close();
 
-        // The group is now on the strip; opening it must surface the item that went into it.
+        // The group is now on the strip.
         var group = AnchorApp.FindButtonByName(dock, "Group");
         Assert.NotNull(group);
-        AnchorApp.Press(group!);
-
-        var child = AnchorApp.Retry(() => AnchorApp.FindButtonByName(dock, "File Explorer"));
-        Assert.NotNull(child);
+        return group!;
     }
 
     [UIFact]

@@ -6,6 +6,19 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Round 4 — group fly-outs open on hover
+
+#### Added
+
+- **A group's fly-out now opens as soon as the cursor lands on its icon**, the same bar a click
+  already opened — closing the gap called out in Round 1's known limits. It rides the same
+  per-move tracking that drives the hover highlight and the fast tooltip
+  (`DockWindow.TrackStripPointer`), so it needs no dwell timer or separate pointer subscription.
+  Landing on a *different* group while one is already open swaps straight to it — closing the
+  first bar and opening the second — the way a menu bar swaps top-level menus under the cursor.
+  Re-hovering (or clicking) the group already showing is a no-op rather than a restart of the same
+  content. A folder fly-out is unaffected and still opens on click only.
+
 ### Round 3 — Microsoft Store readiness
 
 A compliance and correctness pass over the MSIX/Store path. Two of these are behavior bugs that

@@ -111,6 +111,13 @@ public sealed partial class DockWindow
 
     // ---- The fly-out -------------------------------------------------------
 
+    /// <summary>The group whose fly-out is currently open, and the fly-out itself — tracked so a
+    /// hover that lands on a second group can swap straight to it, and so re-hovering (or
+    /// re-clicking) the same group's icon while its bar is already up is a no-op rather than a
+    /// flicker of the same content.</summary>
+    private DockItem? _openGroup;
+    private Flyout? _openGroupFlyout;
+
     /// <summary>
     /// Opens a group's fly-out directly over its dock icon: its (visible) children as a
     /// <see cref="ShowDockBarFlyout">dock bar</see> — the same cells, chrome and spacing as the
@@ -121,17 +128,40 @@ public sealed partial class DockWindow
     /// open off-screen into that edge), or upward when the dock is floating — see
     /// <see cref="GroupFlyoutPlacement"/>.
     /// </para>
+    /// <para>
+    /// Called both from a click on the group's icon and from <see cref="TrackStripPointer"/> as
+    /// the cursor passes over it, so the same bar comes up whichever way the user got there. A
+    /// hover that lands on the group already showing is a no-op; a hover onto a <em>different</em>
+    /// group closes the first bar and opens the second, the way a menu bar swaps top-level menus
+    /// under the cursor without a click for each one.
+    /// </para>
     /// </summary>
     private void ShowGroupFlyout(FrameworkElement anchor, DockItem group)
     {
+        if (ReferenceEquals(_openGroup, group))
+            return;
+
+        _openGroupFlyout?.Hide();
+
         var children = group.Children.Where(c => !c.Hidden).ToList();
-        ShowDockBarFlyout(anchor, new DockBarOptions(
+        var flyout = ShowDockBarFlyout(anchor, new DockBarOptions(
             children,
             Loc.Get("Group.Empty"),
             OnContext: ShowGroupChildMenu,
             // Dragging a cell clear of the bar is the reverse of dropping an icon onto the group:
             // it puts the item back on the strip, next to the group it came out of.
             OnDragOut: RemoveFromGroup));
+
+        _openGroup = group;
+        _openGroupFlyout = flyout;
+        flyout.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_openGroupFlyout, flyout))
+            {
+                _openGroupFlyout = null;
+                _openGroup = null;
+            }
+        };
     }
 
     /// <summary>

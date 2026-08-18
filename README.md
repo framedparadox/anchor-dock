@@ -729,9 +729,10 @@ a fly-out. **Ungroup** puts its contents back on the strip where the group was.
   falling back to a globe glyph when a site has none or there's no connectivity.
 - **Groups don't nest, and can't hold separators.** A group's children are always leaves. Both
   would give the fly-out bar a structure it has no way to render, and neither earns the complexity.
-- **Fly-out bars open on click, not hover**, and a folder fly-out lists at most 60 entries (hidden
-  and system entries excluded) — past that, its *Open in File Explorer* cell is the answer. The
-  listing is a snapshot taken when the bar opens; it doesn't watch the folder for changes.
+- **A folder fly-out opens on click, not hover** (a group's does both — see *Changelog*), and it
+  lists at most 60 entries (hidden and system entries excluded) — past that, its *Open in File
+  Explorer* cell is the answer. The listing is a snapshot taken when the bar opens; it doesn't
+  watch the folder for changes.
 - **Running-app indicators only cover apps with a resolvable exe.** A `.lnk` is followed to its
   target, but a shortcut to a Store app or a control-panel item has no file-system target, so it
   never lights up. Detection is a 2-second poll (Windows raises no event for "an app opened its

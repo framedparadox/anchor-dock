@@ -112,7 +112,14 @@ public sealed partial class DockWindow
             item.SetMagnification(
                 inside && magnify ? DockMetrics.HoverMagnificationAt(offset / extent) : 1);
             if (inside)
-                SetFastTooltip(ItemsHost.TryGetElement(index) as FrameworkElement, true);
+            {
+                var element = ItemsHost.TryGetElement(index) as FrameworkElement;
+                SetFastTooltip(element, true);
+                // A group has nothing to launch on its own; landing the cursor on it is enough to
+                // open its fly-out, the same one a click would — see ShowGroupFlyout.
+                if (item.IsGroup && element is not null)
+                    ShowGroupFlyout(element, item);
+            }
 
             edge += extent + CellSpacing;
             index++;
