@@ -1,9 +1,15 @@
+<div align="center">
+
 # Anchor
 
 [![Release](https://img.shields.io/github/v/release/framedparadox/anchor-dock?label=release)](https://github.com/framedparadox/anchor-dock/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%20%C2%B7%20x64%20%C2%B7%20ARM64-0078D4)](#requirements)
 [![Built with](https://img.shields.io/badge/.NET%2010%20%C2%B7%20WinUI%203-512BD4)](#requirements)
+
+Developed by **[ajaykontham](https://github.com/ajaykontham
+
+</div>
 
 A floating dock for Windows 11, built with **WinUI 3 / Windows App SDK**. It floats a
 compact, glass "strip" above the taskbar that holds apps, files, folders, and web links —
@@ -35,10 +41,8 @@ other thing that ever could (an update check) is off until you switch it on (see
 - [Privacy & data](#privacy--data)
 - [Security notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
-- [Architecture](#architecture)
 - [FAQ](#faq)
 - [Known limitations](#known-limitations)
-- [Roadmap / future enhancements](#roadmap--future-enhancements)
 - [Contributing](#contributing)
 - [Credits & support](#credits--support)
 - [License](#license)
@@ -48,8 +52,8 @@ other thing that ever could (an update check) is off until you switch it on (see
 ## Features
 
 - **Glass background** — Windows 11 taskbar-style acrylic. Real desktop blur, kept
-  translucent even though a dock is never the focused window (see *Architecture*), with the
-  DWM border rim suppressed so there's no outline around the rounded glass in any theme.
+  translucent even though a dock is never the focused window, with the DWM border rim suppressed
+  so there's no outline around the rounded glass in any theme.
 - **Theme** — choose **Light**, **Dark** (default) or **System** (follow the Windows setting)
   from Settings ▸ General. The dock, its glass and the Settings/Add windows all switch together;
   a High Contrast accessibility theme always overrides it.
@@ -192,11 +196,6 @@ Notes:
   download (~60–80 MB) that requires the [Windows App Runtime](https://learn.microsoft.com/windows/apps/windows-app-sdk/deploy-unpackaged-apps)
   to already be installed, publish with `pwsh scripts/package-release.ps1 -FrameworkDependent` or
   `dotnet publish -p:FrameworkDependent=true --self-contained false`.
-- Releases are **not code-signed yet**, so SmartScreen may show "Windows protected your PC" the
-  first time — choose *More info ▸ Run anyway*. To verify the download instead of trusting it, the
-  expected SHA-256 is published in
-  [`ajaykontham.Anchor.installer.yaml`](packaging/winget/manifests/a/ajaykontham/Anchor/1.0.0/ajaykontham.Anchor.installer.yaml);
-  compare it with `Get-FileHash Anchor-win-x64-1.0.0.zip`.
 - **Updating** — quit Anchor (tray ▸ *Quit Anchor*), extract the new zip over the old folder, start
   it again. Your dock lives in `%AppData%\Anchor` and is untouched by the swap.
 - **Uninstalling** — quit Anchor, turn off *Start with Windows* first (or delete the `Anchor` value
@@ -304,8 +303,11 @@ documented in `docs/design-guidelines-review.md`.
 - **Left-click** an icon to launch it (Space/Enter when it has keyboard focus works too). If that
   app is already open, the click brings its window forward instead — **Shift+click** to start a new
   instance anyway.
-- **Click a group** to open its fly-out bar — a second dock out of that icon — then click
-  anything inside it. A folder with *Show folder contents* on opens the same bar over its contents.
+- **Hover or click a group** to open its fly-out bar — a second dock out of that icon — then click
+  anything inside it. It closes again when the cursor leaves both the icon and the bar, or on a
+  second click. Turning off Settings ▸ Appearance ▸ *Open groups on hover* makes the bar
+  click-only: the cursor is ignored and a click both opens and closes it. A folder with *Show
+  folder contents* on opens the same bar over its contents, on a click either way.
 - **Hover** an icon for a Windows 11 taskbar-style highlight, or turn on
   Settings ▸ Appearance ▸ *Magnify on hover* for a macOS-style swell.
 - **Drag an icon** to reorder it, **onto a group** to file it in there, or **sideways out of an
@@ -417,6 +419,7 @@ right then. Nothing is lost, and nothing needs doing by hand.
   "Density": "Medium",           // Small | Medium | Large — icon and cell size
   "AccentTint": false,           // tint the glass with the Windows accent colour
   "Magnify": false,              // swell icons under the cursor
+  "GroupOpenOnHover": true,      // groups open on hover as well as on click
   "CheckForUpdates": false,      // opt-in: ask GitHub for a newer release at startup. Ignored by
                                  //   the Store build, which updates through the Store
   "SkippedUpdate": "",           // a version the user chose not to be reminded about
@@ -523,7 +526,24 @@ The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
   **Settings ▸ General ▸ Reset dock to defaults** (which asks for confirmation first, and closes
   any extra docks along with clearing the first).
 
-## Architecture
+## Notes / design decisions
+
+- **Always-on glass.** WinUI normally collapses acrylic to a flat fallback color when its window
+  is deactivated. Since a dock is never the foreground window, `AcrylicBackdropManager` keeps the
+  `DesktopAcrylicController` alive so the glass never falls back.
+- **One manager, N docks.** App-wide state — config file, tray icon, global shortcut, running-app
+  poll, Settings/Add windows — belongs to `DockManager`; each `DockWindow` is purely one strip and
+  its own placement.
+- **A dock's monitor is its coordinates.** No display id is stored; the monitor is whichever
+  screen `FreeX`/`FreeY` land on, since display ids aren't stable across sessions or re-plugs.
+- **Single instance, scoped to the data directory.** A named mutex keyed by the data directory
+  stops a second launch from stacking a duplicate set of docks, while a copy pointed at its own
+  `ANCHOR_DATA_DIR` still runs independently.
+- **Localization is a plain JSON dictionary**, not PRI/`.resw` — the app ships unpackaged and the
+  language is a runtime app setting rather than the Windows display language.
+
+<details>
+<summary>Source layout</summary>
 
 ```
 src/Anchor/
@@ -602,81 +622,7 @@ docs/                          Screenshots, Store-deployment guide, winget guide
 Anchor.slnx                    Solution (app + unit tests).
 ```
 
-### Notes / design decisions
-
-- **Always-on glass.** WinUI normally collapses acrylic to a flat fallback color when its
-  window is deactivated. A dock is *never* the foreground window, so `AcrylicBackdropManager`
-  drives a `DesktopAcrylicController` with `SystemBackdropConfiguration.IsInputActive = true`
-  to keep the glass alive. The tint/luminosity recipe is theme-aware and tunable
-  (`Dark`/`Light` properties) to match the taskbar exactly.
-- **Sizing.** The window is auto-sized to its content. The strip size is computed
-  *analytically* — by summing each cell's own extent (`DockItem.CellExtent`, since a separator's
-  slot is narrower than an icon's) rather than by measuring the live tree. This avoids the
-  "shrink window → clip content → lock small" feedback loop and needs no manual `Measure()`
-  (which throws on live elements). The drag-reorder hit test reads the same extents, so the two
-  can never disagree about where a cell starts.
-- **Reorder is measured against the *other* items.** With mixed cell widths, mapping the cursor
-  onto a slot by walking the current order oscillates whenever a wide icon crosses a narrow
-  separator. Instead the drag walks the layout with the dragged item excluded and inserts where
-  the cursor passes each remaining item's midpoint — those midpoints don't move as the dragged
-  item is re-inserted around them, so the result is stable.
-- **Master vs. visible items.** `DockProfile.Items` is the ordered source of truth (including
-  hidden items); the dock renders a filtered projection. A visible reorder is merged back into
-  the master list with hidden items kept anchored at their indices, so hiding/showing never
-  loses position.
-- **One manager, N docks.** Everything app-wide — the config file, the tray icon, the global
-  shortcut, the running-app poll, the Settings and Add windows — belongs to `DockManager`, not to
-  a dock. With more than one strip, "the dock that owns the tray icon" would be an arbitrary
-  choice that breaks the moment you remove that dock; a `DockWindow` is therefore purely one strip
-  and its own placement.
-- **A dock's monitor is its coordinates.** `DockProfile` deliberately stores no display id or
-  device name: the monitor is whichever display `FreeX`/`FreeY` land on. Display ids are not
-  stable across sessions or re-plugs, whereas a position is, and it makes "move this dock to that
-  screen" a matter of writing coordinates.
-- **Running-app detection walks windows, not processes.** `RunningAppService` enumerates visible,
-  un-owned, titled, non-tool top-level windows and maps each to its process's image path — the
-  same shape of answer the taskbar gives. Matching on the full path rather than the file name
-  matters (two apps can both ship an `Update.exe`), and shell fixtures (`Progman`, `WorkerW`,
-  `Shell_TrayWnd`) are excluded or File Explorer would read as permanently running. Pinned
-  shortcuts are resolved through `IShellLinkW` first, since a `.lnk`'s own path never matches a
-  running process.
-- **Reorder vs. move gestures.** A press that starts on an icon reorders that icon; a press on
-  the background/divider/gear moves the whole window. Both are driven by polling the global
-  cursor + button state on a timer (WinUI pointer capture is racy while a window moves under the
-  cursor).
-- **Snap keeps its place.** The dropped position is remembered even while snapped, and the target
-  monitor is resolved from that point (`DisplayArea.GetFromPoint`), so a snapped dock hides where
-  you left it on the correct screen instead of re-centering.
-- **Single instance.** `App` acquires a session-scoped named mutex on launch; a second process
-  finds it already held and exits before creating a window, so the "start with Windows" copy and a
-  manual launch never produce two overlapping sets of docks. The name is scoped to the data
-  directory, so two copies pointed at the same `dock.json` still collapse to one — the case this
-  exists for — while a copy running against its own `ANCHOR_DATA_DIR` (a portable install, or the
-  UI test harness) is a separate instance rather than one that silently refuses to start.
-- **`Window` has no `Resources`.** WinUI 3's `Window` is not a `FrameworkElement`, so shared XAML
-  resources live on the root panel (`<Grid.Resources>`), not `<Window.Resources>` — the latter
-  makes the XAML compiler fail with no diagnostic. The new dialog windows use the built-in
-  `MicaBackdrop` for their glass.
-- **One hidden HWND for shell messages.** The tray icon and `RegisterHotKey` both deliver their
-  events as window messages, and a WinUI 3 `Window` exposes no `WndProc`. `MessageWindow` creates
-  a single never-shown popup window on the UI thread to receive them (a real popup, not an
-  `HWND_MESSAGE` child, because `TrackPopupMenuEx` needs an owner that can be made foreground or
-  the tray menu won't light-dismiss). Its `WndProc` delegate is rooted for the window's lifetime
-  and swallows handler exceptions, since a throw would unwind through native code.
-- **Localization is a plain dictionary, not PRI.** Translations are embedded JSON tables
-  (`Strings/<code>.json`) resolved once at startup by `Loc`, with English as the per-key fallback.
-  Anchor ships unpackaged, where the `.resw`/PRI `ResourceLoader` is awkward and can't be
-  overridden per user — and the language here is an *app* setting, not the Windows display
-  language, so "match Windows, or pick your own" has to be a runtime choice. XAML reads it through
-  a `{loc:Localize}` markup extension, which resolves at load time; already-loaded windows
-  therefore need the restart Settings offers. Test coverage asserts every language defines every
-  English key, with matching `{0}` placeholders.
-- **Unpackaged & self-contained** so it runs like a normal desktop utility with no MSIX and
-  no separate runtime install. `EnableMsixTooling` is still switched on even though nothing is
-  packaged: it is what brings in the targets that generate `Anchor.pri`, where the compiled XAML
-  lives. Without it `dotnet build` still produced one but `dotnet publish` didn't copy it, and a
-  published `Anchor.exe` died on its first window with *"Cannot locate resource from
-  `ms-appx:///DockWindow.xaml`"*.
+</details>
 
 ## FAQ
 
@@ -729,7 +675,8 @@ a fly-out. **Ungroup** puts its contents back on the strip where the group was.
   falling back to a globe glyph when a site has none or there's no connectivity.
 - **Groups don't nest, and can't hold separators.** A group's children are always leaves. Both
   would give the fly-out bar a structure it has no way to render, and neither earns the complexity.
-- **A folder fly-out opens on click, not hover** (a group's does both — see *Changelog*), and it
+- **A folder fly-out opens on click, not hover** (a group's does both, unless *Open groups on
+  hover* is switched off), and it
   lists at most 60 entries (hidden and system entries excluded) — past that, its *Open in File
   Explorer* cell is the answer. The listing is a snapshot taken when the bar opens; it doesn't
   watch the folder for changes.
@@ -745,59 +692,8 @@ a fly-out. **Ungroup** puts its contents back on the strip where the group was.
 - **UI smoke tests need a real desktop.** They launch the app and drive it through UI Automation,
   so they can't run headless or over a lock screen, and they're excluded from the solution and
   opt-in for that reason — including in CI, where they need a self-hosted windowed runner.
-- **Unsigned releases.** There's no code-signing certificate yet, so SmartScreen warns on first
-  run; `scripts/package-release.ps1` can sign a build once one exists. The update check tells you a
-  new version is out but never installs it. x64 and ARM64 are both built; there's no x86 build.
-
-## Roadmap / future enhancements
-
-The original roadmap has been worked through — see the `[Unreleased]` section of
-[`CHANGELOG.md`](CHANGELOG.md) for what landed and, where an item turned out not to be buildable
-as written, why. What is left is below. Nothing here is committed or scheduled; comments and PRs
-are welcome — open an issue first for the bigger items.
-
-**Blocked on things code can't supply**
-
-- **Code-signed releases.** `scripts/package-release.ps1` will sign a build now
-  (`-CertificateThumbprint`), so the only thing missing is a certificate. Signing removes the
-  SmartScreen warning on first run and is a prerequisite for a smooth winget/Store listing.
-- **Store / winget availability** — the manifests are staged under `packaging/winget/` and
-  `-p:StorePackage=true` builds the MSIX, but landing them means a signed release plus a PR to
-  `microsoft/winget-pkgs` and a Store submission (notes in `docs/`).
-- **Native-speaker review of the eight translations**, which are machine-assisted throughout, and
-  more languages beyond them (`src/Anchor/Strings/en.json` is the template).
-- **Run the UI smoke tests in CI.** The job exists in `.github/workflows/ci.yml` but is pinned to a
-  self-hosted runner labelled `windows-desktop`: UI Automation needs an interactive desktop
-  session, which a stock hosted agent doesn't have.
-
-**Would need a different foundation**
-
-- **Icons that pop above the strip.** Magnification currently swells an icon inside its cell. Going
-  further means a window taller than the strip with a backdrop masked to the strip's shape, and the
-  dock's glass is a real `DesktopAcrylicBackdrop` that paints the whole window and can't be masked.
-  A different material (or a layered window with per-pixel alpha, losing the desktop blur) would be
-  the price.
-- **Composition-driven auto-hide.** The slide is a timed, eased `AppWindow.Move` because hiding
-  moves the *window* off the screen edge and Composition animates content *inside* a window. Doing
-  it properly would mean the dock keeping a full-size window and sliding its content — which leaves
-  an invisible window over the screen edge swallowing clicks.
-
-**Still open, and buildable**
-
-- **Snap / auto-hide UI tests.** The suite covers launch, the seeded items, the Settings pages and
-  a group fly-out. Testing the hide would mean the harness moving the window and watching it slide;
-  the tray menu is a native popup with no UI Automation surface at all, so it stays manual.
-- **Multi-select on the dock** — rubber-band or Ctrl+click several icons to group, hide or move
-  them in one go, rather than one at a time.
-- **A second row.** The strip is one cell deep; a taller dock with two or three rows of icons is a
-  natural fit for a large density on a big screen.
-- **Sync the config between machines** — export/import covers the manual case; watching a folder in
-  OneDrive/Dropbox would make it automatic.
-- **A circular dock.** An alternate shape for the strip itself — items arranged around a ring
-  instead of a line, with related items/operations opening into their own layered ring one level
-  out (a group's fly-out as a surrounding arc rather than a second bar). Mainly a
-  `DockMetrics`/hit-testing and drag-reorder-angle problem rather than a glass/theming one, since
-  the acrylic backdrop and window-chrome pieces are shape-agnostic already.
+- **Releases aren't code-signed yet**, so SmartScreen may warn on first run — choose
+  *More info ▸ Run anyway*. x64 and ARM64 are both built; there's no x86 build.
 
 ## Contributing
 

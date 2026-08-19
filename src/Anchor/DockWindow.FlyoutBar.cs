@@ -71,12 +71,17 @@ public sealed partial class DockWindow
     /// <param name="OnDragOut">Called when a cell is dragged clear of the bar, which is how an
     /// item is taken back out of a group. Null means the bar has nothing to drag out of it (a
     /// folder bar is a view of the disk, not a container).</param>
+    /// <param name="KeepDockInteractive">Lets pointer input over the dock strip keep reaching the
+    /// dock while the bar is up, instead of being swallowed by the fly-out's light-dismiss layer
+    /// — see <see cref="ShowDockBarFlyout"/>. A group bar needs it (hover has to keep working
+    /// underneath it); a folder bar, which is click-only, does not.</param>
     private sealed record DockBarOptions(
         IReadOnlyList<DockItem> Items,
         string EmptyText,
         Func<DockItem, bool>? OnActivate = null,
         Action<FrameworkElement, DockItem, Flyout, ContextRequestedEventArgs>? OnContext = null,
-        Action<DockItem>? OnDragOut = null);
+        Action<DockItem>? OnDragOut = null,
+        bool KeepDockInteractive = false);
 
     /// <summary>Opens a bar for the icon <paramref name="anchor"/>, clear of the dock's border.</summary>
     private Flyout ShowDockBarFlyout(FrameworkElement anchor, DockBarOptions options)
@@ -92,6 +97,18 @@ public sealed partial class DockWindow
             // position instead of being clipped to the strip it came out of.
             ShouldConstrainToRootBounds = false,
         };
+
+        // A light-dismiss fly-out puts an invisible input layer over everything outside itself,
+        // and the dock strip is outside itself. Left alone, opening the bar cuts the strip off
+        // from the pointer entirely: TrackStripPointer stops being called, the strip reports the
+        // cursor as having left, and a hover-opened bar closes a beat later — whereupon the
+        // strip gets the pointer back, sees the cursor still parked on the group icon, and opens
+        // the bar again. That loop is what made a hovered group flicker open and shut. Naming the
+        // dock's root as the pass-through element carves the dock back out of that layer (the
+        // same mechanism a MenuBar uses to swap menus under the cursor), so hover tracking and
+        // clicks on the strip keep working while the bar is up. Must be set before ShowAt.
+        if (options.KeepDockInteractive)
+            flyout.OverlayInputPassThroughElement = RootGrid;
 
         flyout.Content = options.Items.Count == 0
             ? EmptyBarContent(options.EmptyText)

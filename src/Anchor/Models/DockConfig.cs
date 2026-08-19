@@ -101,6 +101,14 @@ public sealed class DockConfig
     public bool Magnify { get; set; }
 
     /// <summary>
+    /// Opens a group's fly-out as the cursor passes over its icon, and closes it again once the
+    /// cursor leaves both the icon and the bar. On by default. Off makes a group strictly
+    /// click-driven instead: one click opens its fly-out, a second click (or clicking elsewhere)
+    /// closes it, and hovering does nothing either way — see <c>DockWindow.ToggleGroupFlyout</c>.
+    /// </summary>
+    public bool GroupOpenOnHover { get; set; } = true;
+
+    /// <summary>
     /// Where the settings gear sits on every dock strip. Defaults to the trailing end, after
     /// user items and the divider.
     /// </summary>
@@ -243,6 +251,7 @@ public sealed class DockConfig
         Density = other.Density;
         AccentTint = other.AccentTint;
         Magnify = other.Magnify;
+        GroupOpenOnHover = other.GroupOpenOnHover;
         SettingsPosition = other.SettingsPosition;
         ShowItemLabels = other.ShowItemLabels;
         ItemHotkeysEnabled = other.ItemHotkeysEnabled;

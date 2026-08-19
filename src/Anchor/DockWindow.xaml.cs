@@ -151,6 +151,7 @@ public sealed partial class DockWindow : Window
             _slideTimer?.Stop();
             _dragTimer?.Stop();
             _dragOutTimer?.Stop();
+            _groupCloseTimer?.Stop();
             _visualAnimTimer?.Stop();
             DockItemAnimations.ShowLabelsChanged -= _showLabelsHandler;
             _backdrop?.Dispose();
@@ -681,10 +682,11 @@ public sealed partial class DockWindow : Window
         if (item is null)
             return;
 
-        // A group has nothing to launch: it opens its fly-out over the icon that was clicked.
+        // A group has nothing to launch: a click toggles its fly-out over the icon that was
+        // clicked — open if it wasn't already the one showing, closed if it was.
         if (item.IsGroup)
         {
-            ShowGroupFlyout((FrameworkElement)sender, item);
+            ToggleGroupFlyout((FrameworkElement)sender, item);
             return;
         }
 

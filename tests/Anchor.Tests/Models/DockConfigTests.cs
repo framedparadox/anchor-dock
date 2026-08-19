@@ -339,6 +339,7 @@ public class DockConfigTests
         Assert.False(cfg.ItemHotkeysEnabled);
         Assert.Equal(string.Empty, cfg.SearchHotkey);
         Assert.False(cfg.CheckForUpdates);
+        Assert.True(cfg.GroupOpenOnHover); // groups already opened on hover before this was a setting
     }
 
     [Fact]
@@ -357,6 +358,7 @@ public class DockConfigTests
             ItemHotkeysEnabled = true,
             AccentTint = true,
             Magnify = true,
+            GroupOpenOnHover = false,
             LaunchAtStartup = true,
             ShowRunningIndicators = false,
             CheckForUpdates = true,
@@ -378,6 +380,7 @@ public class DockConfigTests
         Assert.True(target.ItemHotkeysEnabled);
         Assert.True(target.AccentTint);
         Assert.True(target.Magnify);
+        Assert.False(target.GroupOpenOnHover);
         Assert.True(target.LaunchAtStartup);
         Assert.False(target.ShowRunningIndicators);
         Assert.True(target.CheckForUpdates);

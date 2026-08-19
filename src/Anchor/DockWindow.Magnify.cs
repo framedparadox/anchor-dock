@@ -99,6 +99,8 @@ public sealed partial class DockWindow
         bool magnify = MagnifyActive;
         double edge = 0;
         int index = 0;
+        DockItem? hoveredGroup = null;
+        FrameworkElement? hoveredGroupAnchor = null;
         foreach (var item in Items)
         {
             double extent = item.CellExtent;
@@ -115,15 +117,24 @@ public sealed partial class DockWindow
             {
                 var element = ItemsHost.TryGetElement(index) as FrameworkElement;
                 SetFastTooltip(element, true);
-                // A group has nothing to launch on its own; landing the cursor on it is enough to
-                // open its fly-out, the same one a click would — see ShowGroupFlyout.
+                // A group has nothing to launch on its own: the cursor landing on it is what opens
+                // its fly-out, when the setting allows. Reported rather than acted on here — what
+                // a hovered group means (open it, leave it, or hold it shut because a click just
+                // closed it) is TrackGroupHover's call, not this loop's.
                 if (item.IsGroup && element is not null)
-                    ShowGroupFlyout(element, item);
+                {
+                    hoveredGroup = item;
+                    hoveredGroupAnchor = element;
+                }
             }
 
             edge += extent + CellSpacing;
             index++;
         }
+
+        // Null when the cursor landed on a non-group cell or on nothing at all — which is what
+        // takes it off whichever group icon opened the current bar, and so a candidate to close.
+        TrackGroupHover(hoveredGroupAnchor, hoveredGroup);
 
         EnsureVisualAnimationRunning();
     }
@@ -138,6 +149,7 @@ public sealed partial class DockWindow
             item.SetMagnification(1);
         }
         SetFastTooltip(null, false);
+        TrackGroupHover(null, null);
         EnsureVisualAnimationRunning();
     }
 
