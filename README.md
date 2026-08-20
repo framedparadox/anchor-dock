@@ -1,35 +1,84 @@
 <div align="center">
 
+<img src="img/logo.png" alt="Anchor" width="128">
+
 # Anchor
+
+**Drop anchor. Launch anything.**
+
+A native **WinUI 3**  dock for Windows.
+Pin the apps, files, folders and web links you actually reach for. Snap the strip to any
+edge of any monitor. It tucks itself away (behind the taskbar, if you like) until you
+whistle for it with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd>.
+
+One dock, or one per screen. Eight languages. Groups that fly out like a second dock.
+Search that filters every pin at once. **No accounts, no telemetry, no ads, no admin rights.**
+
+<p>
+  <a href="https://github.com/framedparadox/anchor-dock/releases/latest"><strong>Download the latest zip</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#install">Install</a>
+  &nbsp;·&nbsp;
+  <a href="#features">Features</a>
+  &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">What's new</a>
+  &nbsp;·&nbsp;
+  <a href="docs/privacy-policy.md">Privacy</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/framedparadox/anchor-dock/issues">Issues</a>
+</p>
 
 [![Release](https://img.shields.io/github/v/release/framedparadox/anchor-dock?label=release)](https://github.com/framedparadox/anchor-dock/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%20%C2%B7%20x64%20%C2%B7%20ARM64-0078D4)](#requirements)
 [![Built with](https://img.shields.io/badge/.NET%2010%20%C2%B7%20WinUI%203-512BD4)](#requirements)
+[![CI](https://img.shields.io/github/actions/workflow/status/framedparadox/anchor-dock/ci.yml?branch=release&label=CI)](https://github.com/framedparadox/anchor-dock/actions)
+[![Languages](https://img.shields.io/badge/languages-8-lightgrey)](#features)
 
-Developed by **[ajaykontham](https://github.com/ajaykontham
+English · Deutsch · Español · Français · हिन्दी · 日本語 · Português (Brasil) · 简体中文
+
+<br>
+
+<img src="img/dock-dark.png" alt="Anchor floating as a strip above the Windows taskbar - Dark" width="460">
+<img src="img/dock-light.png" alt="Anchor floating as a strip above the Windows taskbar - Light" width="460">
 
 </div>
 
-A floating dock for Windows 11, built with **WinUI 3 / Windows App SDK**. It floats a
-compact, glass "strip" above the taskbar that holds apps, files, folders, and web links —
-launch anything with a click. Run one, or one per monitor.
+<table>
+<tr>
+<td align="center" width="25%"><strong>Glass that is glass</strong><br><sub>Desktop acrylic, not a fake blur. Light, dark, or follow Windows.</sub></td>
+<td align="center" width="25%"><strong>One dock per ocean</strong><br><sub>A strip per monitor, each with its own pins, edge and hide behaviour.</sub></td>
+<td align="center" width="25%"><strong>A harbour, not a list</strong><br><sub>Groups and folder stacks open as a second dock, not a menu.</sub></td>
+<td align="center" width="25%"><strong>Yours, on this PC</strong><br><sub>No account. No telemetry. Favicons are the only network call by default.</sub></td>
+</tr>
+</table>
 
-The glass is the **real Windows 11 acrylic material** (the same `DesktopAcrylicBackdrop`
-the shell uses), so it blurs the desktop behind it. Pick a **light**, **dark** (default) or
-**system-following** theme from Settings.
+---
 
-![The dock](docs/dock.png)
+## Why a dock?
 
-Free and open source (MIT). No accounts, no telemetry, no ads and no admin rights — out of the box
-the only thing Anchor sends over the network is a request for a web link's favicon, and the one
-other thing that ever could (an update check) is off until you switch it on (see
-[Privacy & data](#privacy--data)).
+Windows already has a taskbar. Anchor is the strip you build for the handful of things you
+*actually* launch — then it gets out of the way.
+
+| | Taskbar | Anchor |
+|---|---|---|
+| Apps | Pin, yes | Pin, plus **files, folders, web links, shortcuts, separators and groups** |
+| Layout | One bar, bottom (or a side) | **Float**, or snap to **any edge of any monitor** |
+| Hide | Auto-hide the whole taskbar | Tucks **behind that edge** — at the bottom, behind the taskbar, with a small **notch** |
+| Density | One row of apps | Groups open a **fly-out dock**; folders can stack macOS-style |
+| Presence | Always on the taskbar / Alt-Tab | **Off both** — summoned from the tray or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> |
+| Search | Start menu | A glass card that filters **every pin on every dock** |
+| Data | Microsoft's | **`%AppData%\Anchor`**, exportable, no cloud |
+
+Free and open source (MIT). Out of the box the only thing Anchor sends over the network is a
+request for a web link's favicon, and the one other thing that ever could (an update check) is
+off until you switch it on in `dock.json` — see [Privacy & data](#privacy--data).
 
 ---
 
 ## Table of contents
 
+- [Gallery](#gallery)
 - [Features](#features)
 - [Install](#install)
 - [Requirements](#requirements)
@@ -41,11 +90,36 @@ other thing that ever could (an update check) is off until you switch it on (see
 - [Privacy & data](#privacy--data)
 - [Security notes](#security-notes)
 - [Troubleshooting](#troubleshooting)
+- [Architecture](#architecture)
 - [FAQ](#faq)
 - [Known limitations](#known-limitations)
+- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Credits & support](#credits--support)
 - [License](#license)
+
+---
+
+## Gallery
+
+
+The Add window (seven types — app, file, folder, web link, shortcut, separator, group) and Quick Search :
+
+| Add to Dock | Quick Search |
+|---|---|
+| ![Add to Dock](img/addToDock.png) | ![Quick Search](img/quick-search.png) |
+
+Settings is a Windows-Settings-style window (Mica, left navigation) with six pages.
+Appearance has since gained gear position, group-on-hover and item-name toggles in place of the
+old glass-frost slider:
+
+| General | Appearance | Shortcuts |
+|---|---|---|
+| ![Settings ▸ General](img/s-general.png) | ![Settings ▸ Appearance](img/s-appearance.png) | ![Settings ▸ Shortcuts](img/s-shortcuts.png) |
+
+| Docks | Apps & links | About |
+|---|---|---|
+| ![Settings ▸ Docks](img/s-docks.png) | ![Settings ▸ Apps & links](img/s-appsAndLinks.png) | ![Settings ▸ About](img/s-about.png) |
 
 ---
 
@@ -55,11 +129,13 @@ other thing that ever could (an update check) is off until you switch it on (see
   translucent even though a dock is never the focused window, with the DWM border rim suppressed
   so there's no outline around the rounded glass in any theme.
 - **Theme** — choose **Light**, **Dark** (default) or **System** (follow the Windows setting)
-  from Settings ▸ General. The dock, its glass and the Settings/Add windows all switch together;
+  from Settings ▸ Appearance. The dock, its glass and the Settings/Add windows all switch together;
   a High Contrast accessibility theme always overrides it.
 - **Rounded corners** — the native Windows 11 window rounding (DWM).
 - **Taskbar-sized icons** — 24 px icons in 40 px cells by default, matching the Windows 11
   taskbar; Settings ▸ Appearance offers a smaller and a larger size too.
+- **Item names** — tooltips on hover by default; Settings ▸ Appearance ▸ *Show item names* keeps
+  the label visible under every icon.
 - **Tray icon** — Anchor sits in the notification area while it runs. **Left-click** brings the
   dock to the front (even when it's tucked behind a screen edge); **right-click** gives you
   *Show/Hide dock*, *Search…*, *Add new…*, *Settings…* and *Quit Anchor*. Since the dock is
@@ -83,9 +159,9 @@ other thing that ever could (an update check) is off until you switch it on (see
   horizontal dock, horizontal out of a side-snapped one) and always away from the edge it's
   snapped to. Fill a group by **dragging an icon onto it**, or with *Move to group* on an item's
   right-click menu; drag a cell sideways out of an open bar to put it back on the strip. A group's
-  own menu offers *Ungroup*.
+  own menu offers *Ungroup*. Settings ▸ Appearance ▸ *Open groups on hover* (on by default) opens
+  the bar as soon as the cursor lands on the icon; turn it off and a click both opens and closes.
 
-  ![A group's fly-out bar opened above the dock](docs/group-flyout.png)
 - **Folder fly-outs** — turn on *Show folder contents* for a folder and it lists what's inside it
   in the same bar instead of opening Explorer, macOS-stack style. Click a subfolder to drill in,
   right-click an entry to pin it to the dock, and the last cell always opens the real folder in
@@ -94,6 +170,7 @@ other thing that ever could (an update check) is off until you switch it on (see
   card that filters every item on every dock. Type, arrow to the one you want, Enter to launch;
   Esc or clicking away dismisses it. Also on the dock's and the tray's right-click menus, so it is
   reachable before you have assigned a shortcut.
+
 - **Per-item shortcuts** — give any icon its own system-wide combination from *Shortcut* on its
   right-click menu, including items tucked inside a group. Off by default behind one master switch,
   since every shortcut claims a combination from every other app; Settings ▸ Shortcuts lists the
@@ -101,6 +178,8 @@ other thing that ever could (an update check) is off until you switch it on (see
 - **Icon size, accent tint and magnification** — Settings ▸ Appearance offers **Small / Medium /
   Large** cells (Medium matches the taskbar), an **accent tint** switch for the acrylic, and
   macOS-style **magnification** that swells icons under the cursor.
+- **Gear at the start or the end** — Settings ▸ Appearance (or *Gear to start/end* on the dock's
+  right-click menu) moves the settings button to either end of the strip.
 - **Drop a file onto an icon** — dropping a file on an **app** opens it with that app, the way
   dropping it on an exe in Explorer does; dropping one on a **group** files it in there. The target
   icon swells to say which will happen.
@@ -108,10 +187,11 @@ other thing that ever could (an update check) is off until you switch it on (see
   custom icon, arguments or shortcut.
 - **Import / export** — Settings ▸ General saves every dock, item and setting to a file and
   restores one, which is how you move a dock to another PC.
-- **Opt-in update check** — off by default; when you turn it on, Anchor asks GitHub whether a
-  newer release exists and offers you the download page. It never downloads or installs anything
-  (see [Privacy & data](#privacy--data)). Not present in the Microsoft Store build, which the
-  Store keeps up to date itself.
+- **Opt-in update check** — off by default. Set `"CheckForUpdates": true` in `dock.json` and the
+  portable build asks GitHub whether a newer release exists; if one does, a tray item and an About
+  banner offer the download page. It never downloads or installs anything (see
+  [Privacy & data](#privacy--data)). Not present in the Microsoft Store build, which the Store
+  keeps up to date itself.
 - **Running-app indicators** — a dot under an app that's already open, and a click that brings its
   window forward instead of starting a second copy. **Shift+click** starts a new instance anyway,
   the way the Windows 11 taskbar does. Turn the whole thing off in Settings ▸ General.
@@ -121,17 +201,17 @@ other thing that ever could (an update check) is off until you switch it on (see
   a glyph from the built-in set), and *Use the default icon* on the right-click menu puts the shell
   or favicon icon back.
 - **Settings window** — a gear button opens a Windows-Settings-style window (Mica, left
-  navigation) with a **General** page (theme, language, running-app indicators, start-with-Windows,
-  update check, import/export, reset), an **Appearance** page (icon size, glass, accent tint,
-  magnification), a **Shortcuts** page (the summon shortcut, quick-launch search, and the master
-  switch plus a list for per-item shortcuts), a **Docks** page (one card per dock: name, monitor,
-  position, transpose-on-side-edges, auto-hide, always-on-top, remove), an **Apps & links** page
-  that lists every entry — grouped by dock, with a group's contents indented — with a show/hide
-  switch and a remove button, and an **About** page (version + a plain-language privacy summary).
+  navigation) with a **General** page (language, running-app indicators, start-with-Windows,
+  import/export, reset), an **Appearance** page (theme, icon size, gear position, magnification,
+  group-on-hover, item names, accent tint), a **Shortcuts** page (the summon shortcut, quick-launch
+  search, and the master switch plus a list for per-item shortcuts), a **Docks** page (one card per
+  dock: name, monitor, position, transpose-on-side-edges, auto-hide, always-on-top, remove), an
+  **Apps & links** page that lists every entry — grouped by dock, with a group's contents indented
+  — with a show/hide switch and a remove button, and an **About** page (version, source/issue/license
+  links, and a privacy expander).
 - **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
   link / shortcut / separator / group**, with a type picker, Browse, and auto-suggested names.
 
-  ![The Add to Dock window's type picker](docs/add-to-dock.png)
 - **Automatic icons** — apps, files and folders use the Windows shell icon (the same icon
   Explorer shows); web links auto-fetch the site's **favicon**, cached to disk so it downloads
   once and still shows offline.
@@ -165,16 +245,6 @@ other thing that ever could (an update check) is off until you switch it on (see
 - **Persistent** — items, position, snap state and settings are saved to JSON and restored next launch.
 - **Out of the way** — borderless, always-on-top, hidden from the taskbar and Alt-Tab.
 
-The Settings window (Mica, Windows-Settings-style left navigation) has six pages:
-
-| General | Appearance | Shortcuts |
-|---|---|---|
-| ![Settings ▸ General](docs/settings-general.png) | ![Settings ▸ Appearance](docs/settings-appearance.png) | ![Settings ▸ Shortcuts](docs/settings-shortcuts.png) |
-
-| Docks | Apps & links | About |
-|---|---|---|
-| ![Settings ▸ Docks](docs/settings-docks.png) | ![Settings ▸ Apps & links](docs/settings-apps.png) | ![Settings ▸ About](docs/settings-about.png) |
-
 ## Install
 
 Anchor is **portable** — there is no installer, no setup wizard and nothing written outside your
@@ -201,9 +271,8 @@ Notes:
 - **Uninstalling** — quit Anchor, turn off *Start with Windows* first (or delete the `Anchor` value
   under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`), then delete the extracted folder and
   `%AppData%\Anchor`.
-
-A `winget` package (`ajaykontham.Anchor`) is prepared but not yet accepted into the public
-`microsoft/winget-pkgs` repository, so for now the release zip is the way to install.
+- First-run SmartScreen may warn because releases are **not code-signed yet** — choose
+  *More info ▸ Run anyway*. See [Known limitations](#known-limitations).
 
 ## Requirements
 
@@ -247,7 +316,8 @@ pwsh scripts/package-release.ps1 -Architecture x64   # or arm64
 It publishes to `publish\Anchor-win-<arch>\`, zips each to `dist\Anchor-win-<arch>-<version>.zip`
 and prints each zip's SHA-256. The version comes from
 [`src/Anchor/Anchor.csproj`](src/Anchor/Anchor.csproj) — bump `<Version>`, `<FileVersion>` and
-`<AssemblyVersion>` together, since Settings ▸ About reads the assembly version.
+`<AssemblyVersion>` together, since Settings ▸ About reads the assembly version. Current version:
+**1.2.0**.
 
 ## Tests
 
@@ -295,8 +365,7 @@ with it. Notes:
   WinUI 3's automation peers directly.
 
 The network / registry pieces (`IconService`'s favicon fetch, `StartupService`) remain
-integration-shaped and are verified by manual testing (see *Using it*); the reasoning is
-documented in `docs/design-guidelines-review.md`.
+integration-shaped and are verified by manual testing.
 
 ## Using it
 
@@ -420,6 +489,8 @@ right then. Nothing is lost, and nothing needs doing by hand.
   "AccentTint": false,           // tint the glass with the Windows accent colour
   "Magnify": false,              // swell icons under the cursor
   "GroupOpenOnHover": true,      // groups open on hover as well as on click
+  "SettingsPosition": "Trailing",// Trailing | Leading — gear at the end or the start of the strip
+  "ShowItemLabels": false,       // always draw names under icons (off = tooltip on hover)
   "CheckForUpdates": false,      // opt-in: ask GitHub for a newer release at startup. Ignored by
                                  //   the Store build, which updates through the Store
   "SkippedUpdate": "",           // a version the user chose not to be reminded about
@@ -460,6 +531,8 @@ file across too (or use a built-in glyph from the icon picker, which travels ins
 ## Privacy & data
 
 Anchor runs entirely on your PC. There are **no accounts, no telemetry, no analytics, and no ads**.
+The full policy is in [`docs/privacy-policy.md`](docs/privacy-policy.md), which is also what the
+Store listing points at and what **Settings ▸ About ▸ Privacy policy** opens.
 
 - **Your data stays local.** Items, layout and settings live in `%AppData%\Anchor\dock.json`
   and never leave your device.
@@ -470,16 +543,12 @@ Anchor runs entirely on your PC. There are **no accounts, no telemetry, no analy
   `%AppData%\Anchor\IconCache\` so a site is contacted at most once. If you never add a web link,
   Anchor makes no network requests at all.
 - **The update check is the only other thing that can reach the network, and it is off until you
-  turn it on.** With **Settings ▸ General ▸ Check for updates** enabled, Anchor asks the public
+  turn it on.** With `"CheckForUpdates": true` in `dock.json`, the portable build asks the public
   GitHub releases API (`api.github.com/repos/framedparadox/anchor-dock/releases/latest`) once at
   startup whether a newer version exists. No token, no account, no identifier beyond the HTTP
   request itself; nothing is uploaded, and nothing is ever downloaded or installed for you — the
-  most it does is open the release page in your browser. Leave the switch off and it never runs.
-  The **Microsoft Store build has no update check at all** — the Store updates it — so there the
-  setting is not merely off, it isn't shown.
-
-The full policy is in [`docs/privacy-policy.md`](docs/privacy-policy.md), which is also what the
-Store listing points at and what **Settings ▸ About ▸ Privacy policy** opens.
+  most it does is open the release page in your browser. Leave it off (the default) and it never
+  runs. The **Microsoft Store build has no update check at all** — the Store updates it.
 - **Launching is a hand-off to Windows.** Opening an item hands it to the shell exactly as
   double-clicking it in Explorer would; Anchor does not read your files' contents. A folder
   fly-out lists a folder's file *names* to draw its icons; it does not open the files.
@@ -522,25 +591,57 @@ The same summary is available in-app under **Settings ▸ About ▸ Privacy**.
 - **An app that's clearly running has no dot.** The indicator needs a resolvable executable — a
   shortcut to a Store app or a control-panel item has none. It's also a 2-second poll, so give it
   a moment. Turn the feature off entirely in **Settings ▸ General**.
+- **SmartScreen warns on first run.** Releases aren't code-signed yet. Choose *More info ▸ Run
+  anyway*. The warning should clear after Windows has seen the binary a few times.
 - **Reset everything.** Close Anchor and delete `%AppData%\Anchor\dock.json`, or use
   **Settings ▸ General ▸ Reset dock to defaults** (which asks for confirmation first, and closes
   any extra docks along with clearing the first).
 
-## Notes / design decisions
+## Architecture
+
+```mermaid
+flowchart LR
+  App["App.xaml"] --> DM[DockManager]
+  DM --> DW["DockWindow × N"]
+  DM --> Tray[Tray icon]
+  DM --> HK[Global hotkeys]
+  DM --> Settings
+  DM --> Search
+  DM --> Store["dock.json"]
+  DW --> Acrylic[Desktop acrylic]
+  DW --> Flyout[Group / folder bars]
+```
+
+App-wide state — config file, tray icon, global shortcut, running-app poll, Settings/Add windows —
+belongs to `DockManager`; each `DockWindow` is purely one strip and its own placement.
+
+<details>
+<summary>Design decisions</summary>
 
 - **Always-on glass.** WinUI normally collapses acrylic to a flat fallback color when its window
   is deactivated. Since a dock is never the foreground window, `AcrylicBackdropManager` keeps the
   `DesktopAcrylicController` alive so the glass never falls back.
-- **One manager, N docks.** App-wide state — config file, tray icon, global shortcut, running-app
-  poll, Settings/Add windows — belongs to `DockManager`; each `DockWindow` is purely one strip and
-  its own placement.
+- **Sizing.** The window is auto-sized to its content. The strip size is computed
+  *analytically* — by summing each cell's own extent (`DockItem.CellExtent`, since a separator's
+  slot is narrower than an icon's) rather than by measuring the live tree.
+- **Reorder is measured against the *other* items.** With mixed cell widths, mapping the cursor
+  onto a slot by walking the current order oscillates whenever a wide icon crosses a narrow
+  separator. Instead the drag walks the layout with the dragged item excluded and inserts where
+  the cursor passes each remaining item's midpoint.
 - **A dock's monitor is its coordinates.** No display id is stored; the monitor is whichever
   screen `FreeX`/`FreeY` land on, since display ids aren't stable across sessions or re-plugs.
+- **Running-app detection walks windows, not processes.** `RunningAppService` enumerates visible,
+  un-owned, titled, non-tool top-level windows and maps each to its process's image path.
 - **Single instance, scoped to the data directory.** A named mutex keyed by the data directory
   stops a second launch from stacking a duplicate set of docks, while a copy pointed at its own
   `ANCHOR_DATA_DIR` still runs independently.
 - **Localization is a plain JSON dictionary**, not PRI/`.resw` — the app ships unpackaged and the
   language is a runtime app setting rather than the Windows display language.
+- **One hidden HWND for shell messages.** The tray icon and `RegisterHotKey` both deliver their
+  events as window messages, and a WinUI 3 `Window` exposes no `WndProc`. `MessageWindow` creates
+  a single never-shown popup window on the UI thread to receive them.
+
+</details>
 
 <details>
 <summary>Source layout</summary>
@@ -605,7 +706,7 @@ src/Anchor/
   Interop/
     NativeMethods.cs           Win32/DWM P/Invoke (corners, Z-order, DPI, cursor, shell icons,
                                tray icon, popup menus, global hotkeys, window/process enumeration).
-  Assets/Anchor.ico            Win32 app icon (ApplicationIcon), generated from docs/anchor - v2.png.
+  Assets/Anchor.ico            Win32 app icon (ApplicationIcon).
   Images/                      MSIX tile/logo set (StorePackage=true builds only), same source.
   Package.appxmanifest         MSIX manifest for Store packaging (placeholder identity).
 tests/Anchor.Tests/            xUnit unit tests for the pure-logic Models/Services.
@@ -616,7 +717,7 @@ scripts/package-release.ps1    Self-contained publish → dist\Anchor-win-<arch>
 scripts/run-ui-tests.ps1       Publishes the app and runs the UI smoke tests against it.
 .github/workflows/ci.yml       Builds x64 + ARM64 and runs the unit tests on push/PR; the UI
                                tests are an opt-in job needing a self-hosted windowed runner.
-packaging/winget/manifests/    Staged winget-pkgs manifest templates (see docs/winget-deployment.md).
+packaging/winget/manifests/    Staged winget-pkgs manifest templates.
 docs/                          Screenshots, Store-deployment guide, winget guide, design review.
 .vscode/                       F5 launch + build tasks, pinned to the required x64 platform.
 Anchor.slnx                    Solution (app + unit tests).
@@ -657,6 +758,21 @@ a fly-out. **Ungroup** puts its contents back on the strip where the group was.
 
 **Does it need admin rights?** No. Everything (including "start with Windows") is per-user.
 
+**Is it on the Microsoft Store / winget?** Not yet. The MSIX and winget manifests live in this
+repo; the public zip is what ships today. See [Install](#install).
+
+**Does it work on Windows 10?** The floor is Windows 10 1809 (build 17763). It is designed and
+tested on Windows 11; acrylic, rounded corners and the Mica Settings window all look their best
+there.
+
+**How is this different from RocketDock / ObjectDock / RoundedTB?** Those are (or were) theming
+shells around the taskbar, or classic docks that fake transparency. Anchor is a **WinUI 3** app
+that uses the real Windows 11 acrylic material, lives *beside* the taskbar rather than replacing
+it, and is built to pin files and links as first-class items — not just apps.
+
+**Can I run a portable copy next to my installed one?** Yes. Point `ANCHOR_DATA_DIR` at another
+folder; the single-instance mutex is scoped to that directory.
+
 ## Known limitations
 
 - **Shortcut keys come from a fixed table.** Assignable keys are a fixed, layout-independent set
@@ -695,6 +811,13 @@ a fly-out. **Ungroup** puts its contents back on the strip where the group was.
 - **Releases aren't code-signed yet**, so SmartScreen may warn on first run — choose
   *More info ▸ Run anyway*. x64 and ARM64 are both built; there's no x86 build.
 
+## Roadmap
+
+The original roadmap has been worked through — see [`CHANGELOG.md`](CHANGELOG.md) for what landed
+and, where an item turned out not to be buildable as written, why. What is left is below. Nothing
+here is committed or scheduled; comments and PRs are welcome — open an issue first for the bigger
+items.
+
 ## Contributing
 
 Contributions are welcome. A few things that keep the bar consistent:
@@ -712,22 +835,31 @@ Contributions are welcome. A few things that keep the bar consistent:
   Win32/DWM interop and the drag/auto-hide timing.
 - UI-affecting changes can't be unit-tested here; smoke-test them on Windows and note what you
   checked (see *Using it*).
-- [`docs/design-guidelines-review.md`](docs/design-guidelines-review.md) tracks how the app measures
-  up against the Windows 11 / Fluent design guidelines — worth a look before changing the UI.
 
 ## Credits & support
 
-Developed by **[ajaykontham](https://github.com/framedparadox)**. Anchor is free and open source; bug
-reports, feature requests and translation fixes are all welcome.
+Developed by **[Ajay Kontham](https://github.com/ajaykontham)** (ʞɐ). Anchor is free and open
+source; bug reports, feature requests and translation fixes are all welcome.
 
 - **Source** — <https://github.com/framedparadox/anchor-dock>
 - **Issues / feature requests** — <https://github.com/framedparadox/anchor-dock/issues>
+- **Changelog** — [`CHANGELOG.md`](CHANGELOG.md)
+- **Privacy policy** — [`docs/privacy-policy.md`](docs/privacy-policy.md)
 - **Diagnostics to attach to a bug report** — `%Temp%\anchor.log` and, if it's about layout or
   items, your `%AppData%\Anchor\dock.json` (it contains the paths you pinned, so redact anything
   you'd rather not share).
 
+If Anchor is useful, you can support it on
+[GitHub Sponsors](https://github.com/sponsors/ajaykontham),
+[Ko-fi](https://ko-fi.com/ajaykontham),
+[Buy Me a Coffee](https://www.buymeacoffee.com/ajaykontham) or
+[Patreon](https://www.patreon.com/ajaykontham).
+
 The same links are in the app under **Settings ▸ About**.
+
+<div align="center">
 
 ## License
 
-Released under the [MIT License](LICENSE) — © ajaykontham.
+Released under the [MIT License](LICENSE) — © 2026 Ajay Kontham.
+</div>
