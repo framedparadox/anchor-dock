@@ -187,7 +187,7 @@ public sealed partial class SettingsWindow : Window
     /// change, so the user lands back where they were rather than on General.</summary>
     internal void Navigate(string tag)
     {
-        foreach (var candidate in Nav.MenuItems.OfType<NavigationViewItem>())
+        foreach (var candidate in Nav.MenuItems.Concat(Nav.FooterMenuItems).OfType<NavigationViewItem>())
         {
             if ((candidate.Tag as string) == tag)
             {
@@ -226,13 +226,6 @@ public sealed partial class SettingsWindow : Window
         HotkeySwitch.IsOn = cfg.HotkeyEnabled;
 
         RunningIndicatorsSwitch.IsOn = cfg.ShowRunningIndicators;
-        UpdatesSwitch.IsOn = cfg.CheckForUpdates;
-
-        // The Store build updates through the Store; there is nothing here for the user to decide,
-        // so the whole card goes rather than sitting there switched off.
-        UpdateCard.Visibility = DockManager.UpdateChecksSupported
-            ? Visibility.Visible
-            : Visibility.Collapsed;
 
         // Asked of Windows rather than read from the config, because the user can change it
         // outside Anchor (Task Manager ▸ Startup apps) — and on the packaged build that answer is
@@ -247,6 +240,7 @@ public sealed partial class SettingsWindow : Window
         };
         AccentTintSwitch.IsOn = cfg.AccentTint;
         MagnifySwitch.IsOn = cfg.Magnify;
+        GroupOpenOnHoverSwitch.IsOn = cfg.GroupOpenOnHover;
         SettingsPositionChoice.SelectedIndex = cfg.SettingsPosition == SettingsPosition.Leading ? 1 : 0;
         ShowItemLabelsSwitch.IsOn = cfg.ShowItemLabels;
         ItemHotkeysSwitch.IsOn = cfg.ItemHotkeysEnabled;
@@ -280,6 +274,13 @@ public sealed partial class SettingsWindow : Window
         if (_initializing)
             return;
         _manager.SetMagnify(MagnifySwitch.IsOn);
+    }
+
+    private void GroupOpenOnHoverSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _manager.SetGroupOpenOnHover(GroupOpenOnHoverSwitch.IsOn);
     }
 
     private void SettingsPositionChoice_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -402,7 +403,7 @@ public sealed partial class SettingsWindow : Window
         _summonCapture = new HotkeyCaptureButton
         {
             MinWidth = 150,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
             Label = Loc.Get("Settings.Hotkey"),
             Gesture = _manager.ConfiguredHotkey,
         };
@@ -476,12 +477,23 @@ public sealed partial class SettingsWindow : Window
 
         if (assigned.Count == 0)
         {
-            ItemHotkeyList.Children.Add(new TextBlock
+            var hint = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            hint.Children.Add(new FontIcon
+            {
+                Glyph = "", // Info
+                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                FontSize = 14,
+                Opacity = 0.7,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+            hint.Children.Add(new TextBlock
             {
                 Text = Loc.Get("Shortcuts.NoneAssigned"),
                 Style = SecondaryCaptionStyle,
                 TextWrapping = TextWrapping.Wrap,
             });
+            ItemHotkeyList.Children.Add(hint);
             return;
         }
 
@@ -542,44 +554,10 @@ public sealed partial class SettingsWindow : Window
     }
 
     // ---- Update check ------------------------------------------------------
-
-    private void UpdatesSwitch_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_initializing)
-            return;
-        _manager.SetCheckForUpdates(UpdatesSwitch.IsOn);
-    }
-
-    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
-    {
-        CheckUpdatesButton.IsEnabled = false;
-        UpdateBar.Message = Loc.Get("Update.Checking");
-        UpdateBar.Severity = InfoBarSeverity.Informational;
-        // Cleared, not just replaced: a previous check may have left "Get it / Skip" buttons in
-        // the bar, and they must not sit under a later "up to date" message.
-        UpdateBar.Content = null;
-        SetBarOpen(UpdateBar, true);
-        try
-        {
-            // promptOnly: false — the user asked, so tell them what is actually out there even if
-            // they skipped this release when it was offered on startup.
-            var release = await _manager.CheckForUpdatesAsync(promptOnly: false);
-            if (release is null)
-            {
-                UpdateBar.Message = Loc.Get("Update.UpToDate");
-                UpdateBar.Severity = InfoBarSeverity.Success;
-                UpdateBar.Content = null;
-            }
-            else
-            {
-                ShowUpdateAvailable(release);
-            }
-        }
-        finally
-        {
-            CheckUpdatesButton.IsEnabled = true;
-        }
-    }
+    //
+    // There is no manual "check now" control anymore — whether Anchor checks at all is decided by
+    // DockConfig.CheckForUpdates (see DockManager's startup check). This just surfaces a release
+    // that check already found.
 
     /// <summary>Offers a found release: a link to the download page, and a way to be left alone
     /// about this one. Nothing is downloaded or installed — Anchor is a portable zip.</summary>

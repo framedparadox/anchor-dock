@@ -638,6 +638,20 @@ public sealed class DockManager
             dock.ApplyMagnifySetting();
     }
 
+    /// <summary>
+    /// Switches every dock's group fly-outs between opening on hover and opening only on a click.
+    /// Opening reads the setting live on the next pointer move, so only the closing side needs
+    /// re-applying: a bar that a click opened before hover mode came on has no hover watch on it,
+    /// and would otherwise go on ignoring the cursor until it was closed and opened again.
+    /// </summary>
+    public void SetGroupOpenOnHover(bool on)
+    {
+        Config.GroupOpenOnHover = on;
+        Save();
+        foreach (var dock in _docks)
+            dock.ApplyGroupOpenOnHoverSetting();
+    }
+
     public void SetSettingsPosition(SettingsPosition position)
     {
         Config.SettingsPosition = position;

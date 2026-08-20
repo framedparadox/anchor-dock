@@ -6,6 +6,45 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Round 5 — a group's fly-out stops flickering, and hover becomes a setting
+
+#### Fixed
+
+- **A hovered group's fly-out flickered open and shut** for as long as the cursor rested on the
+  icon. Opening the bar makes the strip fire `PointerExited` — the fly-out's light-dismiss layer
+  takes the pointer for a moment as the bar comes up — with the cursor still squarely on the icon,
+  and the close that fired on that report was undone by the next pointer move, over and over. The
+  bar now stays up on the answer to "where is the cursor actually?", polled against the icon's own
+  screen rectangle (`DockWindow.CursorIsOverGroupTrigger`) rather than on a pointer event that
+  cannot be trusted at exactly this moment. The dock is also named as the bar's
+  `OverlayInputPassThroughElement`, so the strip keeps seeing the cursor underneath an open bar
+  instead of being cut off from it.
+- **A second click on a group re-opened the bar it had just closed.** The press that lands on the
+  icon light-dismisses the bar on its way through, so the click handler found nothing left to
+  toggle and opened it again; and in hover mode the cursor was still on the icon afterwards, ready
+  to re-open it in any case. A close counts as belonging to the click that caused it, and hover is
+  held off that icon until the cursor leaves it — so first click shows the bar, second click hides
+  it, whichever mode is on.
+
+#### Added
+
+- **Settings ▸ Appearance ▸ *Open groups on hover***, a toggle alongside *Magnify on hover*. On
+  by default, which is how groups already behaved; off ignores the cursor entirely and leaves a
+  click to both open and close the bar. Stored as `GroupOpenOnHover` in `dock.json`.
+
+### Round 4 — group fly-outs open on hover
+
+#### Added
+
+- **A group's fly-out now opens as soon as the cursor lands on its icon**, the same bar a click
+  already opened — closing the gap called out in Round 1's known limits. It rides the same
+  per-move tracking that drives the hover highlight and the fast tooltip
+  (`DockWindow.TrackStripPointer`), so it needs no dwell timer or separate pointer subscription.
+  Landing on a *different* group while one is already open swaps straight to it — closing the
+  first bar and opening the second — the way a menu bar swaps top-level menus under the cursor.
+  Re-hovering (or clicking) the group already showing is a no-op rather than a restart of the same
+  content. A folder fly-out is unaffected and still opens on click only.
+
 ### Round 3 — Microsoft Store readiness
 
 A compliance and correctness pass over the MSIX/Store path. Two of these are behavior bugs that

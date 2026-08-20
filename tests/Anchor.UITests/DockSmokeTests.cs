@@ -155,11 +155,255 @@ public sealed class DockSmokeTests
         using var app = AnchorApp.Launch();
         var dock = app.WaitForDock();
 
+        var group = CreateGroupWithFileExplorer(app, dock);
+        AnchorApp.Press(group);
+
+        var child = AnchorApp.Retry(() => AnchorApp.FindButtonByName(dock, "File Explorer"));
+        Assert.NotNull(child);
+    }
+
+    [UIFact]
+    public void A_group_opens_a_fly_out_bar_on_hover_too()
+    {
+        // Same fly-out as above, but landed on rather than clicked: the strip's own pointer
+        // tracking (DockWindow.TrackStripPointer) opens a group's bar as soon as the cursor is
+        // over its icon, so the bar comes up without an Invoke/Click at all.
+        using var app = AnchorApp.Launch();
+        var dock = app.WaitForDock();
+
+        var group = CreateGroupWithFileExplorer(app, dock);
+        FlaUI.Core.Input.Mouse.MoveTo(group.GetClickablePoint());
+
+        var child = AnchorApp.Retry(() => AnchorApp.FindButtonByName(dock, "File Explorer"));
+        Assert.NotNull(child);
+    }
+
+    // ---- Group fly-out: hover, and click ----------------------------------
+    //
+    // These drive the physical cursor rather than the invoke pattern, because the behavior under
+    // test IS pointer behavior: the bar is a light-dismiss fly-out, and how it reacts to the
+    // cursor arriving on the icon, crossing to the bar, leaving both, or pressing while it is
+    // already up is exactly what has been getting this wrong. An Invoke would skip all of it.
+    //
+    // The dock is seeded with the group already in it (see GroupDockJson) instead of built
+    // through Settings and the new-group window: that route is a long way to travel before the
+    // behavior under test is even reachable, and every step of it is a chance to fail for an
+    // unrelated reason.
+
+    /// <summary>A floating dock holding one group, "Group", with "File Explorer" inside it.
+    /// Targets are written with forward slashes: this is JSON, where a lone backslash is an
+    /// escape, and a mis-escaped path costs the whole file — Anchor falls back to a default,
+    /// seeded config on a parse error, so the group under test would simply not be there.</summary>
+    private static string GroupDockJson(bool openOnHover) => $$"""
+    {
+      "Language": "en",
+      "Seeded": true,
+      "GroupOpenOnHover": {{(openOnHover ? "true" : "false")}},
+      "Docks": [
+        {
+          "Name": "Dock 1",
+          "Snapped": false,
+          "AutoHide": false,
+          "FreeX": 400,
+          "FreeY": 240,
+          "Items": [
+            {
+              "Kind": "Group",
+              "DisplayName": "Group",
+              "Children": [
+                {
+                  "Kind": "Application",
+                  "DisplayName": "File Explorer",
+                  "Target": "C:/Windows/explorer.exe"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    """;
+
+    /// <summary>
+    /// A point well clear of both the dock and the bar it opens. Below the dock on purpose: the
+    /// bar opens upward out of a floating dock, so "below" is away from both at once.
+    /// </summary>
+    private static System.Drawing.Point AwayFromTheDock(Window dock) => new(
+        dock.BoundingRectangle.Left + dock.BoundingRectangle.Width / 2,
+        dock.BoundingRectangle.Bottom + 200);
+
+    /// <summary>
+    /// Lands the cursor on a dock icon, from somewhere else. The detour matters: hover is driven
+    /// by pointer <em>movement</em> over the strip, and a "move" to where the cursor already is
+    /// produces no movement at all — so a test that inherits the cursor from the one before it
+    /// would find nothing hovered and blame the app for it.
+    /// </summary>
+    private static void HoverIcon(Window dock, AutomationElement icon)
+    {
+        LeaveTheDock(dock);
+        TestMouse.GlideTo(icon.GetClickablePoint());
+        Thread.Sleep(300);
+    }
+
+    /// <summary>Takes the cursor well away from the dock and the bar, and waits out the close.</summary>
+    private static void LeaveTheDock(Window dock)
+    {
+        TestMouse.GlideTo(AwayFromTheDock(dock));
+        Thread.Sleep(300);
+    }
+
+    /// <summary>True once the group's bar is showing its one child, or once it is not.</summary>
+    private static bool BarIsOpen(Window dock) =>
+        dock.FindFirstDescendant(cf => cf.ByName("File Explorer").And(cf.ByControlType(ControlType.Button)))
+            is not null;
+
+    [UIFact]
+    public void A_group_opens_its_fly_out_bar_on_hover()
+    {
+        using var app = AnchorApp.Launch(GroupDockJson(openOnHover: true));
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        HoverIcon(dock, group!);
+
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)),
+            "Hovering the group icon did not open its fly-out bar.");
+    }
+
+    [UIFact]
+    public void A_hovered_group_bar_stays_open_while_the_cursor_is_on_the_icon()
+    {
+        // The regression this exists for: the bar's own light-dismiss layer used to cut the strip
+        // off from the pointer, so the strip decided the cursor had left, closed the bar, got the
+        // pointer back, saw the cursor still on the icon, and opened it again — a flicker for as
+        // long as the cursor sat there. Holding still for a second and finding the bar still up
+        // (and still up after that) is what says that loop is gone.
+        using var app = AnchorApp.Launch(GroupDockJson(openOnHover: true));
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        HoverIcon(dock, group!);
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)), "The bar never opened.");
+
+        for (int i = 0; i < 6; i++)
+        {
+            Thread.Sleep(250);
+            Assert.True(BarIsOpen(dock),
+                "The bar closed while the cursor was still resting on the group's icon.");
+        }
+    }
+
+    [UIFact]
+    public void A_hovered_group_bar_closes_once_the_cursor_leaves()
+    {
+        using var app = AnchorApp.Launch(GroupDockJson(openOnHover: true));
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        HoverIcon(dock, group!);
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)), "The bar never opened.");
+
+        LeaveTheDock(dock);
+
+        Assert.True(AnchorApp.WaitUntil(() => !BarIsOpen(dock)),
+            "The bar stayed open after the cursor left both it and the group's icon.");
+    }
+
+    [UIFact]
+    public void A_second_click_on_a_group_hides_its_fly_out_bar()
+    {
+        // "First click shows it, second click hides it" — the half that keeps going wrong is the
+        // second one, because the press that lands on the icon also light-dismisses the bar, so
+        // the click handler can find nothing left to toggle and open it straight back up.
+        using var app = AnchorApp.Launch(GroupDockJson(openOnHover: false));
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        HoverIcon(dock, group!);
+        var icon = group!.GetClickablePoint();
+        FlaUI.Core.Input.Mouse.Click(icon);
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)),
+            "The first click did not open the group's fly-out bar.");
+
+        FlaUI.Core.Input.Mouse.Click(icon);
+        Assert.True(AnchorApp.WaitUntil(() => !BarIsOpen(dock)),
+            "The second click did not hide the group's fly-out bar.");
+
+        // And it stays hidden: nothing may re-open it while the cursor rests on the icon.
+        Thread.Sleep(700);
+        Assert.False(BarIsOpen(dock), "The bar re-opened by itself after the second click.");
+    }
+
+    [UIFact]
+    public void A_click_closes_a_group_bar_that_hover_opened_and_it_stays_closed()
+    {
+        // Hover mode and click toggling have to coexist on the same icon, and this is where they
+        // collide: the cursor is resting on the icon — which is what hover uses to keep the bar
+        // open — at the moment the click asks for it to be closed. If the click does not also
+        // hold hover off, the very next pointer move puts the bar straight back up and the click
+        // reads as having done nothing.
+        using var app = AnchorApp.Launch(GroupDockJson(openOnHover: true));
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        HoverIcon(dock, group!);
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)), "The bar never opened on hover.");
+
+        var icon = group!.GetClickablePoint();
+        FlaUI.Core.Input.Mouse.Click(icon);
+        Assert.True(AnchorApp.WaitUntil(() => !BarIsOpen(dock)),
+            "Clicking the icon did not hide the bar hover had opened.");
+
+        // The cursor has not moved off the icon: hover must not undo the click.
+        Thread.Sleep(1200);
+        Assert.False(BarIsOpen(dock), "Hover re-opened the bar the click had just closed.");
+
+        // A further click opens it again — the toggle is not stuck shut either.
+        FlaUI.Core.Input.Mouse.Click(icon);
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)),
+            "A click did not re-open the bar.");
+
+        // And leaving re-arms hover for next time, rather than the click's suppression sticking.
+        LeaveTheDock(dock);
+        Assert.True(AnchorApp.WaitUntil(() => !BarIsOpen(dock)), "The bar stayed open on leaving.");
+        HoverIcon(dock, group!);
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)),
+            "Hover no longer opened the bar after a click had closed it earlier.");
+    }
+
+    [UIFact]
+    public void With_hover_off_a_group_ignores_the_cursor_and_waits_for_a_click()
+    {
+        using var app = AnchorApp.Launch(GroupDockJson(openOnHover: false));
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        HoverIcon(dock, group!);
+        var icon = group!.GetClickablePoint();
+        Thread.Sleep(1000);
+        Assert.False(BarIsOpen(dock), "The group opened on hover with \"On click only\" set.");
+
+        FlaUI.Core.Input.Mouse.Click(icon);
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)),
+            "A click did not open the group's fly-out bar.");
+    }
+
+    /// <summary>
+    /// Builds a group holding "File Explorer" through the Settings list — the one route to "move
+    /// to group" that does not depend on driving a context menu over the dock strip — and returns
+    /// the group's own button on the strip.
+    /// </summary>
+    private static AutomationElement CreateGroupWithFileExplorer(AnchorApp app, Window dock)
+    {
         var notepad = AnchorApp.FindButtonByName(dock, "Notepad");
         Assert.NotNull(notepad);
 
-        // Build the group through the Settings list: it is the one route to "move to group" that
-        // does not depend on driving a context menu over the dock strip.
         AnchorApp.Press(AnchorApp.FindById(dock, "AnchorSettingsButton")!);
         var settings = app.WaitForWindow("Anchor Settings");
         AnchorApp.Press(AnchorApp.FindById(settings, "SettingsNavApps")!);
@@ -178,13 +422,10 @@ public sealed class DockSmokeTests
 
         settings.Close();
 
-        // The group is now on the strip; opening it must surface the item that went into it.
+        // The group is now on the strip.
         var group = AnchorApp.FindButtonByName(dock, "Group");
         Assert.NotNull(group);
-        AnchorApp.Press(group!);
-
-        var child = AnchorApp.Retry(() => AnchorApp.FindButtonByName(dock, "File Explorer"));
-        Assert.NotNull(child);
+        return group!;
     }
 
     [UIFact]

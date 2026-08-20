@@ -59,7 +59,18 @@ public sealed class AnchorApp : IDisposable
     // ---- Lifetime ----------------------------------------------------------
 
     /// <summary>Starts Anchor with a fresh, empty data directory and waits for its dock to appear.</summary>
-    public static AnchorApp Launch()
+    public static AnchorApp Launch() => Launch("""{ "Language": "en" }""");
+
+    /// <summary>
+    /// Starts Anchor against a hand-written <c>dock.json</c>, for a test that needs the dock to
+    /// already hold something specific — a group with a child in it, say. Building that through
+    /// the UI takes a run through Settings and the new-group window, which is a lot of moving
+    /// parts to cross before the behavior actually under test is even reachable; seeding the
+    /// config puts the dock in that state before the window opens.
+    /// </summary>
+    /// <param name="dockJson">The complete config file. Set <c>"Language": "en"</c> in it (see
+    /// below), and <c>"Seeded": true</c> to suppress the first-run default items.</param>
+    public static AnchorApp Launch(string dockJson)
     {
         string exe = ExecutablePath
                      ?? throw new InvalidOperationException("ANCHOR_EXE is not set to an existing Anchor.exe.");
@@ -70,9 +81,10 @@ public sealed class AnchorApp : IDisposable
 
         // Pin the UI language. The tests look controls up by the name Narrator announces, which
         // is translated, and Anchor follows the Windows display language by default — so without
-        // this the suite would pass or fail depending on whose machine it ran on. "Seeded" is
-        // deliberately left out, so this is still a first run and the default items appear.
-        File.WriteAllText(Path.Combine(dataDirectory, "dock.json"), """{ "Language": "en" }""");
+        // this the suite would pass or fail depending on whose machine it ran on. The default
+        // config leaves "Seeded" out, so that run is still a first run and the default items
+        // appear.
+        File.WriteAllText(Path.Combine(dataDirectory, "dock.json"), dockJson);
 
         var start = new ProcessStartInfo(exe)
         {
@@ -193,6 +205,33 @@ public sealed class AnchorApp : IDisposable
 
             if (DateTime.UtcNow >= deadline)
                 return null;
+            Thread.Sleep(150);
+        }
+    }
+
+    /// <summary>
+    /// Polls until <paramref name="condition"/> holds, returning false if it never does. The form
+    /// <see cref="Retry{T}(Func{T?})"/> cannot take: an assertion that something is <em>gone</em>
+    /// has no element to return, and waiting for a null lookup to keep being null would burn the
+    /// whole timeout on every passing run.
+    /// </summary>
+    public static bool WaitUntil(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + Timeout;
+        while (true)
+        {
+            try
+            {
+                if (condition())
+                    return true;
+            }
+            catch (Exception)
+            {
+                // Same as Retry: an element can vanish mid-read. Try again until the deadline.
+            }
+
+            if (DateTime.UtcNow >= deadline)
+                return false;
             Thread.Sleep(150);
         }
     }
