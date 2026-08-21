@@ -32,8 +32,15 @@ public static class IconService
         return c;
     }
 
-    public static async Task<ImageSource?> LoadIconAsync(DockItem item)
+    /// <summary>
+    /// Resolves <paramref name="item"/>'s icon, decoded for a display at
+    /// <paramref name="rasterizationScale"/> (physical pixels per DIP — 1.0 at 96 DPI, 2.0 at
+    /// 200%). The caller supplies it because the scale belongs to the dock's own monitor, and
+    /// two docks on a mixed-DPI setup want different ones.
+    /// </summary>
+    public static async Task<ImageSource?> LoadIconAsync(DockItem item, double rasterizationScale)
     {
+        int decodeSize = TargetDecodeSize(rasterizationScale);
         try
         {
             // 0. A built-in glyph the user picked from the icon picker is final — it needs no
@@ -47,7 +54,7 @@ public static class IconService
             // normal resolution below rather than leaving the item blank.
             if (!string.IsNullOrWhiteSpace(item.CustomIconPath) && File.Exists(item.CustomIconPath))
             {
-                var custom = await FromFileAsync(item.CustomIconPath!);
+                var custom = await FromFileAsync(item.CustomIconPath!, decodeSize);
                 if (custom is not null)
                     return custom;
                 Diag.Log($"IconService: custom icon '{item.CustomIconPath}' didn't decode — using the default");
@@ -59,16 +66,16 @@ public static class IconService
                 case DockItemKind.Application:
                 case DockItemKind.File:
                     if (File.Exists(item.Target))
-                        return await ShellIconAsync(item.Target);
+                        return await ShellIconAsync(item.Target, decodeSize);
                     break;
 
                 case DockItemKind.Folder:
                     if (Directory.Exists(item.Target))
-                        return await ShellIconAsync(item.Target);
+                        return await ShellIconAsync(item.Target, decodeSize);
                     break;
 
                 case DockItemKind.WebLink:
-                    return await FaviconAsync(item.Target);
+                    return await FaviconAsync(item.Target, decodeSize);
             }
         }
         catch (Exception ex)
@@ -78,16 +85,55 @@ public static class IconService
         return null;
     }
 
+    /// <summary>Clears any cached favicon for a web link so the next load re-fetches it.</summary>
+    public static void ClearCachedIcon(DockItem item)
+    {
+        if (item.Kind != DockItemKind.WebLink)
+            return;
+        if (!Uri.TryCreate(item.Target, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Host))
+            return;
+
+        string cacheFile = Path.Combine(CacheDir, Sanitize(uri.Host) + ".ico");
+        try
+        {
+            if (File.Exists(cacheFile))
+                File.Delete(cacheFile);
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("IconService cache delete failed: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Pixel size to decode an icon at: the item's logical size, scaled for the display, then
+    /// doubled so magnification (which grows an icon well past its resting size) has real pixels
+    /// to draw rather than an upscaled blur.
+    /// <para>
+    /// The scale is passed in rather than read from <c>Window.Current</c>, which is a UWP API
+    /// that always returns null in a WinUI 3 desktop app — reading it here silently pinned every
+    /// decode to 1.0 and left icons soft on any display above 100%.
+    /// </para>
+    /// </summary>
+    private static int TargetDecodeSize(double rasterizationScale)
+    {
+        // Guard the scale rather than trust it: a caller that asks before its window has a DPI
+        // yet would otherwise decode at zero.
+        double scale = double.IsFinite(rasterizationScale) ? Math.Max(1.0, rasterizationScale) : 1.0;
+        return (int)Math.Ceiling(DockMetrics.Icon * scale * 2);
+    }
+
     /// <summary>
     /// Resolves a file, app, or folder's shell icon via pure Win32 — no WinRT Storage broker
     /// involved, so this needs no <c>broadFileSystemAccess</c> capability. Prefers the 256x256
-    /// "jumbo" icon (matching Explorer's large-icon views); falls back to the classic 32x32
-    /// icon (<see cref="NativeMethods.SHGetFileInfo"/> with <c>SHGFI_ICON</c>) if the jumbo
-    /// lookup fails for any reason.
+    /// "jumbo" icon (matching Explorer's large-icon views), then extra-large (48px), then the
+    /// classic 32x32 icon if the jumbo lookup fails for any reason.
     /// </summary>
-    private static async Task<ImageSource?> ShellIconAsync(string path)
+    private static async Task<ImageSource?> ShellIconAsync(string path, int decodeSize)
     {
-        nint hIcon = TryGetJumboIcon(path);
+        nint hIcon = TryGetShellIcon(path, NativeMethods.SHIL_JUMBO);
+        if (hIcon == nint.Zero)
+            hIcon = TryGetShellIcon(path, NativeMethods.SHIL_EXTRALARGE);
         if (hIcon == nint.Zero)
         {
             var info = new NativeMethods.SHFILEINFO();
@@ -105,7 +151,7 @@ public static class IconService
             using var bitmap = icon.ToBitmap();
             using var ms = new MemoryStream();
             bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            return await DecodeAsync(ms.ToArray());
+            return await DecodeAsync(ms.ToArray(), decodeSize);
         }
         finally
         {
@@ -115,11 +161,9 @@ public static class IconService
 
     /// <summary>
     /// Looks up <paramref name="path"/>'s index in the shell's system image list, then resolves
-    /// that index against the jumbo (256x256) list. Returns <see cref="nint.Zero"/> on any
-    /// failure — no jumbo list, path not found, etc. — which the caller treats as "fall back to
-    /// the smaller per-file icon".
+    /// that index against the requested image list size.
     /// </summary>
-    private static nint TryGetJumboIcon(string path)
+    private static nint TryGetShellIcon(string path, int imageList)
     {
         var info = new NativeMethods.SHFILEINFO();
         nint listHandle = NativeMethods.SHGetFileInfo(
@@ -129,21 +173,21 @@ public static class IconService
             return nint.Zero;
 
         var iid = NativeMethods.IID_IImageList;
-        if (NativeMethods.SHGetImageList(NativeMethods.SHIL_JUMBO, ref iid, out var imageList) != 0)
+        if (NativeMethods.SHGetImageList(imageList, ref iid, out var shellList) != 0)
             return nint.Zero;
 
-        return imageList.GetIcon(info.iIcon, NativeMethods.ILD_TRANSPARENT, out nint hIcon) == 0
+        return shellList.GetIcon(info.iIcon, NativeMethods.ILD_TRANSPARENT, out nint hIcon) == 0
             ? hIcon
             : nint.Zero;
     }
 
     /// <summary>Decodes an image file the user pointed at (a custom icon can be any path on
     /// disk). Plain Win32 file I/O — a full-trust process needs no broker capability for it.</summary>
-    private static async Task<ImageSource?> FromFileAsync(string path)
+    private static async Task<ImageSource?> FromFileAsync(string path, int decodeSize)
     {
         try
         {
-            return await DecodeAsync(await File.ReadAllBytesAsync(path));
+            return await DecodeAsync(await File.ReadAllBytesAsync(path), decodeSize);
         }
         catch (Exception ex)
         {
@@ -159,7 +203,7 @@ public static class IconService
     /// site itself (its /favicon.ico), falling back to a favicon service. Returns null (→ globe
     /// glyph) when nothing usable is found or there's no connectivity.
     /// </summary>
-    private static async Task<ImageSource?> FaviconAsync(string url)
+    private static async Task<ImageSource?> FaviconAsync(string url, int decodeSize)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Host))
             return null;
@@ -171,7 +215,7 @@ public static class IconService
         // 1. Cached copy.
         if (File.Exists(cacheFile))
         {
-            var cached = await DecodeAsync(await File.ReadAllBytesAsync(cacheFile));
+            var cached = await DecodeAsync(await File.ReadAllBytesAsync(cacheFile), decodeSize);
             if (cached is not null)
                 return cached;
         }
@@ -187,7 +231,7 @@ public static class IconService
             if (bytes is null || !LooksLikeImage(bytes))
                 continue;
 
-            var image = await DecodeAsync(bytes);
+            var image = await DecodeAsync(bytes, decodeSize);
             if (image is null)
                 continue;
 
@@ -216,11 +260,13 @@ public static class IconService
 
     /// <summary>Decodes raw bytes into a BitmapImage, confirming the decode actually succeeded
     /// (so a 200-OK HTML error page never gets shown as a broken image).</summary>
-    private static async Task<ImageSource?> DecodeAsync(byte[] bytes)
+    private static async Task<ImageSource?> DecodeAsync(byte[] bytes, int decodeSize = 0)
     {
         try
         {
             var bmp = new BitmapImage();
+            if (decodeSize > 0)
+                bmp.DecodePixelWidth = bmp.DecodePixelHeight = decodeSize;
             var tcs = new TaskCompletionSource<bool>();
             void OnOpened(object s, Microsoft.UI.Xaml.RoutedEventArgs e) => tcs.TrySetResult(true);
             void OnFailed(object s, Microsoft.UI.Xaml.ExceptionRoutedEventArgs e) => tcs.TrySetResult(false);

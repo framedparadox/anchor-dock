@@ -66,7 +66,11 @@
             <muxc:NavigationView.MenuItems>
                 <muxc:NavigationViewItem x:Name="GeneralNav" Content="{loc:Localize Key=Nav.General}"
                                          AutomationProperties.AutomationId="SettingsNavGeneral"
-                                         IsSelected="True" Icon="Setting" Tag="general" />
+                                         IsSelected="True" Tag="general">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
                 <muxc:NavigationViewItem x:Name="AppearanceNav" Content="{loc:Localize Key=Nav.Appearance}"
                                          AutomationProperties.AutomationId="SettingsNavAppearance"
                                          Tag="appearance">
@@ -90,19 +94,29 @@
                 </muxc:NavigationViewItem>
                 <muxc:NavigationViewItem x:Name="AppsNav" Content="{loc:Localize Key=Nav.Apps}"
                                          AutomationProperties.AutomationId="SettingsNavApps"
-                                         Icon="AllApps" Tag="apps" />
+                                         Tag="apps">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE71D;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+            </muxc:NavigationView.MenuItems>
+
+            <!-- FooterMenuItems, not PaneFooter: it shares the same single-selection model as
+                 MenuItems (SelectionChanged, IsSelected) so the item behaves like the others, just
+                 pinned to the bottom of the pane. PaneFooter is plain content and doesn't. -->
+            <muxc:NavigationView.FooterMenuItems>
                 <muxc:NavigationViewItem x:Name="AboutNav" Content="{loc:Localize Key=Nav.About}" Tag="about"
                                          AutomationProperties.AutomationId="SettingsNavAbout">
                     <muxc:NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
-            </muxc:NavigationView.MenuItems>
+            </muxc:NavigationView.FooterMenuItems>
 
             <Grid Padding="32,24,32,24">
                 <!-- ==================== GENERAL ==================== -->
-                <ScrollViewer x:Name="GeneralPanel">
-                    <StackPanel Spacing="6" MaxWidth="720" HorizontalAlignment="Left">
+                <ScrollViewer x:Name="GeneralPanel" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="6" HorizontalAlignment="Stretch">
                         <TextBlock Text="{loc:Localize Key=Nav.General}"
                                    Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
@@ -193,6 +207,7 @@
                                      disabled in Task Manager cannot be re-enabled by the app, so
                                      the switch springs back and this says who can. -->
                                 <muxc:InfoBar x:Name="StartupBlockedBar" IsOpen="False" IsClosable="True"
+                                              Visibility="Collapsed"
                                               Severity="Warning"
                                               Message="{loc:Localize Key=Settings.StartupBlocked}" />
                             </StackPanel>
@@ -227,6 +242,7 @@
                                 </Grid>
 
                                 <muxc:InfoBar x:Name="BackupBar" IsOpen="False" IsClosable="True"
+                                              Visibility="Collapsed"
                                               Severity="Success" />
                             </StackPanel>
                         </Border>
@@ -261,11 +277,38 @@
                      Personalization that applies to every dock: how big the cells are, how the
                      glass is tinted, and whether icons swell under the cursor. -->
                 <ScrollViewer x:Name="AppearancePanel" Visibility="Collapsed"
+                              HorizontalContentAlignment="Stretch"
                               AutomationProperties.AutomationId="SettingsAppearancePanel">
-                    <StackPanel Spacing="6" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock Text="{loc:Localize Key=Nav.Appearance}"
-                                   Style="{ThemeResource TitleTextBlockStyle}"
-                                   Margin="0,0,0,12" />
+                    <StackPanel Spacing="6" HorizontalAlignment="Stretch">
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="{loc:Localize Key=Nav.Appearance}"
+                                       Style="{ThemeResource TitleTextBlockStyle}"
+                                       VerticalAlignment="Center" />
+                            <!-- Only shown once the theme choice has actually changed from what it
+                                 was when Settings opened (see SettingsWindow.xaml.cs,
+                                 ThemeChoice_SelectionChanged) — the live switch doesn't always
+                                 finish repainting the glass cleanly, so this is the reliable
+                                 fallback: a fresh process always renders clean. -->
+                            <Button x:Name="RestartButton" Grid.Column="1"
+                                    Visibility="Collapsed"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.AutomationId="SettingsRestartButton"
+                                    Click="RestartButton_Click">
+                                <ToolTipService.ToolTip>
+                                    <ToolTip Content="{loc:Localize Key=Settings.RestartToApplyTip}" />
+                                </ToolTipService.ToolTip>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE72C;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                              FontSize="14" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.RestartToApply}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
 
                         <!-- Theme -->
                         <Border Style="{StaticResource Card}">
@@ -314,7 +357,7 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <ComboBox x:Name="DensityChoice" Grid.Column="2" MinWidth="170"
+                                <ComboBox x:Name="DensityChoice" Grid.Column="2" MinWidth="170" Width="170"
                                           VerticalAlignment="Center" HorizontalAlignment="Right"
                                           AutomationProperties.Name="{loc:Localize Key=Settings.Density}"
                                           SelectionChanged="DensityChoice_SelectionChanged">
@@ -325,7 +368,7 @@
                             </Grid>
                         </Border>
 
-                        <!-- Glass frostiness -->
+                        <!-- Settings gear position -->
                         <Border Style="{StaticResource Card}">
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
@@ -333,49 +376,23 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE81E;"
+                                <FontIcon Grid.Column="0" Glyph="&#xE713;"
                                           FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.Glass}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.SettingsPosition}"
                                                Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.GlassDesc}"
+                                    <TextBlock Text="{loc:Localize Key=Settings.SettingsPositionDesc}"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <!-- Percent rather than 0–1: a slider reading "0.9" means nothing
-                                     to the person moving it. -->
-                                <Slider x:Name="GlassSlider" Grid.Column="2" Width="170"
-                                        Minimum="30" Maximum="100" StepFrequency="5"
-                                        VerticalAlignment="Center" HorizontalAlignment="Right"
-                                        AutomationProperties.Name="{loc:Localize Key=Settings.Glass}"
-                                        ValueChanged="GlassSlider_ValueChanged" />
-                            </Grid>
-                        </Border>
-
-                        <!-- Accent tint -->
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE790;"
-                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTint}"
-                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTintDesc}"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ToggleSwitch x:Name="AccentTintSwitch" Grid.Column="2"
-                                              OnContent="" OffContent="" MinWidth="0"
-                                              HorizontalAlignment="Right"
-                                              AutomationProperties.Name="{loc:Localize Key=Settings.AccentTint}"
-                                              Toggled="AccentTintSwitch_Toggled" />
+                                <ComboBox x:Name="SettingsPositionChoice" Grid.Column="2" MinWidth="170" Width="170"
+                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                          AutomationProperties.Name="{loc:Localize Key=Settings.SettingsPosition}"
+                                          SelectionChanged="SettingsPositionChoice_SelectionChanged">
+                                    <ComboBoxItem Content="{loc:Localize Key=SettingsPosition.Trailing}" />
+                                    <ComboBoxItem Content="{loc:Localize Key=SettingsPosition.Leading}" />
+                                </ComboBox>
                             </Grid>
                         </Border>
 
@@ -404,6 +421,84 @@
                                               Toggled="MagnifySwitch_Toggled" />
                             </Grid>
                         </Border>
+
+                        <!-- Group fly-out: on hover, or click-only -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE962;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.GroupOpenOnHover}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.GroupOpenOnHoverDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="GroupOpenOnHoverSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.GroupOpenOnHover}"
+                                              Toggled="GroupOpenOnHoverSwitch_Toggled" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Persistent item labels -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE8D2;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.ShowItemLabels}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.ShowItemLabelsDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="ShowItemLabelsSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.ShowItemLabels}"
+                                              Toggled="ShowItemLabelsSwitch_Toggled" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Accent tint -->
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE790;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTint}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock Text="{loc:Localize Key=Settings.AccentTintDesc}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="AccentTintSwitch" Grid.Column="2"
+                                              OnContent="" OffContent="" MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              AutomationProperties.Name="{loc:Localize Key=Settings.AccentTint}"
+                                              Toggled="AccentTintSwitch_Toggled" />
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -412,8 +507,9 @@
                      shortcut that summons the docks, the one that opens quick-launch search, and
                      the master switch for the per-item ones (assigned from an icon's own menu). -->
                 <ScrollViewer x:Name="ShortcutsPanel" Visibility="Collapsed"
+                              HorizontalContentAlignment="Stretch"
                               AutomationProperties.AutomationId="SettingsShortcutsPanel">
-                    <StackPanel Spacing="6" MaxWidth="720" HorizontalAlignment="Left">
+                    <StackPanel Spacing="6" HorizontalAlignment="Stretch">
                         <TextBlock Text="{loc:Localize Key=Nav.Shortcuts}"
                                    Style="{ThemeResource TitleTextBlockStyle}"
                                    Margin="0,0,0,12" />
@@ -437,21 +533,22 @@
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
-                                    <!-- The on/off switch sits at the right edge of the card, in
-                                         line with every other toggle; the capture button (added in
-                                         code-behind, see HotkeyCaptureButton) stacks under it. -->
+                                    <!-- The on/off switch and the capture button (added in
+                                         code-behind, see HotkeyCaptureButton) share one row at the
+                                         right edge of the card: toggle first, then the key. -->
                                     <StackPanel x:Name="HotkeyColumn" Grid.Column="2"
-                                                Orientation="Vertical" Spacing="10"
+                                                Orientation="Horizontal" Spacing="10"
                                                 VerticalAlignment="Center" HorizontalAlignment="Right">
                                         <ToggleSwitch x:Name="HotkeySwitch"
                                                       OnContent="" OffContent="" MinWidth="0"
-                                                      HorizontalAlignment="Right"
+                                                      VerticalAlignment="Center"
                                                       AutomationProperties.Name="{loc:Localize Key=Settings.Hotkey}"
                                                       Toggled="HotkeySwitch_Toggled" />
                                     </StackPanel>
                                 </Grid>
 
                                 <muxc:InfoBar x:Name="HotkeyBar" IsOpen="False" IsClosable="False"
+                                              Visibility="Collapsed"
                                               Severity="Warning" />
                             </StackPanel>
                         </Border>
@@ -480,6 +577,7 @@
                                 </Grid>
 
                                 <muxc:InfoBar x:Name="SearchHotkeyBar" IsOpen="False" IsClosable="False"
+                                              Visibility="Collapsed"
                                               Severity="Warning" />
                             </StackPanel>
                         </Border>
@@ -626,7 +724,8 @@
                                 <!-- HyperlinkButton opens the URI with the default browser; no
                                      code-behind needed. Margin trims the button's built-in padding
                                      so the links line up with the text above. -->
-                                <StackPanel Orientation="Horizontal" Spacing="4" Margin="-12,0,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="4"
+                                            HorizontalAlignment="Center">
                                     <HyperlinkButton Content="{loc:Localize Key=About.SourceCode}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock" />
                                     <HyperlinkButton Content="{loc:Localize Key=About.ReportIssue}"
@@ -642,46 +741,11 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Update check. Off by default and the only thing on this page that
-                             would ever contact the network (see Privacy, below). Collapsed
-                             entirely on the Microsoft Store build, which updates through the
-                             Store — see DockManager.UpdateChecksSupported. -->
-                        <Border x:Name="UpdateCard" Style="{StaticResource Card}">
-                            <StackPanel Spacing="12">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Grid.Column="0" Glyph="&#xE895;"
-                                              FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="18" />
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{loc:Localize Key=Settings.Updates}"
-                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                        <TextBlock Text="{loc:Localize Key=Settings.UpdatesDesc}"
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Center"
-                                                HorizontalAlignment="Right">
-                                        <ToggleSwitch x:Name="UpdatesSwitch"
-                                                      OnContent="" OffContent="" MinWidth="0"
-                                                      HorizontalAlignment="Right"
-                                                      AutomationProperties.Name="{loc:Localize Key=Settings.Updates}"
-                                                      Toggled="UpdatesSwitch_Toggled" />
-                                        <Button x:Name="CheckUpdatesButton" MinWidth="150"
-                                                HorizontalAlignment="Right"
-                                                Content="{loc:Localize Key=Update.CheckNow}"
-                                                Click="CheckUpdates_Click" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <muxc:InfoBar x:Name="UpdateBar" IsOpen="False" IsClosable="False"
-                                              Severity="Informational" />
-                            </StackPanel>
-                        </Border>
+                        <!-- Shown only when a background check (or one from the tray) has already
+                             found a release; there is no manual "check now" control here anymore. -->
+                        <muxc:InfoBar x:Name="UpdateBar" IsOpen="False" IsClosable="False"
+                                      Visibility="Collapsed"
+                                      Severity="Informational" />
 
                         <!-- Privacy: collapsed by default; expand for the details. -->
                         <Expander HorizontalAlignment="Stretch"

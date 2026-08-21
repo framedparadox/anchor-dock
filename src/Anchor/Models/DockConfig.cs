@@ -89,20 +89,6 @@ public sealed class DockConfig
     /// </summary>
     public DockDensity Density { get; set; } = DockDensity.Medium;
 
-    /// <summary>
-    /// How frosted the acrylic glass is (the backdrop's luminosity opacity), 0.3–1.0. Higher is
-    /// more frosted; at the bottom of the range the desktop comes through almost unobstructed.
-    /// <para>
-    /// The default is the top of the range, in both themes. Fully frosted is the setting that
-    /// looks the same wherever the dock is put: below it the glass takes its color from whatever
-    /// happens to be behind the window, so the same dock reads dark over one wallpaper and washed
-    /// out over another, and in light mode over a dark desktop it stops reading as light at all.
-    /// Clearing the glass is a deliberate choice, so it is the slider's job rather than the
-    /// default.
-    /// </para>
-    /// </summary>
-    public double GlassOpacity { get; set; } = 1.00;
-
     /// <summary>Tint the glass with the Windows accent color instead of the neutral grey the
     /// taskbar uses.</summary>
     public bool AccentTint { get; set; }
@@ -113,6 +99,26 @@ public sealed class DockConfig
     /// paints the whole window and cannot be masked to a taller, mostly-empty one.
     /// </summary>
     public bool Magnify { get; set; }
+
+    /// <summary>
+    /// Opens a group's fly-out as the cursor passes over its icon, and closes it again once the
+    /// cursor leaves both the icon and the bar. On by default. Off makes a group strictly
+    /// click-driven instead: one click opens its fly-out, a second click (or clicking elsewhere)
+    /// closes it, and hovering does nothing either way — see <c>DockWindow.ToggleGroupFlyout</c>.
+    /// </summary>
+    public bool GroupOpenOnHover { get; set; } = true;
+
+    /// <summary>
+    /// Where the settings gear sits on every dock strip. Defaults to the trailing end, after
+    /// user items and the divider.
+    /// </summary>
+    public SettingsPosition SettingsPosition { get; set; } = SettingsPosition.Trailing;
+
+    /// <summary>
+    /// When true, each item's display name is always visible under its icon rather than only in
+    /// a hover tooltip.
+    /// </summary>
+    public bool ShowItemLabels { get; set; }
 
     /// <summary>
     /// Per-item shortcuts (<c>DockItem.Hotkey</c>) are only registered with Windows while this is
@@ -243,9 +249,11 @@ public sealed class DockConfig
         Hotkey = other.Hotkey;
         HotkeyEnabled = other.HotkeyEnabled;
         Density = other.Density;
-        GlassOpacity = other.GlassOpacity;
         AccentTint = other.AccentTint;
         Magnify = other.Magnify;
+        GroupOpenOnHover = other.GroupOpenOnHover;
+        SettingsPosition = other.SettingsPosition;
+        ShowItemLabels = other.ShowItemLabels;
         ItemHotkeysEnabled = other.ItemHotkeysEnabled;
         SearchHotkey = other.SearchHotkey;
         CheckForUpdates = other.CheckForUpdates;

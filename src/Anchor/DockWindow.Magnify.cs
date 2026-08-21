@@ -98,6 +98,9 @@ public sealed partial class DockWindow
     {
         bool magnify = MagnifyActive;
         double edge = 0;
+        int index = 0;
+        DockItem? hoveredGroup = null;
+        FrameworkElement? hoveredGroupAnchor = null;
         foreach (var item in Items)
         {
             double extent = item.CellExtent;
@@ -110,9 +113,30 @@ public sealed partial class DockWindow
             item.SetHovered(inside);
             item.SetMagnification(
                 inside && magnify ? DockMetrics.HoverMagnificationAt(offset / extent) : 1);
+            if (inside)
+            {
+                var element = ItemsHost.TryGetElement(index) as FrameworkElement;
+                SetFastTooltip(element, true);
+                // A group has nothing to launch on its own: the cursor landing on it is what opens
+                // its fly-out, when the setting allows. Reported rather than acted on here — what
+                // a hovered group means (open it, leave it, or hold it shut because a click just
+                // closed it) is TrackGroupHover's call, not this loop's.
+                if (item.IsGroup && element is not null)
+                {
+                    hoveredGroup = item;
+                    hoveredGroupAnchor = element;
+                }
+            }
 
             edge += extent + CellSpacing;
+            index++;
         }
+
+        // Null when the cursor landed on a non-group cell or on nothing at all — which is what
+        // takes it off whichever group icon opened the current bar, and so a candidate to close.
+        TrackGroupHover(hoveredGroupAnchor, hoveredGroup);
+
+        EnsureVisualAnimationRunning();
     }
 
     /// <summary>Drops both cues — on pointer exit, and whenever the strip is rebuilt under a
@@ -124,6 +148,9 @@ public sealed partial class DockWindow
             item.SetHovered(false);
             item.SetMagnification(1);
         }
+        SetFastTooltip(null, false);
+        TrackGroupHover(null, null);
+        EnsureVisualAnimationRunning();
     }
 
     /// <summary>Returns every icon to its resting size, leaving the highlight alone — for the
@@ -137,15 +164,16 @@ public sealed partial class DockWindow
     // ---- Glass personalization ---------------------------------------------
 
     /// <summary>
-    /// Re-tints the acrylic for the current glass-opacity and accent-tint settings. A no-op under
-    /// High Contrast, where there is no backdrop to tint (the dock paints an opaque system color
-    /// instead so the shell's high-contrast palette comes through).
+    /// Re-tints the acrylic for the current accent-tint setting. A no-op under High Contrast,
+    /// where there is no backdrop to tint (the dock paints an opaque system color instead so the
+    /// shell's high-contrast palette comes through).
     /// </summary>
     public void ApplyGlass()
     {
-        _backdrop?.Personalize(_manager.Config.GlassOpacity, _manager.Config.AccentTint);
-        // The window rim is mixed from the same two settings, so it has to be re-mixed with them
-        // or it goes on advertising the glass the dock used to have.
+        _backdrop?.SyncWithSystemColors();
+        _backdrop?.Personalize(_manager.Config.AccentTint);
+        // The window rim is mixed from the same tint, so it has to be re-mixed with it or it goes
+        // on advertising the glass the dock used to have.
         ApplyWindowBorder();
     }
 }

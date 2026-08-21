@@ -18,6 +18,10 @@
 .PARAMETER Architecture
     Which architectures to publish: x64, arm64, or both (the default).
 
+.PARAMETER FrameworkDependent
+    Publish a smaller build that requires the Windows App Runtime to be installed separately
+    (~60–80 MB vs ~215 MB self-contained). Off by default.
+
 .PARAMETER CertificateThumbprint
     SHA1 thumbprint of an Authenticode code-signing certificate in the current user's (or the
     machine's) certificate store. When given, Anchor.exe is signed before the zip is built, which
@@ -45,6 +49,7 @@ param(
     [string]$Version,
     [ValidateSet("x64", "arm64", "both")]
     [string]$Architecture = "both",
+    [switch]$FrameworkDependent,
     [string]$CertificateThumbprint,
     [string]$TimestampUrl = "http://timestamp.digicert.com",
     [string]$SignToolPath
@@ -130,8 +135,16 @@ foreach ($arch in $targets) {
 
     if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
 
-    Write-Host "Publishing Anchor $Version (Release, $arch, self-contained)..."
-    dotnet publish $csproj -c Release -p:Platform=$platform --self-contained true -o $publishDir
+    Write-Host "Publishing Anchor $Version (Release, $arch, $(if ($FrameworkDependent) { 'framework-dependent' } else { 'self-contained' }))..."
+    $publishArgs = @(
+        "publish", $csproj, "-c", "Release", "-p:Platform=$platform", "-o", $publishDir
+    )
+    if ($FrameworkDependent) {
+        $publishArgs += "-p:FrameworkDependent=true", "--self-contained", "false"
+    } else {
+        $publishArgs += "--self-contained", "true"
+    }
+    dotnet @publishArgs
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for $arch" }
 
     # Signed before zipping, so the hash printed below is the hash of the archive people actually

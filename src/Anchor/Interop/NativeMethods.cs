@@ -128,6 +128,7 @@ internal static partial class NativeMethods
     // SHGetImageList(SHIL_JUMBO, ...) hands back that list at its largest (256x256) resolution.
     // This is pure Win32 — no WinRT Storage broker involved — so it works for any path a
     // full-trust process can see, without needing the broadFileSystemAccess capability.
+    public const int SHIL_EXTRALARGE = 0x2;
     public const int SHIL_JUMBO = 0x4;
     public const int ILD_TRANSPARENT = 0x1;
 

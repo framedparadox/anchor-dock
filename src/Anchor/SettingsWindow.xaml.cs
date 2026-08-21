@@ -5,7 +5,6 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 
 namespace Anchor;
@@ -32,15 +31,19 @@ public sealed partial class SettingsWindow : Window
     /// config, so filling the page in cannot be mistaken for editing it.
     /// <para>
     /// Starts <b>true</b>, before any control exists, and <see cref="LoadGeneral"/> clears it when
-    /// the page is loaded. That is not belt-and-braces: <c>InitializeComponent</c> itself provokes
-    /// a change. The frostiness <c>Slider</c> is declared <c>Minimum="30"</c> while its Value is
-    /// still the property default of 0, so the parser's own assignment coerces Value up to 30 and
-    /// raises ValueChanged — with the flag defaulting to false, that ran the real handler and wrote
-    /// 30% frostiness to the config. Every open of this window silently reset the glass, whatever
-    /// the user had chosen and whatever the default was.
+    /// the page is loaded. That is not belt-and-braces: <c>InitializeComponent</c> itself can
+    /// provoke a change — a control whose XAML-declared bounds coerce its default Value away from
+    /// the property default raises its ValueChanged during parsing, and with the flag defaulting to
+    /// false that would run the real handler and write a bogus value to the config before the page
+    /// ever shows it. Every open of this window would silently reset that setting.
     /// </para>
     /// </summary>
     private bool _initializing = true;
+
+    /// <summary>The theme in force when this window (or its General/Appearance load) last ran —
+    /// the baseline <see cref="ThemeChoice_SelectionChanged"/> compares against to decide whether
+    /// the restart button should show at all.</summary>
+    private DockTheme _openedTheme;
 
     public SettingsWindow(DockManager manager)
     {
@@ -82,6 +85,10 @@ public sealed partial class SettingsWindow : Window
 
         WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 880, 640);
         WindowChrome.CenterOnCursor(_appWindow, windowId);
+
+        // The two bars the user can dismiss themselves; the rest are only ever closed in code.
+        StartupBlockedBar.Closed += OnBarClosed;
+        BackupBar.Closed += OnBarClosed;
 
         BuildLanguageList();
         BuildShortcutCaptures();
@@ -180,7 +187,7 @@ public sealed partial class SettingsWindow : Window
     /// change, so the user lands back where they were rather than on General.</summary>
     internal void Navigate(string tag)
     {
-        foreach (var candidate in Nav.MenuItems.OfType<NavigationViewItem>())
+        foreach (var candidate in Nav.MenuItems.Concat(Nav.FooterMenuItems).OfType<NavigationViewItem>())
         {
             if ((candidate.Tag as string) == tag)
             {
@@ -200,6 +207,8 @@ public sealed partial class SettingsWindow : Window
         _initializing = true;
 
         var cfg = _manager.Config;
+        _openedTheme = cfg.Theme;
+        RestartButton.Visibility = Visibility.Collapsed;
         ThemeChoice.SelectedIndex = cfg.Theme switch
         {
             DockTheme.Light => 0,
@@ -217,13 +226,6 @@ public sealed partial class SettingsWindow : Window
         HotkeySwitch.IsOn = cfg.HotkeyEnabled;
 
         RunningIndicatorsSwitch.IsOn = cfg.ShowRunningIndicators;
-        UpdatesSwitch.IsOn = cfg.CheckForUpdates;
-
-        // The Store build updates through the Store; there is nothing here for the user to decide,
-        // so the whole card goes rather than sitting there switched off.
-        UpdateCard.Visibility = DockManager.UpdateChecksSupported
-            ? Visibility.Visible
-            : Visibility.Collapsed;
 
         // Asked of Windows rather than read from the config, because the user can change it
         // outside Anchor (Task Manager ▸ Startup apps) — and on the packaged build that answer is
@@ -236,9 +238,11 @@ public sealed partial class SettingsWindow : Window
             DockDensity.Large => 2,
             _ => 1,
         };
-        GlassSlider.Value = Math.Round(cfg.GlassOpacity * 100);
         AccentTintSwitch.IsOn = cfg.AccentTint;
         MagnifySwitch.IsOn = cfg.Magnify;
+        GroupOpenOnHoverSwitch.IsOn = cfg.GroupOpenOnHover;
+        SettingsPositionChoice.SelectedIndex = cfg.SettingsPosition == SettingsPosition.Leading ? 1 : 0;
+        ShowItemLabelsSwitch.IsOn = cfg.ShowItemLabels;
         ItemHotkeysSwitch.IsOn = cfg.ItemHotkeysEnabled;
 
         _initializing = false;
@@ -258,13 +262,6 @@ public sealed partial class SettingsWindow : Window
         });
     }
 
-    private void GlassSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
-    {
-        if (_initializing)
-            return;
-        _manager.SetGlassOpacity(e.NewValue / 100.0);
-    }
-
     private void AccentTintSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_initializing)
@@ -277,6 +274,29 @@ public sealed partial class SettingsWindow : Window
         if (_initializing)
             return;
         _manager.SetMagnify(MagnifySwitch.IsOn);
+    }
+
+    private void GroupOpenOnHoverSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _manager.SetGroupOpenOnHover(GroupOpenOnHoverSwitch.IsOn);
+    }
+
+    private void SettingsPositionChoice_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _manager.SetSettingsPosition(SettingsPositionChoice.SelectedIndex == 1
+            ? SettingsPosition.Leading
+            : SettingsPosition.Trailing);
+    }
+
+    private void ShowItemLabelsSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_initializing)
+            return;
+        _manager.SetShowItemLabels(ShowItemLabelsSwitch.IsOn);
     }
 
     // ---- Language ----------------------------------------------------------
@@ -317,7 +337,14 @@ public sealed partial class SettingsWindow : Window
             _ => DockTheme.Dark,
         };
         _manager.SetTheme(theme);
+        // The live switch doesn't always finish repainting the glass cleanly (see
+        // DockWindow.ApplyTheme) — offer the reliable fallback only once there is actually
+        // something to restart for, and hide it again if the user flips back to where they
+        // started.
+        RestartButton.Visibility = theme != _openedTheme ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private void RestartButton_Click(object sender, RoutedEventArgs e) => _manager.Restart();
 
     private void RunningIndicatorsSwitch_Toggled(object sender, RoutedEventArgs e)
     {
@@ -337,7 +364,7 @@ public sealed partial class SettingsWindow : Window
         // left showing "on" would be a lie. Put it back and name the place they can undo it.
         bool blocked = state is StartupService.StartupState.BlockedByUser
                             or StartupService.StartupState.BlockedByPolicy;
-        StartupBlockedBar.IsOpen = blocked;
+        SetBarOpen(StartupBlockedBar, blocked);
         if (blocked)
             SetStartupSwitchSilently(false);
     }
@@ -376,7 +403,7 @@ public sealed partial class SettingsWindow : Window
         _summonCapture = new HotkeyCaptureButton
         {
             MinWidth = 150,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
             Label = Loc.Get("Settings.Hotkey"),
             Gesture = _manager.ConfiguredHotkey,
         };
@@ -389,7 +416,7 @@ public sealed partial class SettingsWindow : Window
             if (gesture is not null && !registered && HotkeySwitch.IsOn)
                 ShowBar(HotkeyBar, "Hotkey.Taken");
             else
-                HotkeyBar.IsOpen = false;
+                SetBarOpen(HotkeyBar, false);
         };
         HotkeyColumn.Children.Add(_summonCapture);
 
@@ -409,7 +436,7 @@ public sealed partial class SettingsWindow : Window
             if (gesture is not null && !registered)
                 ShowBar(SearchHotkeyBar, "Hotkey.Taken");
             else
-                SearchHotkeyBar.IsOpen = false;
+                SetBarOpen(SearchHotkeyBar, false);
         };
         SearchHotkeyColumn.Children.Add(_searchCapture);
     }
@@ -421,7 +448,7 @@ public sealed partial class SettingsWindow : Window
         if (!_manager.SetHotkeyEnabled(HotkeySwitch.IsOn))
             ShowBar(HotkeyBar, "Hotkey.Taken");
         else
-            HotkeyBar.IsOpen = false;
+            SetBarOpen(HotkeyBar, false);
     }
 
     private void ItemHotkeysSwitch_Toggled(object sender, RoutedEventArgs e)
@@ -450,12 +477,23 @@ public sealed partial class SettingsWindow : Window
 
         if (assigned.Count == 0)
         {
-            ItemHotkeyList.Children.Add(new TextBlock
+            var hint = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            hint.Children.Add(new FontIcon
+            {
+                Glyph = "", // Info
+                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                FontSize = 14,
+                Opacity = 0.7,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+            hint.Children.Add(new TextBlock
             {
                 Text = Loc.Get("Shortcuts.NoneAssigned"),
                 Style = SecondaryCaptionStyle,
                 TextWrapping = TextWrapping.Wrap,
             });
+            ItemHotkeyList.Children.Add(hint);
             return;
         }
 
@@ -512,48 +550,14 @@ public sealed partial class SettingsWindow : Window
     private static void ShowBar(InfoBar bar, string key)
     {
         bar.Message = Loc.Get(key);
-        bar.IsOpen = true;
+        SetBarOpen(bar, true);
     }
 
     // ---- Update check ------------------------------------------------------
-
-    private void UpdatesSwitch_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_initializing)
-            return;
-        _manager.SetCheckForUpdates(UpdatesSwitch.IsOn);
-    }
-
-    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
-    {
-        CheckUpdatesButton.IsEnabled = false;
-        UpdateBar.Message = Loc.Get("Update.Checking");
-        UpdateBar.Severity = InfoBarSeverity.Informational;
-        // Cleared, not just replaced: a previous check may have left "Get it / Skip" buttons in
-        // the bar, and they must not sit under a later "up to date" message.
-        UpdateBar.Content = null;
-        UpdateBar.IsOpen = true;
-        try
-        {
-            // promptOnly: false — the user asked, so tell them what is actually out there even if
-            // they skipped this release when it was offered on startup.
-            var release = await _manager.CheckForUpdatesAsync(promptOnly: false);
-            if (release is null)
-            {
-                UpdateBar.Message = Loc.Get("Update.UpToDate");
-                UpdateBar.Severity = InfoBarSeverity.Success;
-                UpdateBar.Content = null;
-            }
-            else
-            {
-                ShowUpdateAvailable(release);
-            }
-        }
-        finally
-        {
-            CheckUpdatesButton.IsEnabled = true;
-        }
-    }
+    //
+    // There is no manual "check now" control anymore — whether Anchor checks at all is decided by
+    // DockConfig.CheckForUpdates (see DockManager's startup check). This just surfaces a release
+    // that check already found.
 
     /// <summary>Offers a found release: a link to the download page, and a way to be left alone
     /// about this one. Nothing is downloaded or installed — Anchor is a portable zip.</summary>
@@ -572,13 +576,35 @@ public sealed partial class SettingsWindow : Window
         skip.Click += (_, _) =>
         {
             _manager.SkipUpdate(release);
-            UpdateBar.IsOpen = false;
+            SetBarOpen(UpdateBar, false);
         };
         actions.Children.Add(skip);
 
         UpdateBar.Content = actions;
-        UpdateBar.IsOpen = true;
+        SetBarOpen(UpdateBar, true);
     }
+
+    /// <summary>
+    /// Opens or closes one of the page's info bars.
+    /// <para>
+    /// <see cref="InfoBar.IsOpen"/> alone is not enough. A closed bar collapses its own template
+    /// but stays a <em>visible</em> child of the card's <see cref="StackPanel"/>, which goes on
+    /// spending its <c>Spacing</c> on it — so every card carrying one sat with a strip of dead
+    /// space under its controls, whether or not there was anything to say. Collapsing the element
+    /// itself takes the row out of the layout entirely.
+    /// </para>
+    /// </summary>
+    private static void SetBarOpen(InfoBar bar, bool open)
+    {
+        bar.IsOpen = open;
+        bar.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Keeps a bar the user dismissed themselves out of the layout too — closing it from
+    /// its own X clears <see cref="InfoBar.IsOpen"/> without going through
+    /// <see cref="SetBarOpen"/>.</summary>
+    private static void OnBarClosed(InfoBar sender, InfoBarClosedEventArgs args) =>
+        sender.Visibility = Visibility.Collapsed;
 
     // ---- Import / export ---------------------------------------------------
 
@@ -656,7 +682,7 @@ public sealed partial class SettingsWindow : Window
     {
         BackupBar.Message = message;
         BackupBar.Severity = severity;
-        BackupBar.IsOpen = true;
+        SetBarOpen(BackupBar, true);
     }
 
     // Resetting wipes every pinned app/file/folder/link with no undo, so — unlike the
@@ -996,6 +1022,26 @@ public sealed partial class SettingsWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
         };
 
+        // Edit: the same panel the dock's own right-click menu opens, carrying the item's name,
+        // its target and its icon. A separator has none of the three, so it gets no button.
+        if (!item.IsSeparator)
+        {
+            var edit = new Button
+            {
+                Content = new FontIcon
+                {
+                    Glyph = "", // Edit
+                    FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                    FontSize = 14,
+                },
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            ToolTipService.SetToolTip(edit, Loc.Get("Flyout.Edit"));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(edit, Loc.Get("Flyout.Edit"));
+            edit.Click += (_, _) => _manager.OpenItemEditor(dock, item);
+            actions.Children.Add(edit);
+        }
+
         // Show/hide switch (On = shown on the dock). No on/off caption — the switch state alone
         // conveys it; the accessible name/tooltip carry the meaning for AT users.
         var toggle = new ToggleSwitch
@@ -1153,7 +1199,7 @@ public sealed partial class SettingsWindow : Window
             menu.Items.Add(new MenuFlyoutSeparator());
 
         var create = new MenuFlyoutItem { Text = Loc.Get("Menu.NewGroup") };
-        create.Click += (_, _) => dock.ShowNewGroupDialog(anchor, item);
+        create.Click += (_, _) => dock.Manager.OpenNewGroupWindow(dock, item);
         menu.Items.Add(create);
 
         menu.ShowAt(anchor);

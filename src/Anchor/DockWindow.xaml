@@ -81,7 +81,7 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Background="Transparent"
-                CornerRadius="10"
+                CornerRadius="8"
                 Padding="8,6">
 
             <StackPanel x:Name="Strip"
@@ -101,8 +101,10 @@
                         Visibility="Collapsed"
                         AutomationProperties.AutomationId="AnchorAddNewButton"
                         AutomationProperties.Name="{loc:Localize Key=Dock.AddNewName}"
-                        ToolTipService.ToolTip="{loc:Localize Key=Dock.AddNewTip}"
                         Click="AddNew_Click">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="{loc:Localize Key=Dock.AddNewTip}" />
+                    </ToolTipService.ToolTip>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <FontIcon Glyph="&#xE710;"
                                   FontFamily="{ThemeResource SymbolThemeFontFamily}"
@@ -144,6 +146,7 @@
                                  only when they take one of those two paths). -->
                             <Grid Width="{x:Bind CellWidth, Mode=OneWay}"
                                   Height="{x:Bind CellHeight, Mode=OneWay}"
+                                  Opacity="{x:Bind CellOpacity, Mode=OneWay}"
                                   Background="Transparent"
                                   Tag="{x:Bind}"
                                   AllowDrop="True"
@@ -180,13 +183,13 @@
                                         Visibility="{x:Bind ButtonVisibility}"
                                         AutomationProperties.Name="{x:Bind DisplayName, Mode=OneWay}"
                                         AutomationProperties.ItemStatus="{x:Bind RunningStatus, Mode=OneWay}"
-                                        ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}"
                                         ToolTipService.Placement="Top"
                                         Click="Item_Click">
-                                    <Grid>
-                                        <!-- The icon's size is OneWay because it moves twice over:
-                                             with the density setting, and — while magnification is
-                                             on — with the cursor's distance from this cell. -->
+                                    <ToolTipService.ToolTip>
+                                        <ToolTip Content="{x:Bind DisplayName, Mode=OneWay}" />
+                                    </ToolTipService.ToolTip>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <Grid HorizontalAlignment="Center">
                                         <Image Source="{x:Bind IconImage, Mode=OneWay}"
                                                Visibility="{x:Bind ImageVisibility, Mode=OneWay}"
                                                Width="{x:Bind RenderIconSize, Mode=OneWay}"
@@ -194,16 +197,22 @@
                                                Stretch="Uniform"
                                                AutomationProperties.AccessibilityView="Raw" />
 
-                                        <!-- OneWay: a picked icon-picker glyph (CustomGlyph) can
-                                             change after this cell first renders, unlike the
-                                             kind-derived fallback glyph, which never does. -->
                                         <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}"
                                                   Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
                                                   FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                                   FontSize="{x:Bind RenderGlyphSize, Mode=OneWay}"
                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                   AutomationProperties.AccessibilityView="Raw" />
-                                    </Grid>
+                                        </Grid>
+                                        <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
+                                                   Visibility="{x:Bind LabelVisibility, Mode=OneWay}"
+                                                   FontSize="9"
+                                                   MaxWidth="{x:Bind CellWidth, Mode=OneWay}"
+                                                   TextAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                   AutomationProperties.AccessibilityView="Raw" />
+                                    </StackPanel>
                                 </Button>
 
                                 <!-- Running-app indicator: the taskbar's underline, drawn over the
@@ -258,8 +267,10 @@
                         MinHeight="0"
                         AutomationProperties.AutomationId="AnchorSettingsButton"
                         AutomationProperties.Name="{loc:Localize Key=Dock.Settings}"
-                        ToolTipService.ToolTip="{loc:Localize Key=Dock.Settings}"
                         Click="Settings_Click">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="{loc:Localize Key=Dock.Settings}" />
+                    </ToolTipService.ToolTip>
                     <FontIcon x:Name="SettingsGlyph"
                               Glyph="&#xE713;"
                               FontFamily="{ThemeResource SymbolThemeFontFamily}"
@@ -285,5 +296,28 @@
                 Opacity="0.9"
                 IsHitTestVisible="False"
                 AutomationProperties.AccessibilityView="Raw" />
+
+        <!-- Drag ghost: while an item reorder is in progress (see DockWindow.xaml.cs,
+             UpdateItemReorder), this floating copy of the dragged icon tracks the pointer along
+             the strip's flow axis, positioned each tick via Canvas.Left/Top. The item's own cell
+             stays in the strip (dimmed via CellOpacity) so the list still visibly reorders under
+             it; this is what makes the reorder read as "holding" the icon rather than just
+             watching the list reshuffle. Last in z-order so it draws above every cell. -->
+        <Canvas IsHitTestVisible="False">
+            <Border x:Name="DragGhost"
+                    Visibility="Collapsed"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                    AutomationProperties.AccessibilityView="Raw">
+                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Image x:Name="DragGhostImage"
+                           Stretch="Uniform"
+                           AutomationProperties.AccessibilityView="Raw" />
+                    <FontIcon x:Name="DragGhostGlyph"
+                              FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                              Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                              AutomationProperties.AccessibilityView="Raw" />
+                </Grid>
+            </Border>
+        </Canvas>
     </Grid>
 </Window>

@@ -200,6 +200,8 @@ public sealed class DockItem : INotifyPropertyChanged
     // ---- Hover (runtime-only) ----------------------------------------------
 
     private bool _hovered;
+    private double _hoverOpacityDisplay;
+    private double _hoverOpacityTarget;
 
     /// <summary>
     /// Marks this cell as the one the cursor is in, which is what draws its highlight. Set from
@@ -212,38 +214,96 @@ public sealed class DockItem : INotifyPropertyChanged
         if (_hovered == hovered)
             return;
         _hovered = hovered;
-        OnPropertyChanged(nameof(HoverOpacity));
+        _hoverOpacityTarget = hovered && !IsSeparator ? 1 : 0;
+        if (DockItemAnimations.ReducedMotion)
+        {
+            _hoverOpacityDisplay = _hoverOpacityTarget;
+            OnPropertyChanged(nameof(HoverOpacity));
+        }
     }
 
     /// <summary>
-    /// The highlight's opacity: on or off, nothing in between. A separator never lights up — it is
-    /// a divider, not something to click.
-    /// <para>
-    /// Opacity rather than swapping the brush, so the brush itself stays a <c>ThemeResource</c>
-    /// resolved in the dock's visual tree. The dock's theme is its own (a Light dock under a Dark
-    /// app is a supported combination), and a brush looked up from here would be resolved against
-    /// the wrong one.
-    /// </para>
+    /// The highlight's opacity, eased toward the hover target by <see cref="AnimateVisuals"/>.
     /// </summary>
     [JsonIgnore]
-    public double HoverOpacity => _hovered && !IsSeparator ? 1 : 0;
+    public double HoverOpacity => _hoverOpacityDisplay;
+
+    // ---- Dragging (runtime-only) --------------------------------------------
+
+    private bool _dragging;
+
+    /// <summary>
+    /// Marks this item as the one currently picked up for a reorder. Its own cell in the strip
+    /// dims to a placeholder while the dock draws a floating ghost that tracks the pointer
+    /// instead — without this, the cell just reflowed silently as the list reordered underneath
+    /// it, with no visual tying the motion to the cursor.
+    /// </summary>
+    public void SetDragging(bool dragging)
+    {
+        if (_dragging == dragging)
+            return;
+        _dragging = dragging;
+        OnPropertyChanged(nameof(CellOpacity));
+    }
+
+    /// <summary>Full opacity at rest; dimmed to a placeholder while this item is being dragged.</summary>
+    [JsonIgnore]
+    public double CellOpacity => _dragging ? 0.35 : 1;
+
+    /// <summary>Advances hover/magnify easing. Returns true if any displayed value changed.</summary>
+    internal bool AnimateVisuals(double hoverStep, double magnifyStep)
+    {
+        bool changed = false;
+        if (Math.Abs(_hoverOpacityDisplay - _hoverOpacityTarget) > 0.001)
+        {
+            _hoverOpacityDisplay = Lerp(_hoverOpacityDisplay, _hoverOpacityTarget, hoverStep);
+            changed = true;
+            OnPropertyChanged(nameof(HoverOpacity));
+        }
+
+        if (Math.Abs(_magnifyDisplay - _magnifyTarget) > 0.001)
+        {
+            _magnifyDisplay = Lerp(_magnifyDisplay, _magnifyTarget, magnifyStep);
+            changed = true;
+            OnPropertyChanged(nameof(RenderIconSize));
+            OnPropertyChanged(nameof(RenderGlyphSize));
+        }
+
+        return changed;
+    }
+
+    internal void SnapVisuals()
+    {
+        _hoverOpacityDisplay = _hoverOpacityTarget;
+        _magnifyDisplay = _magnifyTarget;
+        OnPropertyChanged(nameof(HoverOpacity));
+        OnPropertyChanged(nameof(RenderIconSize));
+        OnPropertyChanged(nameof(RenderGlyphSize));
+    }
+
+    private static double Lerp(double from, double to, double step) =>
+        from + (to - from) * Math.Clamp(step, 0, 1);
 
     // ---- Magnification (runtime-only) --------------------------------------
 
-    private double _magnify = 1;
+    private double _magnifyTarget = 1;
+    private double _magnifyDisplay = 1;
 
     /// <summary>
-    /// Scales this item's icon within its (fixed-size) cell as the cursor passes over the strip —
-    /// the macOS-dock swell, kept inside the cell so the window itself never has to resize.
-    /// 1.0 is the resting size; <see cref="RenderIconSize"/> caps how far it can actually grow.
+    /// Sets the magnification target for this cell. The displayed size eases toward it via
+    /// <see cref="AnimateVisuals"/> unless reduced motion is on.
     /// </summary>
     public void SetMagnification(double scale)
     {
-        if (Math.Abs(_magnify - scale) < 0.001)
+        if (Math.Abs(_magnifyTarget - scale) < 0.001)
             return;
-        _magnify = scale;
-        OnPropertyChanged(nameof(RenderIconSize));
-        OnPropertyChanged(nameof(RenderGlyphSize));
+        _magnifyTarget = scale;
+        if (DockItemAnimations.ReducedMotion)
+        {
+            _magnifyDisplay = scale;
+            OnPropertyChanged(nameof(RenderIconSize));
+            OnPropertyChanged(nameof(RenderGlyphSize));
+        }
     }
 
     /// <summary>
@@ -251,11 +311,16 @@ public sealed class DockItem : INotifyPropertyChanged
     /// past the cell it lives in (a cell is fixed, so an unbounded swell would just clip).
     /// </summary>
     [JsonIgnore]
-    public double RenderIconSize => Math.Min(DockMetrics.Icon * _magnify, DockMetrics.Cell - 2);
+    public double RenderIconSize => Math.Min(DockMetrics.Icon * _magnifyDisplay, DockMetrics.Cell - 2);
 
     /// <summary>The fallback glyph's size, magnified on the same curve as <see cref="RenderIconSize"/>.</summary>
     [JsonIgnore]
-    public double RenderGlyphSize => Math.Min(DockMetrics.Glyph * _magnify, (DockMetrics.Cell - 2) * 0.72);
+    public double RenderGlyphSize => Math.Min(DockMetrics.Glyph * _magnifyDisplay, (DockMetrics.Cell - 2) * 0.72);
+
+    /// <summary>Whether a persistent label is drawn under the icon (app-wide setting).</summary>
+    [JsonIgnore]
+    public Visibility LabelVisibility =>
+        DockItemAnimations.ShowLabels && !IsSeparator ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>The running-app indicator's length, which tracks the density.</summary>
     [JsonIgnore]
@@ -274,6 +339,7 @@ public sealed class DockItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(CellCorner));
         OnPropertyChanged(nameof(RenderIconSize));
         OnPropertyChanged(nameof(RenderGlyphSize));
+        OnPropertyChanged(nameof(LabelVisibility));
         OnPropertyChanged(nameof(IndicatorLength));
         OnPropertyChanged(nameof(SeparatorLineWidth));
         OnPropertyChanged(nameof(SeparatorLineHeight));

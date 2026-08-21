@@ -26,6 +26,8 @@ public sealed class DockManager
     private HotkeyService? _hotkeys;
     private SettingsWindow? _settingsWindow;
     private AddNewWindow? _addNewWindow;
+    private EditWindow? _editWindow;
+    private NewGroupWindow? _newGroupWindow;
     private SearchWindow? _searchWindow;
 
     /// <summary>True while the user has hidden the docks from the tray menu. Distinct from
@@ -66,6 +68,7 @@ public sealed class DockManager
         // Settle the geometry before the first window is built: the item template binds to it,
         // and a dock that lays out at the default density and then re-sizes reads as a flicker.
         DockMetrics.SetDensity(Config.Density);
+        DockItemAnimations.SetShowLabels(Config.ShowItemLabels);
 
         foreach (var profile in Config.Docks.ToList())
             _docks.Add(CreateWindow(profile, seedDefaults: firstRun && profile.Items.Count == 0));
@@ -104,8 +107,8 @@ public sealed class DockManager
     public void Save() => DockStore.Save(Config);
 
     /// <summary>
-    /// Removes the tray icon and releases the global shortcut. Idempotent, and called both when
-    /// quitting and before the process is replaced on restart — the shell leaves a dead icon
+    /// Removes the tray icon and releases the global shortcut. Idempotent, so any shutdown path
+    /// can call it without checking whether another already has — the shell leaves a dead icon
     /// behind (until it is next hovered) if the process goes away without a <c>NIM_DELETE</c>.
     /// </summary>
     public void ReleaseShellIntegration()
@@ -124,6 +127,54 @@ public sealed class DockManager
         _shuttingDown = true;
         Running.Dispose();
         ReleaseShellIntegration();
+        Application.Current.Exit();
+    }
+
+    /// <summary>
+    /// Relaunches Anchor and shuts this instance down. Some things — the acrylic theme switch
+    /// chief among them — don't always finish repainting live, so this is the reliable escape
+    /// hatch: a fresh process always renders clean.
+    /// <para>
+    /// The packaged (MSIX) build asks the OS to do it via <c>RequestRestartAsync</c>, the
+    /// supported path there, which handles terminating and relaunching itself. The portable exe
+    /// starts its own replacement and exits — releasing the single-instance lock first, or the new
+    /// copy would find it still held and immediately bow out (see
+    /// <see cref="App.ReleaseInstanceLock"/>).
+    /// </para>
+    /// </summary>
+    public async void Restart()
+    {
+        _shuttingDown = true;
+        Running.Dispose();
+        ReleaseShellIntegration();
+
+        if (PackagedRuntime.IsPackaged)
+        {
+            App.ReleaseInstanceLock();
+            // On success the OS terminates this process before the call returns; any return
+            // value here is therefore always a failure reason.
+            var result = await Windows.ApplicationModel.Core.CoreApplication.RequestRestartAsync(string.Empty);
+            Diag.Log("Restart: RequestRestartAsync did not relaunch — " + result);
+            Application.Current.Exit();
+            return;
+        }
+
+        try
+        {
+            if (Environment.ProcessPath is { Length: > 0 } exe)
+            {
+                App.ReleaseInstanceLock();
+                System.Diagnostics.Process.Start(exe);
+            }
+            else
+            {
+                Diag.Log("Restart: failed to relaunch — Environment.ProcessPath was unavailable");
+            }
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("Restart: failed to relaunch — " + ex.Message);
+        }
         Application.Current.Exit();
     }
 
@@ -411,6 +462,66 @@ public sealed class DockManager
     }
 
     /// <summary>
+    /// Opens the editor for one pinned item — its name, target and icon — from an icon's own menu
+    /// or from a row in Settings ▸ Apps &amp; links.
+    /// <para>
+    /// One editor at a time. Asking for the item already being edited brings that window forward
+    /// rather than opening a second copy of it; asking for a different one replaces it, since two
+    /// identical-looking windows editing different items is a trap.
+    /// </para>
+    /// </summary>
+    public void OpenItemEditor(DockWindow dock, DockItem item)
+    {
+        if (_editWindow is { } open)
+        {
+            if (ReferenceEquals(open.Item, item))
+            {
+                open.Activate();
+                return;
+            }
+            _editWindow = null;
+            open.Close();
+        }
+
+        var window = new EditWindow(this, dock, item);
+        _editWindow = window;
+        // Guarded: a window replaced above closes after its successor is already the current one,
+        // and must not null it out on the way past.
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_editWindow, window))
+                _editWindow = null;
+        };
+        window.Activate();
+    }
+
+    /// <summary>
+    /// Opens the "create a group" window, adding to <paramref name="dock"/>. Given
+    /// <paramref name="pendingItem"/> (opened via an item's "Move to group ▸ New group…"), that
+    /// item is filed into the group the moment it's created.
+    /// <para>
+    /// One at a time, like every other child window here: asking again just brings the form
+    /// already open back to the front rather than stacking a second one beside it.
+    /// </para>
+    /// </summary>
+    public void OpenNewGroupWindow(DockWindow dock, DockItem? pendingItem)
+    {
+        if (_newGroupWindow is { } open)
+        {
+            if (ReferenceEquals(open.PendingItem, pendingItem) && ReferenceEquals(open.Dock, dock))
+            {
+                open.Activate();
+                return;
+            }
+            _newGroupWindow = null;
+            open.Close();
+        }
+        _newGroupWindow = new NewGroupWindow(this, dock, pendingItem);
+        _newGroupWindow.Closed += (_, _) => _newGroupWindow = null;
+        _newGroupWindow.Activate();
+    }
+
+    /// <summary>
     /// Opens quick-launch search, or dismisses it if it is already up — the shortcut is a toggle,
     /// so the same keystroke that summoned the card puts it away again.
     /// </summary>
@@ -474,6 +585,8 @@ public sealed class DockManager
             dock.ApplyTheme();
         _settingsWindow?.ApplyTheme(theme);
         _addNewWindow?.ApplyTheme(theme);
+        _editWindow?.ApplyTheme(theme);
+        _newGroupWindow?.ApplyTheme(theme);
     }
 
     /// <summary>
@@ -507,16 +620,6 @@ public sealed class DockManager
             dock.ApplyDensity();
     }
 
-    /// <summary>Sets how frosted the glass is (clamped to a range that stays legible at both
-    /// ends: fully transparent glass would leave unreadable icons over a busy desktop).</summary>
-    public void SetGlassOpacity(double opacity)
-    {
-        Config.GlassOpacity = Math.Clamp(opacity, 0.3, 1.0);
-        Save();
-        foreach (var dock in _docks)
-            dock.ApplyGlass();
-    }
-
     /// <summary>Tints the glass with the Windows accent color, or back to the neutral default.</summary>
     public void SetAccentTint(bool on)
     {
@@ -533,6 +636,40 @@ public sealed class DockManager
         Save();
         foreach (var dock in _docks)
             dock.ApplyMagnifySetting();
+    }
+
+    /// <summary>
+    /// Switches every dock's group fly-outs between opening on hover and opening only on a click.
+    /// Opening reads the setting live on the next pointer move, so only the closing side needs
+    /// re-applying: a bar that a click opened before hover mode came on has no hover watch on it,
+    /// and would otherwise go on ignoring the cursor until it was closed and opened again.
+    /// </summary>
+    public void SetGroupOpenOnHover(bool on)
+    {
+        Config.GroupOpenOnHover = on;
+        Save();
+        foreach (var dock in _docks)
+            dock.ApplyGroupOpenOnHoverSetting();
+    }
+
+    public void SetSettingsPosition(SettingsPosition position)
+    {
+        Config.SettingsPosition = position;
+        Save();
+        foreach (var dock in _docks)
+        {
+            dock.ApplyStripLayout();
+            dock.QueueRelayoutPublic();
+        }
+    }
+
+    public void SetShowItemLabels(bool on)
+    {
+        Config.ShowItemLabels = on;
+        DockItemAnimations.SetShowLabels(on);
+        Save();
+        foreach (var dock in _docks)
+            dock.RefreshItemLabels();
     }
 
     /// <summary>Turns the opt-in update check on or off. Nothing is contacted until it is on.</summary>
@@ -691,9 +828,12 @@ public sealed class DockManager
         foreach (var dock in _docks)
             dock.Activate();
 
-        // The Add window is built from the string table too, and there is nothing in it worth
-        // preserving across the change — it is a form that has not been submitted.
+        // The Add, Edit and New-group windows are built from the string table too, and there is
+        // nothing in any of them worth preserving across the change — all three are forms that
+        // have not been submitted.
         _addNewWindow?.Close();
+        _editWindow?.Close();
+        _newGroupWindow?.Close();
 
         DocksChanged?.Invoke();
     }
