@@ -60,21 +60,34 @@ public sealed partial class DockWindow
         if (_outer.Width == 0 || _outer.Height == 0)
             return false;
 
-        int midX = _shownRect.X + _shownRect.Width / 2;
-        int midY = _shownRect.Y + _shownRect.Height / 2;
-        var probe = _profile.Edge switch
+        // Prefer geometry against every display's outer bounds (tolerant of small virtual-desktop
+        // gaps). Fall back to point probes via DisplayArea when enumeration fails.
+        try
         {
-            DockEdge.Bottom => new PointInt32(midX, _outer.Y + _outer.Height + 2),
-            DockEdge.Top => new PointInt32(midX, _outer.Y - 2),
-            DockEdge.Left => new PointInt32(_outer.X - 2, midY),
-            DockEdge.Right => new PointInt32(_outer.X + _outer.Width + 2, midY),
-            _ => new PointInt32(midX, midY),
-        };
+            var outers = new List<RectInt32>();
+            foreach (var d in DockManager.Displays)
+                outers.Add(d.OuterBounds);
+
+            if (outers.Count > 0 &&
+                DockPlacement.EdgeHasNeighbor(_outer, _profile.Edge, _shownRect, outers))
+                return true;
+        }
+        catch
+        {
+            // Enumeration failed — fall through to point probes.
+        }
 
         try
         {
             // Fallback.None → null when the probe point is on no display (a true outer edge).
-            return DisplayArea.GetFromPoint(probe, DisplayAreaFallback.None) is not null;
+            // Probe mid-span and near both ends so a strip parked on only part of a shared edge
+            // still detects the neighbor.
+            foreach (var probe in DockPlacement.NeighborProbes(_outer, _profile.Edge, _shownRect))
+            {
+                if (DisplayArea.GetFromPoint(probe, DisplayAreaFallback.None) is not null)
+                    return true;
+            }
+            return false;
         }
         catch
         {

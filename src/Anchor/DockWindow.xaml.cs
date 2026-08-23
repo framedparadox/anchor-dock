@@ -636,15 +636,17 @@ public sealed partial class DockWindow : Window
     /// <summary>Resolves the monitor the dock belongs to (multi-monitor safe).</summary>
     private DisplayArea ResolveDisplay(int w, int h)
     {
-        DisplayArea? da = null;
         if (_profile.FreeX is int fx && _profile.FreeY is int fy)
-        {
-            var center = new PointInt32(fx + w / 2, fy + h / 2);
-            da = DisplayArea.GetFromPoint(center, DisplayAreaFallback.Nearest);
-        }
-        da ??= DisplayArea.GetFromWindowId(_windowId, DisplayAreaFallback.Nearest);
-        return da;
+            return ResolveDisplayFromCenter(fx + w / 2, fy + h / 2);
+        return DisplayArea.GetFromWindowId(_windowId, DisplayAreaFallback.Nearest);
     }
+
+    /// <summary>
+    /// Display under a physical-pixel point — same rule layout and drop-snap both use, so a dock
+    /// dragged onto a secondary monitor cannot snap against the previous monitor's work area.
+    /// </summary>
+    private static DisplayArea ResolveDisplayFromCenter(int centerX, int centerY) =>
+        DisplayArea.GetFromPoint(new PointInt32(centerX, centerY), DisplayAreaFallback.Nearest);
 
     // Last computed "shown" rect, the current work area, and the full monitor bounds (physical
     // px), shared with the auto-hide/snap controller (see DockWindow.AutoHide.cs). The dock shows
@@ -1480,29 +1482,21 @@ public sealed partial class DockWindow : Window
     {
         var pos = _appWindow.Position;
         var size = _appWindow.Size;
-        var work = DisplayArea.GetFromWindowId(_windowId, DisplayAreaFallback.Nearest).WorkArea;
 
-        // Only snap when the dock is dropped essentially AT an edge (a small tolerance),
-        // otherwise it floats freely wherever it was dropped.
-        const int snapThreshold = 16;
-        int dLeft = pos.X - work.X;
-        int dTop = pos.Y - work.Y;
-        int dRight = work.X + work.Width - (pos.X + size.Width);
-        int dBottom = work.Y + work.Height - (pos.Y + size.Height);
-        int min = Math.Min(Math.Min(dLeft, dRight), Math.Min(dTop, dBottom));
+        // Use the display under the drop center — not GetFromWindowId — so snap distances match
+        // the monitor ResolveDisplay will place the dock on (avoids jumping to an adjacent screen).
+        var work = ResolveDisplayFromCenter(
+            pos.X + size.Width / 2, pos.Y + size.Height / 2).WorkArea;
 
         // Remember exactly where it was dropped: this anchors the snapped position along the
         // edge (so it hides where you left it) and identifies the monitor it lives on.
         _profile.FreeX = pos.X;
         _profile.FreeY = pos.Y;
 
-        if (min <= snapThreshold)
+        if (DockPlacement.DecideSnapEdge(work, pos.X, pos.Y, size.Width, size.Height) is DockEdge edge)
         {
             _profile.Snapped = true;
-            _profile.Edge = min == dBottom ? DockEdge.Bottom
-                         : min == dTop ? DockEdge.Top
-                         : min == dLeft ? DockEdge.Left
-                         : DockEdge.Right;
+            _profile.Edge = edge;
         }
         else
         {
