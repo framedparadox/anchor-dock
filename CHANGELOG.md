@@ -6,6 +6,26 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Round 6 — multi-monitor auto-hide, and a hover race with it
+
+#### Fixed
+
+- **A dock snapped to an edge shared with another monitor never auto-hid at all** — it stayed
+  pinned flush and visible, because sliding it off that edge the way a true outer edge does would
+  have carried it onto the neighboring monitor's screen. It now hides there too: instead of
+  translating the full-size window off-screen, `DockWindow.SetRevealed` (via `HiddenLeadExtent`)
+  shrinks the window in place, down to the notch, flush against the true screen edge — so the
+  notch stays on this monitor and nothing ever crosses onto the neighbor's. That transition is a
+  snap rather than a slide (animating a live resize would relayout the strip's content on every
+  tick); the true-outer-edge case keeps its original eased slide unchanged.
+- **Hovering a group icon could pop its fly-out open before an auto-hidden, edge-snapped dock had
+  even shown itself**, and once that happened later hovers stopped reliably revealing the dock at
+  all. A hidden dock still carries its full strip inside the window — only a sliver of it is left
+  on screen — so a stray pointer hit on that sliver could land on a group icon and open its bar
+  while the dock underneath was still off-screen. `DockWindow.TrackGroupHover` now holds off
+  opening a group on hover, while snapped, until the dock itself is actually revealed; a floating
+  dock is unaffected, since it's always revealed.
+
 ### Round 5 — a group's fly-out stops flickering, and hover becomes a setting
 
 #### Fixed

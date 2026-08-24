@@ -288,6 +288,16 @@ public sealed partial class DockWindow
     /// is not, so that switching hover mode back on finds the flag saying what the cursor is
     /// really doing rather than whatever it last said before the setting changed.
     /// </para>
+    /// <para>
+    /// Also conditional, while edge-snapped, on the dock itself already being revealed. A snapped,
+    /// auto-hidden dock still carries its full strip inside the window while hidden (only a sliver
+    /// of it is left on screen — see <c>DockWindow.AutoHide.cs</c>), so a stray pointer hit on that
+    /// sliver can land on a group icon before the dock has had any chance to slide/shrink back into
+    /// view. Opening the fly-out right then would show the group's children floating over a dock
+    /// that itself never appeared — reveal has to win that race, so hover-to-open simply waits
+    /// until <see cref="_revealed"/> is true. A floating (unsnapped) dock is always revealed, so
+    /// this never changes anything for it.
+    /// </para>
     /// </summary>
     private void TrackGroupHover(FrameworkElement? anchor, DockItem? group)
     {
@@ -300,6 +310,8 @@ public sealed partial class DockWindow
         SetGroupTriggerHovered(group is not null);
 
         if (group is null || anchor is null)
+            return;
+        if (_profile.Snapped && !_revealed)
             return;
         if (!_manager.Config.GroupOpenOnHover || ReferenceEquals(_clickClosedGroup, group))
             return;

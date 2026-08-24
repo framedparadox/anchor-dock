@@ -224,7 +224,8 @@ old glass-frost slider:
   tucks behind the physical screen edge — at the bottom that means **behind the taskbar**, with
   only a small **notch** peeking over it — stays at the position you placed it along the edge (no
   jumping to center), and reveals when you reach the edge (or the notch). On an edge **shared with
-  another monitor** it stays pinned and visible instead of sliding into the neighboring screen.
+  another monitor** it still hides, but shrinks down to the notch in place rather than sliding —
+  so it never slides onto (or peeks out on) the neighboring screen.
 - **Transpose (optional)** — a Settings toggle makes the dock stack its icons
   vertically when snapped to the **left or right** edge; top, bottom and floating stay horizontal.
 - **Always on top (optional)** — the dock stays above other windows; a Settings toggle lets you
@@ -744,9 +745,10 @@ the shortcut off if you don't want Anchor holding a global binding at all.
 tests will tell you if you missed a key.
 
 **Can I run it on multiple monitors?** Yes, two ways. A single dock hides and reveals on whichever
-monitor you dropped it on (and on an edge that borders another monitor it stays pinned and visible
-instead of sliding into the neighbor). Or give each screen its own: **Settings ▸ Docks ▸ Add dock**,
-then pick its monitor — each dock keeps its own items and edge.
+monitor you dropped it on (an edge that borders another monitor still hides, but shrinks to the
+notch in place rather than sliding, so it stays on its own screen instead of onto the neighbor's).
+Or give each screen its own: **Settings ▸ Docks ▸ Add dock**, then pick its monitor — each dock
+keeps its own items and edge.
 
 **Can I use my own icon for an item?** Right-click it → **Edit…** → **Change icon…** and pick a
 PNG, ICO, JPG, BMP or GIF. **Use the default icon** puts the shell/favicon icon back. (It's still the
@@ -786,7 +788,9 @@ folder; the single-instance mutex is scoped to that directory.
   of glass with icons along the bottom of it.
 - **The auto-hide slide is timer-driven**, not a Composition animation — hiding moves the *window*
   off the screen edge, and Composition animates content *inside* a window. It is a fixed-duration
-  eased `AppWindow.Move`, which is smooth, but it is a timer.
+  eased `AppWindow.MoveAndResize`, which is smooth, but it is a timer. On an edge shared with
+  another monitor the window shrinks to the notch in place instead (so it can't cross onto the
+  neighbor's screen even mid-hide), and that transition is an instant snap rather than a slide.
 - **Web-link icons** fetch the site favicon (site `/favicon.ico`, then a favicon service),
   falling back to a globe glyph when a site has none or there's no connectivity.
 - **Groups don't nest, and can't hold separators.** A group's children are always leaves. Both

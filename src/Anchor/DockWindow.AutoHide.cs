@@ -50,10 +50,11 @@ public sealed partial class DockWindow
     // edge). Recomputed on each relayout so it costs nothing per poll tick.
     private bool _edgeHasNeighbor;
 
-    // The dock only auto-hides against a TRUE outer screen edge. On an edge shared with a
-    // neighboring monitor it would slide into that monitor instead of off-screen, so we keep it
-    // pinned flush & visible there rather than "hiding into the next screen".
-    private bool CanHide => AutoHideEnabled && !_edgeHasNeighbor;
+    // Both a true outer screen edge and one shared with a neighboring monitor can hide now — see
+    // HiddenLeadExtent for how the two differ. Sliding the full-size window off the shared edge
+    // would carry it onto the neighbor's screen, so that case shrinks the window down to the
+    // notch instead of translating it (kept fully within THIS monitor either way).
+    private bool CanHide => AutoHideEnabled;
 
     private bool ComputeEdgeHasNeighbor()
     {
@@ -87,9 +88,14 @@ public sealed partial class DockWindow
 
     private int ShownCoord => HideIsVertical ? _shownRect.Y : _shownRect.X;
 
+    // The window's full size along the hide axis (height for top/bottom, width for left/right).
+    // Shown and — on a true outer edge — hidden alike: only the neighbor case shrinks it.
+    private int ShownExtent => HideIsVertical ? _shownRect.Height : _shownRect.Width;
+
     // The dock hides against the OUTER (physical screen) edge, not the work-area edge, so a
     // bottom-snapped dock slides all the way down behind the taskbar and the notch peeks out
-    // over it. (For edges with no taskbar the outer and work edges coincide.)
+    // over it. (For edges with no taskbar the outer and work edges coincide.) Only meaningful on a
+    // true outer edge — see HiddenLeadExtent for the shared-edge case.
     private int HiddenCoord => _profile.Edge switch
     {
         DockEdge.Bottom => _outer.Y + _outer.Height - Peek,
@@ -99,8 +105,51 @@ public sealed partial class DockWindow
         _ => _shownRect.Y,
     };
 
-    private void MoveWindowCoord(int coord) => _appWindow.Move(
-        HideIsVertical ? new PointInt32(_shownRect.X, coord) : new PointInt32(coord, _shownRect.Y));
+    /// <summary>
+    /// Where the window sits along the hide axis once hidden, and how big it is along that same
+    /// axis. On a true outer edge these just describe the familiar slide: the window keeps its
+    /// full size and translates to <see cref="HiddenCoord"/>, leaving <see cref="Peek"/> px on
+    /// screen. On an edge shared with a neighboring monitor, translating a full-size window off it
+    /// would carry most of the window onto that neighbor's screen — so instead the window itself
+    /// shrinks down to the notch, flush against the true screen edge (never past it), and nothing
+    /// ever crosses onto the other display. The cross axis (the window's position and size along
+    /// the edge) is untouched either way.
+    /// </summary>
+    private (int lead, int extent) HiddenLeadExtent()
+    {
+        if (!_edgeHasNeighbor)
+            return (HiddenCoord, ShownExtent);
+
+        double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
+        int notchPx = Math.Max(1, (int)Math.Round(NotchThickness * scale));
+        return _profile.Edge switch
+        {
+            DockEdge.Top => (_outer.Y, notchPx),
+            DockEdge.Bottom => (_outer.Y + _outer.Height - notchPx, notchPx),
+            DockEdge.Left => (_outer.X, notchPx),
+            DockEdge.Right => (_outer.X + _outer.Width - notchPx, notchPx),
+            _ => (HiddenCoord, ShownExtent),
+        };
+    }
+
+    // Moves AND sizes the window along the hide axis in one call — a plain translate whenever
+    // extent is ShownExtent (the true-outer-edge case and the fully shown state alike), and a
+    // resize-in-place for a shrunk neighbor-edge hide. The cross axis always keeps its shown
+    // position and size.
+    private void MoveWindowLeadExtent(int lead, int extent) => _appWindow.MoveAndResize(
+        HideIsVertical
+            ? new RectInt32(_shownRect.X, lead, _shownRect.Width, extent)
+            : new RectInt32(lead, _shownRect.Y, extent, _shownRect.Height));
+
+    private void MoveWindowCoord(int coord) => MoveWindowLeadExtent(coord, ShownExtent);
+
+    // Re-applies whichever hidden geometry currently applies (slide or shrink) — used to keep the
+    // dock tucked away through a relayout without restarting the reveal/hide cycle.
+    private void ApplyHiddenRect()
+    {
+        var (lead, extent) = HiddenLeadExtent();
+        MoveWindowLeadExtent(lead, extent);
+    }
 
     // Called after every reposition (from UpdateSizeAndPosition).
     partial void OnRelayoutApplied()
@@ -111,12 +160,11 @@ public sealed partial class DockWindow
         {
             EnsureStarted();
             if (!_revealed)
-                MoveWindowCoord(HiddenCoord); // keep it tucked away after a size/edge change
+                ApplyHiddenRect(); // keep it tucked away (slid or shrunk) after a size/edge change
         }
         else if (_autoHideStarted)
         {
-            // Auto-hide off, or a shared/interior edge: pin the dock flush & visible instead of
-            // sliding it into the neighboring monitor.
+            // Auto-hide off: pin the dock flush & visible.
             Stop();
         }
         UpdateNotch();
@@ -270,18 +318,30 @@ public sealed partial class DockWindow
     private void SetRevealed(bool reveal)
     {
         _revealed = reveal;
-        _targetCoord = reveal ? ShownCoord : HiddenCoord;
+        int targetExtent;
+        if (reveal)
+        {
+            _targetCoord = ShownCoord;
+            targetExtent = ShownExtent;
+        }
+        else
+        {
+            (_targetCoord, targetExtent) = HiddenLeadExtent();
+        }
         // Re-assert top-most in both directions: when hidden at the bottom the dock sits behind
         // the taskbar, and its notch must stay above the (also top-most) taskbar to be visible.
         WindowChrome.EnsureTopmost(_hwnd);
         UpdateNotch();
 
         // Honor the system "show animations" accessibility setting: when animations are off
-        // (reduced motion), jump straight to the target instead of the slide.
-        if (ReducedMotion)
+        // (reduced motion), jump straight to the target instead of the slide. A neighbor-edge hide
+        // does the same, unconditionally: it resizes the window rather than sliding it, and
+        // animating a live resize means re-laying-out the strip's content every tick — heavier and
+        // glitchier than the plain window move the slide otherwise is.
+        if (ReducedMotion || _edgeHasNeighbor)
         {
             _currentCoord = _targetCoord;
-            MoveWindowCoord(_targetCoord);
+            MoveWindowLeadExtent(_targetCoord, targetExtent);
             return;
         }
         StartSlide();
