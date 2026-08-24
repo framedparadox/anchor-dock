@@ -71,6 +71,17 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetCursorPos(out POINT point);
 
+    /// <summary>The window under a screen point — the hit test Windows itself would do.</summary>
+    [LibraryImport("user32.dll")]
+    public static partial nint WindowFromPoint(POINT point);
+
+    /// <summary>Walks up to a window's top-level owner; see <see cref="GA_ROOT"/>.</summary>
+    [LibraryImport("user32.dll")]
+    public static partial nint GetAncestor(nint hwnd, uint flags);
+
+    /// <summary>GetAncestor: the root window, walking past child site bridges and the like.</summary>
+    public const uint GA_ROOT = 2;
+
     // ---- DPI (DIP -> physical pixel conversion for exact placement) -------
     [LibraryImport("user32.dll")]
     public static partial uint GetDpiForWindow(nint hwnd);
@@ -233,6 +244,22 @@ internal static partial class NativeMethods
     public const uint WM_LBUTTONDBLCLK = 0x0203;
     public const uint WM_RBUTTONUP = 0x0205;
     public const uint WM_CONTEXTMENU = 0x007B;
+
+    // ---- Display-topology changes ------------------------------------------
+    //
+    // A dock caches the monitor it lives on: its outer bounds, its work area, and whether another
+    // screen sits behind the edge it is snapped to (which decides whether hiding may slide the
+    // window off that edge at all). None of that survives the monitor arrangement changing, so
+    // the hidden MessageWindow listens for these and DockManager re-places every dock.
+
+    /// <summary>Resolution, colour depth, or the set of attached monitors changed.</summary>
+    public const uint WM_DISPLAYCHANGE = 0x007E;
+
+    /// <summary>A system parameter changed; <c>wParam</c> says which.</summary>
+    public const uint WM_SETTINGCHANGE = 0x001A;
+
+    /// <summary><c>WM_SETTINGCHANGE.wParam</c> for a work-area change (the taskbar moved/resized).</summary>
+    public const uint SPI_SETWORKAREA = 0x002F;
 
     // ---- Notification-area (tray) icon -------------------------------------
 

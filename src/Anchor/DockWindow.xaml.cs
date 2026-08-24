@@ -1091,7 +1091,9 @@ public sealed partial class DockWindow : Window
     private void ApplyWindowChrome()
     {
         ApplyWindowBorder();
-        WindowChrome.EnsureRoundedCorners(_hwnd, small: false);
+        // A shared-edge hide collapses the HWND to the notch; DWM's ~8px radius would round
+        // that handle away, so rounding is off for as long as the window is that small.
+        WindowChrome.EnsureRoundedCorners(_hwnd, small: false, round: !SharedEdgeNotchFrame);
     }
 
     // The dock is topmost while snapped (so the auto-hide reveal shows over other windows), and

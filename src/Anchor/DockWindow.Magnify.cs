@@ -1,3 +1,4 @@
+using Anchor.Interop;
 using Anchor.Models;
 using Anchor.Services;
 using Microsoft.UI.Xaml;
@@ -74,6 +75,22 @@ public sealed partial class DockWindow
             return;
         }
 
+        // Where the cursor IS beats where the event says it was. A mouse move carries the
+        // position it was generated at, and those two part company whenever the strip moves under
+        // a resting cursor: an auto-hide reveal slides the window up past it, queuing a move for
+        // every step, and WinUI has been measured delivering one of them the better part of a
+        // second after the dock stopped moving. Acted on, it lights up (and opens the tooltip of,
+        // and used to open the group bar of) whichever icon happened to pass over the cursor
+        // mid-slide, with the cursor still down at the screen edge. Re-reading the cursor gives
+        // the same answer as the event for every ordinary move and the right one for these.
+        //
+        // Mouse only: a pen hovers without moving the system cursor at all, so for anything else
+        // the event's own position is the only report there is — as it is if the cursor cannot be
+        // read or the strip cannot be measured, which is what the false return means.
+        if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Mouse
+            && RefreshStripPointerFromCursor())
+            return;
+
         var p = e.GetCurrentPoint(ItemsHost).Position;
         TrackStripPointer(IsVertical ? p.Y : p.X);
     }
@@ -137,6 +154,55 @@ public sealed partial class DockWindow
         TrackGroupHover(hoveredGroupAnchor, hoveredGroup);
 
         EnsureVisualAnimationRunning();
+    }
+
+    /// <summary>
+    /// Runs <see cref="TrackStripPointer"/> from where the cursor physically is. It is both the
+    /// answer to a pointer message that never comes — an auto-hide reveal slides the whole window
+    /// out from under a stationary cursor (see <c>OnSlideSettled</c>), changing what is beneath it
+    /// without the cursor moving — and the correction for one that comes late, carrying a position
+    /// the cursor has long since left (see <see cref="Strip_PointerMoved"/>).
+    /// <para>
+    /// The screen-to-strip conversion is the same one <see cref="CursorIsOverGroupTrigger"/> uses:
+    /// the host's window-relative bounds scaled by the dock's DPI and offset by the window's
+    /// position.
+    /// </para>
+    /// </summary>
+    /// <returns>True when the strip's cues were set from the cursor, false when they could not be
+    /// (no cursor position, or a host that cannot be measured just now) and the caller should fall
+    /// back to whatever it has.</returns>
+    private bool RefreshStripPointerFromCursor()
+    {
+        if (_dragging)
+            return true; // a reorder owns the cells; Strip_PointerMoved has already said so
+        if (!NativeMethods.GetCursorPos(out var cursor))
+            return false;
+
+        try
+        {
+            double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
+            var bounds = ItemsHost.TransformToVisual(RootGrid).TransformBounds(
+                new Windows.Foundation.Rect(0, 0, ItemsHost.ActualWidth, ItemsHost.ActualHeight));
+
+            double left = _appWindow.Position.X + bounds.X * scale;
+            double top = _appWindow.Position.Y + bounds.Y * scale;
+            bool inside = cursor.X >= left && cursor.X <= left + bounds.Width * scale
+                && cursor.Y >= top && cursor.Y <= top + bounds.Height * scale;
+
+            if (!inside)
+            {
+                ResetStripPointer();
+                return true;
+            }
+            TrackStripPointer(IsVertical ? (cursor.Y - top) / scale : (cursor.X - left) / scale);
+            return true;
+        }
+        catch
+        {
+            // The host can be mid-relayout and un-transformable; say so rather than resetting, so
+            // a caller with a pointer event in hand can still use it.
+            return false;
+        }
     }
 
     /// <summary>Drops both cues — on pointer exit, and whenever the strip is rebuilt under a

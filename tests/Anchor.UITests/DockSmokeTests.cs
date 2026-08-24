@@ -394,6 +394,150 @@ public sealed class DockSmokeTests
             "A click did not open the group's fly-out bar.");
     }
 
+    // ---- Group fly-out on an edge-snapped, auto-hiding dock ----------------
+    //
+    // The dock that hides is a different case from the floating one above, and the difference is
+    // the whole reason this section exists: while it is tucked away the only part of it under the
+    // cursor is a few pixels of peek, and the group icon behind those pixels used to open its bar
+    // there — over a dock that was never shown. Worse, the bar holds auto-hide out while it is up,
+    // so the dock was left believing it was revealed while it still sat off-screen, and from then
+    // on no amount of hovering brought it back at all.
+
+    /// <summary>A bottom-snapped, auto-hiding dock holding the same one group as
+    /// <see cref="GroupDockJson"/>.</summary>
+    private static string SnappedGroupDockJson() => """
+    {
+      "Language": "en",
+      "Seeded": true,
+      "GroupOpenOnHover": true,
+      "Docks": [
+        {
+          "Name": "Dock 1",
+          "Snapped": true,
+          "Edge": "Bottom",
+          "AutoHide": true,
+          "Items": [
+            {
+              "Kind": "Group",
+              "DisplayName": "Group",
+              "Children": [
+                {
+                  "Kind": "Application",
+                  "DisplayName": "File Explorer",
+                  "Target": "C:/Windows/explorer.exe"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    """;
+
+    /// <summary>The physical bottom of the primary screen — where an auto-hiding dock hides
+    /// against, which is below the work area the taskbar leaves it.</summary>
+    private static int ScreenBottom => TestMouse.PrimaryScreen.Height;
+
+    /// <summary>Tucked away: only the peek band is left above the screen's bottom edge.</summary>
+    private static bool DockIsHidden(Window dock) => dock.BoundingRectangle.Top >= ScreenBottom - 12;
+
+    /// <summary>Out: the whole strip is back inside the screen.</summary>
+    private static bool DockIsOut(Window dock) => dock.BoundingRectangle.Bottom <= ScreenBottom;
+
+    /// <summary>
+    /// Parks the cursor in the middle of the screen and waits for the dock to hide.
+    /// <para>
+    /// The shown position is deliberately never read at start-up: the dock tucks itself away a
+    /// second or so after launch, well before a test can measure it, so everything here is
+    /// expressed against the screen edge instead of against a "where it was" that is already gone
+    /// by the time it could be recorded.
+    /// </para>
+    /// </summary>
+    private static void WaitForTheDockToHide(Window dock)
+    {
+        TestMouse.GlideTo(new System.Drawing.Point(
+            TestMouse.PrimaryScreen.Width / 2, TestMouse.PrimaryScreen.Height / 2));
+        Assert.True(AnchorApp.WaitUntil(() => DockIsHidden(dock)),
+            "The bottom-snapped dock never auto-hid. (This test needs the bottom of the primary "
+            + "screen to be a true outer edge — with a monitor directly below it the dock hides "
+            + "to a notch on this screen instead of sliding off, and the bounds this helper "
+            + "watches for would not match.)");
+    }
+
+    /// <summary>
+    /// Brings the cursor to the screen edge under <paramref name="atX"/> and watches the dock come
+    /// back out, failing if the group's bar appears at any point while it is still hidden.
+    /// </summary>
+    private static void RevealFromTheEdge(Window dock, int atX)
+    {
+        TestMouse.GlideTo(new System.Drawing.Point(atX, ScreenBottom - 3));
+
+        bool barOpenedWhileHidden = false;
+        bool cameOut = false;
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (DockIsHidden(dock) && BarIsOpen(dock))
+                barOpenedWhileHidden = true;
+            if (DockIsOut(dock))
+            {
+                cameOut = true;
+                break;
+            }
+            Thread.Sleep(50);
+        }
+
+        Assert.False(barOpenedWhileHidden,
+            "The group's bar opened while the dock was still hidden behind the screen edge.");
+        Assert.True(cameOut, "Hovering the hidden dock's edge did not bring it back out.");
+    }
+
+    [UIFact]
+    public void A_hidden_snapped_dock_reveals_before_its_group_opens()
+    {
+        using var app = AnchorApp.Launch(SnappedGroupDockJson());
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        // The dock only moves along Y as it hides, so the icon's x holds while it is away.
+        int groupX = (int)group!.BoundingRectangle.Left + (int)group.BoundingRectangle.Width / 2;
+
+        WaitForTheDockToHide(dock);
+        RevealFromTheEdge(dock, groupX);
+
+        // And now that the dock is actually out, the icon opens its bar on hover as usual.
+        TestMouse.GlideTo(group.GetClickablePoint());
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)),
+            "The group's bar did not open on hover once the dock was out.");
+    }
+
+    [UIFact]
+    public void A_snapped_dock_still_reveals_after_a_group_bar_has_been_open()
+    {
+        // The regression proper: once a group's bar had been up, the hidden dock stopped
+        // answering the edge at all.
+        using var app = AnchorApp.Launch(SnappedGroupDockJson());
+        var dock = app.WaitForDock();
+        var group = AnchorApp.FindButtonByName(dock, "Group");
+        Assert.NotNull(group);
+
+        int groupX = (int)group!.BoundingRectangle.Left + (int)group.BoundingRectangle.Width / 2;
+
+        WaitForTheDockToHide(dock);
+        RevealFromTheEdge(dock, groupX);
+
+        TestMouse.GlideTo(group.GetClickablePoint());
+        Assert.True(AnchorApp.WaitUntil(() => BarIsOpen(dock)), "The group's bar never opened.");
+
+        // Leaving closes the bar and lets the dock tuck away again...
+        WaitForTheDockToHide(dock);
+        Assert.False(BarIsOpen(dock), "The group's bar stayed open after the cursor left it.");
+
+        // ...and it answers the edge again, which is exactly what it stopped doing.
+        RevealFromTheEdge(dock, groupX);
+    }
+
     /// <summary>
     /// Builds a group holding "File Explorer" through the Settings list — the one route to "move
     /// to group" that does not depend on driving a context menu over the dock strip — and returns

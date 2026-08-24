@@ -91,12 +91,13 @@ public static class DockPlacement
 
     /// <summary>
     /// True when another monitor sits immediately beyond <paramref name="edge"/> of
-    /// <paramref name="outer"/> (a shared / interior edge). Auto-hide must not slide the dock
-    /// into that neighbor.
+    /// <paramref name="outer"/> <em>behind this dock</em> (a shared / interior edge). Auto-hide
+    /// must not slide the dock into that neighbor — it collapses to a notch that stays on
+    /// <paramref name="outer"/> instead.
     /// </summary>
     /// <param name="outer">Full bounds of the dock's own monitor.</param>
     /// <param name="edge">The snapped edge.</param>
-    /// <param name="shown">Current on-screen dock rect (used to place probes along the strip).</param>
+    /// <param name="shown">Current on-screen dock rect (the span that has to actually meet a neighbor).</param>
     /// <param name="allOuters">Outer bounds of every display (including <paramref name="outer"/>).</param>
     public static bool EdgeHasNeighbor(
         RectInt32 outer,
@@ -109,12 +110,13 @@ public static class DockPlacement
         if (outer.Width <= 0 || outer.Height <= 0)
             return false;
 
-        if (allOuters.Count > 0 && AnyAbuttingNeighbor(outer, edge, allOuters, abutTolerance))
+        if (allOuters.Count > 0 && AnyAbuttingNeighbor(outer, edge, shown, allOuters, abutTolerance))
             return true;
 
         // Point probes as a fallback when the abut list is empty or incomplete (e.g. caller could
         // not enumerate displays). Probing mid-span and near both ends covers docks parked in a
-        // corner of a shared edge.
+        // corner of a shared edge — and, because the probes follow <paramref name="shown"/>, a
+        // neighbor that only covers the other end of the monitor is ignored.
         foreach (var probe in NeighborProbes(outer, edge, shown, probeOffset))
         {
             foreach (var other in allOuters)
@@ -169,20 +171,106 @@ public static class DockPlacement
 
     /// <summary>
     /// True when any other outer rect abuts <paramref name="outer"/> on <paramref name="edge"/>
-    /// with overlapping span along that edge.
+    /// <em>behind <paramref name="shown"/></em>. A neighbor that only covers a different stretch
+    /// of the same monitor edge does not count: the dock there is on a true outer edge and can
+    /// hide into the void.
     /// </summary>
     public static bool AnyAbuttingNeighbor(
-        RectInt32 outer, DockEdge edge, IReadOnlyList<RectInt32> allOuters, int tolerance = AbutTolerance)
+        RectInt32 outer,
+        DockEdge edge,
+        RectInt32 shown,
+        IReadOnlyList<RectInt32> allOuters,
+        int tolerance = AbutTolerance)
     {
         foreach (var other in allOuters)
         {
             if (RectsEqual(other, outer) || other.Width <= 0 || other.Height <= 0)
                 continue;
-            if (AbutsOnEdge(outer, other, edge, tolerance))
+            if (AbutsOnEdge(outer, other, edge, tolerance) && NeighborCoversDock(shown, other, edge))
                 return true;
         }
         return false;
     }
+
+    /// <summary>
+    /// Whether <paramref name="neighbor"/> actually sits behind the dock along
+    /// <paramref name="edge"/>, not merely somewhere else on that monitor's edge.
+    /// </summary>
+    public static bool NeighborCoversDock(RectInt32 shown, RectInt32 neighbor, DockEdge edge) =>
+        edge is DockEdge.Left or DockEdge.Right
+            ? RangesOverlap(shown.Y, shown.Height, neighbor.Y, neighbor.Height)
+            : RangesOverlap(shown.X, shown.Width, neighbor.X, neighbor.Width);
+
+    /// <summary>
+    /// Window rectangle for a dock hidden on a shared edge: entirely inside
+    /// <paramref name="outer"/>, flush to that edge, occupying only the notch band on this
+    /// monitor. The HWND never crosses into a neighbor — which is the whole point: sliding the
+    /// full window past a shared boundary would paint it on the screen next door (the compositor
+    /// treats the virtual desktop as one surface, and a system acrylic backdrop cannot be clipped
+    /// with <c>SetWindowRgn</c>).
+    /// </summary>
+    public static RectInt32 SharedEdgeHiddenRect(
+        RectInt32 outer, RectInt32 shown, DockEdge edge, int notchLength, int notchThickness)
+    {
+        if (outer.Width <= 0 || outer.Height <= 0)
+            return shown;
+
+        bool verticalEdge = edge is DockEdge.Left or DockEdge.Right;
+        int maxThick = verticalEdge ? outer.Width : outer.Height;
+        int maxLen = verticalEdge ? outer.Height : outer.Width;
+        notchThickness = Math.Clamp(notchThickness, 1, Math.Max(1, maxThick));
+        notchLength = Math.Clamp(notchLength, 1, Math.Max(1, maxLen));
+
+        if (verticalEdge)
+        {
+            int len = Math.Min(notchLength, Math.Max(1, shown.Height));
+            int y = Math.Clamp(
+                shown.Y + (shown.Height - len) / 2,
+                outer.Y,
+                outer.Y + outer.Height - len);
+            int x = edge == DockEdge.Right
+                ? outer.X + outer.Width - notchThickness
+                : outer.X;
+            return new RectInt32(x, y, notchThickness, len);
+        }
+        else
+        {
+            int len = Math.Min(notchLength, Math.Max(1, shown.Width));
+            int x = Math.Clamp(
+                shown.X + (shown.Width - len) / 2,
+                outer.X,
+                outer.X + outer.Width - len);
+            int y = edge == DockEdge.Bottom
+                ? outer.Y + outer.Height - notchThickness
+                : outer.Y;
+            return new RectInt32(x, y, len, notchThickness);
+        }
+    }
+
+    /// <summary>True when <paramref name="inner"/> lies entirely inside <paramref name="outer"/>.</summary>
+    public static bool RectInside(RectInt32 outer, RectInt32 inner) =>
+        inner.Width > 0 && inner.Height > 0 &&
+        inner.X >= outer.X &&
+        inner.Y >= outer.Y &&
+        inner.X + inner.Width <= outer.X + outer.Width &&
+        inner.Y + inner.Height <= outer.Y + outer.Height;
+
+    /// <summary>
+    /// Linear interpolation of two rects. A dock collapsing toward a shared-edge notch uses this
+    /// so every in-flight frame stays on the same side of the boundary: the lerp of two rects
+    /// inside a monitor is still inside that monitor.
+    /// </summary>
+    public static RectInt32 LerpRect(RectInt32 from, RectInt32 to, double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return new RectInt32(
+            Lerp(from.X, to.X, t),
+            Lerp(from.Y, to.Y, t),
+            Math.Max(1, Lerp(from.Width, to.Width, t)),
+            Math.Max(1, Lerp(from.Height, to.Height, t)));
+    }
+
+    private static int Lerp(int a, int b, double t) => (int)Math.Round(a + (b - a) * t);
 
     /// <summary>Whether <paramref name="other"/> shares <paramref name="edge"/> of <paramref name="self"/>.</summary>
     public static bool AbutsOnEdge(RectInt32 self, RectInt32 other, DockEdge edge, int tolerance = AbutTolerance)

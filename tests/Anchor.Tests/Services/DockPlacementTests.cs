@@ -155,4 +155,162 @@ public class DockPlacementTests
         Assert.All(probes, p => Assert.Equal(PrimaryOuter.Y - DockPlacement.NeighborProbeOffset, p.Y));
         Assert.Contains(probes, p => p.X > shown.X && p.X < shown.X + shown.Width);
     }
+
+    [Fact]
+    public void EdgeHasNeighbor_false_when_neighbor_only_covers_the_other_end_of_the_edge()
+    {
+        // Secondary sits to the right of the top half; the dock is parked on the bottom-right
+        // of a tall primary — that stretch is a true outer edge, not a shared one.
+        var tallPrimary = new RectInt32(0, 0, 1920, 2160);
+        var topSecondary = new RectInt32(1920, 0, 1920, 1080);
+        var shown = new RectInt32(1920 - 48, 1800, 48, 200);
+        Assert.False(DockPlacement.EdgeHasNeighbor(
+            tallPrimary, DockEdge.Right, shown, new[] { tallPrimary, topSecondary }));
+    }
+
+    [Fact]
+    public void EdgeHasNeighbor_true_when_the_dock_span_overlaps_the_neighbor()
+    {
+        var tallPrimary = new RectInt32(0, 0, 1920, 2160);
+        var topSecondary = new RectInt32(1920, 0, 1920, 1080);
+        var shown = new RectInt32(1920 - 48, 400, 48, 200);
+        Assert.True(DockPlacement.EdgeHasNeighbor(
+            tallPrimary, DockEdge.Right, shown, new[] { tallPrimary, topSecondary }));
+    }
+
+    // ---- Shared-edge hide: stay on this monitor, notch only ----------------
+
+    [Fact]
+    public void SharedEdgeHiddenRect_on_the_right_stays_on_the_snapped_monitor()
+    {
+        var shown = new RectInt32(1920 - 48, 400, 48, 200);
+        var hidden = DockPlacement.SharedEdgeHiddenRect(
+            PrimaryOuter, shown, DockEdge.Right, notchLength: 40, notchThickness: 10);
+
+        Assert.True(DockPlacement.RectInside(PrimaryOuter, hidden));
+        Assert.Equal(PrimaryOuter.X + PrimaryOuter.Width - 10, hidden.X);
+        Assert.Equal(10, hidden.Width);
+        Assert.Equal(40, hidden.Height);
+        // Must not occupy any pixel of the secondary (x >= 1920).
+        Assert.True(hidden.X + hidden.Width <= SecondaryOuter.X);
+    }
+
+    [Fact]
+    public void SharedEdgeHiddenRect_on_the_left_of_the_secondary_stays_on_the_secondary()
+    {
+        var shown = new RectInt32(1920, 400, 48, 200);
+        var hidden = DockPlacement.SharedEdgeHiddenRect(
+            SecondaryOuter, shown, DockEdge.Left, notchLength: 40, notchThickness: 10);
+
+        Assert.True(DockPlacement.RectInside(SecondaryOuter, hidden));
+        Assert.Equal(SecondaryOuter.X, hidden.X);
+        Assert.True(hidden.X >= SecondaryOuter.X);
+        Assert.True(hidden.X + hidden.Width <= SecondaryOuter.X + SecondaryOuter.Width);
+    }
+
+    [Fact]
+    public void SharedEdgeHiddenRect_on_a_stacked_bottom_edge_stays_on_the_upper_monitor()
+    {
+        var below = new RectInt32(0, 1080, 1920, 1080);
+        var shown = new RectInt32(760, 1080 - 48, 400, 48);
+        var hidden = DockPlacement.SharedEdgeHiddenRect(
+            PrimaryOuter, shown, DockEdge.Bottom, notchLength: 62, notchThickness: 10);
+
+        Assert.True(DockPlacement.RectInside(PrimaryOuter, hidden));
+        Assert.Equal(PrimaryOuter.Y + PrimaryOuter.Height - 10, hidden.Y);
+        Assert.True(hidden.Y + hidden.Height <= below.Y);
+    }
+
+    [Fact]
+    public void LerpRect_from_shown_to_shared_hidden_never_enters_the_neighbor()
+    {
+        var shown = new RectInt32(1920 - 48, 400, 48, 200);
+        var hidden = DockPlacement.SharedEdgeHiddenRect(
+            PrimaryOuter, shown, DockEdge.Right, notchLength: 40, notchThickness: 10);
+
+        for (int i = 0; i <= 20; i++)
+        {
+            var frame = DockPlacement.LerpRect(shown, hidden, i / 20.0);
+            Assert.True(DockPlacement.RectInside(PrimaryOuter, frame),
+                $"Frame at t={i / 20.0} left the snapped monitor.");
+            Assert.True(frame.X + frame.Width <= SecondaryOuter.X,
+                $"Frame at t={i / 20.0} crossed onto the secondary.");
+        }
+    }
+
+    // ---- A real portrait-left arrangement ----------------------------------
+    //
+    // The layout these rules were verified against on hardware: a 1080x1920 portrait screen to
+    // the LEFT of a 1920x1080 primary, nudged 5px down (Windows lets monitors sit at any offset,
+    // and the arrangement UI rarely lands on an exact one). It is worth pinning as a fixture
+    // because it exercises two things a tidy side-by-side pair cannot: a small vertical offset
+    // that must still read as abutting, and an edge that is shared along part of its length and a
+    // true outer edge along the rest — the portrait screen is 1920 tall while the primary it
+    // meets is only 1080, so the bottom 840px of its right edge face nothing at all.
+
+    private static readonly RectInt32 PortraitLeftOuter = new(-1080, 5, 1080, 1920);
+    private static readonly RectInt32 LandscapeOuter = new(0, 0, 1920, 1080);
+
+    private static readonly IReadOnlyList<RectInt32> PortraitLeftLayout =
+        new[] { LandscapeOuter, PortraitLeftOuter };
+
+    [Fact]
+    public void PortraitLeft_landscape_left_edge_is_shared_despite_the_offset()
+    {
+        // Dock on the landscape screen's left edge: the portrait screen is right behind it, so
+        // hiding must not slide the window that way.
+        var shown = new RectInt32(0, 481, 193, 52);
+        Assert.True(DockPlacement.EdgeHasNeighbor(
+            LandscapeOuter, DockEdge.Left, shown, PortraitLeftLayout));
+    }
+
+    [Fact]
+    public void PortraitLeft_portrait_right_edge_is_shared_where_the_landscape_screen_is()
+    {
+        // High up the portrait screen's right edge, the landscape screen is behind it.
+        var shown = new RectInt32(-193, 500, 193, 52);
+        Assert.True(DockPlacement.EdgeHasNeighbor(
+            PortraitLeftOuter, DockEdge.Right, shown, PortraitLeftLayout));
+    }
+
+    [Fact]
+    public void PortraitLeft_portrait_right_edge_is_outer_below_the_landscape_screen()
+    {
+        // The same edge, lower down: past the bottom of the landscape screen there is nothing
+        // out there, so the dock is free to slide off it like any other outer edge.
+        var shown = new RectInt32(-193, 1500, 193, 52);
+        Assert.False(DockPlacement.EdgeHasNeighbor(
+            PortraitLeftOuter, DockEdge.Right, shown, PortraitLeftLayout));
+    }
+
+    [Fact]
+    public void PortraitLeft_shared_hide_keeps_every_frame_off_the_neighbour()
+    {
+        // The notch, and every frame of the collapse into it, stays on the portrait screen —
+        // never a pixel at x >= 0, which is the landscape screen.
+        var shown = new RectInt32(-193, 500, 193, 52);
+        var hidden = DockPlacement.SharedEdgeHiddenRect(
+            PortraitLeftOuter, shown, DockEdge.Right, notchLength: 40, notchThickness: 10);
+
+        Assert.True(DockPlacement.RectInside(PortraitLeftOuter, hidden));
+        Assert.Equal(-10, hidden.X);
+        Assert.Equal(10, hidden.Width);
+
+        for (int i = 0; i <= 20; i++)
+        {
+            var frame = DockPlacement.LerpRect(shown, hidden, i / 20.0);
+            Assert.True(frame.X + frame.Width <= LandscapeOuter.X,
+                $"Frame at t={i / 20.0} crossed onto the landscape screen.");
+        }
+    }
+
+    [Fact]
+    public void PortraitLeft_drop_near_the_shared_edge_snaps_on_the_screen_it_was_dropped_on()
+    {
+        // Dropped just inside the portrait screen's right edge: it must snap there, using that
+        // screen's work area — not jump to the landscape screen whose edge is the same line.
+        var portraitWork = new RectInt32(-1080, 5, 1080, 1872);
+        var edge = DockPlacement.DecideSnapEdge(portraitWork, x: -191, y: 800, width: 193, height: 52);
+        Assert.Equal(DockEdge.Right, edge);
+    }
 }

@@ -6,6 +6,26 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Multi-monitor auto-hide
+
+#### Changed
+
+- **A dock snapped to an edge shared with another monitor now hides on that edge too.** It no
+  longer stays pinned visible, and it no longer slides onto the neighboring screen. The window
+  collapses to the notch, entirely inside the monitor it is snapped to; only that notch stays
+  visible. True outer edges still hide behind the physical screen bound (behind the taskbar on
+  the bottom).
+
+#### Fixed
+
+- **Docks now follow a change in the monitor arrangement.** Each dock caches the screen it lives
+  on — its bounds, its work area, and whether another monitor sits behind the edge it is snapped
+  to — and nothing recomputed that when monitors were plugged in, unplugged, rearranged or had
+  their resolution changed. A dock still holding the stale "nothing behind this edge" answer hid
+  by sliding straight onto a screen that had since appeared next to it, and one whose monitor went
+  away was stranded on coordinates that no longer existed. Anchor now watches for display changes
+  and re-places every dock once the new arrangement has settled.
+
 ### Round 5 — a group's fly-out stops flickering, and hover becomes a setting
 
 #### Fixed
