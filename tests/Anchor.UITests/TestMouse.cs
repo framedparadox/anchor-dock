@@ -49,6 +49,13 @@ internal static class TestMouse
 
     public static Point Cursor => GetCursorPos(out var p) ? new Point(p.X, p.Y) : Point.Empty;
 
+    /// <summary>
+    /// The primary display's pixel size — the same one the absolute coordinates above are scaled
+    /// against, and so the only screen these tests can address. A test that needs the physical
+    /// screen edge (an auto-hiding dock hides against it, not against the work area) gets it here.
+    /// </summary>
+    public static Size PrimaryScreen => new(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+
     private const uint MOUSEEVENTF_MOVE = 0x0001;
     private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
     private const int SM_CXSCREEN = 0;

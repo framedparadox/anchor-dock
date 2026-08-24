@@ -303,6 +303,27 @@ public sealed partial class DockWindow
             return;
         if (!_manager.Config.GroupOpenOnHover || ReferenceEquals(_clickClosedGroup, group))
             return;
+        // An edge-snapped dock that hides has to be out and settled first: while it is tucked
+        // away the only thing under the cursor is the peek band, and the cursor arriving there
+        // means "bring the dock back", not "open the group that happens to be behind those few
+        // pixels". Opening the bar there put a fly-out over a dock that was never shown — and,
+        // because the bar holds auto-hide out while it is up, left the dock stuck off-screen and
+        // deaf to the hot zone. The reveal is already under way (PollCursor sees the same cursor
+        // at the same edge); once it lands, OnSlideSettled re-reads the hover and this runs again
+        // with the dock genuinely visible. A dock that does not hide is always "visible", so
+        // floating and pinned docks reach ShowGroupFlyout exactly as before.
+        if (!DockActivelyVisible)
+            return;
+        // And the cursor has to be on the icon *now*. The pointer move that got here carries the
+        // position it was generated at, which is not always the position the cursor is at by the
+        // time it arrives: a reveal slides the whole window up past a resting cursor, and every
+        // step of that slide queues a move whose coordinates say "over the strip" — delivered,
+        // measurably, up to a second after the dock has stopped moving. Acting on one of those
+        // opened a group's bar with the cursor still sitting down at the screen edge, and it shut
+        // again a moment later when the watch (which does look at the cursor) disagreed. Asking
+        // the cursor directly is what makes the two agree from the start.
+        if (CursorIsOver(anchor) == false)
+            return;
         ShowGroupFlyout(anchor, group);
     }
 
@@ -374,7 +395,7 @@ public sealed partial class DockWindow
         // the fly-out's phantom exit sets it false with the cursor still on the icon.
         _pointerOverGroupTrigger = overTrigger;
 
-        if (overTrigger || _pointerOverGroupBar)
+        if (overTrigger || CursorIsOverGroupBar())
         {
             _groupAwaySince = null;
             return;
@@ -389,22 +410,68 @@ public sealed partial class DockWindow
     }
 
     /// <summary>
+    /// Whether the cursor is on the open bar — <see cref="_pointerOverGroupBar"/> as the pointer
+    /// events left it, but only where the screen agrees with them.
+    /// <para>
+    /// The flag alone gets stuck. The bar is a popup window of its own, so "the cursor is on it"
+    /// arrives as an enter/exit pair on that window, and the exit is not guaranteed: a bar that
+    /// opens under the cursor fires several of both in a few milliseconds as the popup settles,
+    /// and a cursor crossing the bar on its way somewhere else can leave without the exit landing
+    /// at all. One lost exit and the flag reads "on the bar" forever — which means the watch never
+    /// closes the bar, and, since an open bar holds auto-hide out, an edge-snapped dock never
+    /// tucks away again either. Reproducible, and exactly the "the dock stops behaving" report
+    /// this fix is about.
+    /// </para>
+    /// <para>
+    /// Windows' own hit test settles it: the bar's window belongs to this process and is not the
+    /// dock's, so a cursor over another app entirely — or over the dock itself — is demonstrably
+    /// not on the bar, whatever the flag says. Only that direction is corrected; the flag is still
+    /// what says the cursor <em>is</em> on it, since our own windows are more than just the bar.
+    /// </para>
+    /// </summary>
+    private bool CursorIsOverGroupBar()
+    {
+        if (!_pointerOverGroupBar)
+            return false;
+        if (!NativeMethods.GetCursorPos(out var cursor))
+            return true; // no way to check — the pointer events are all there is
+        nint under = NativeMethods.WindowFromPoint(cursor);
+        if (under == 0)
+            return false;
+        NativeMethods.GetWindowThreadProcessId(under, out uint pid);
+        if (pid != (uint)Environment.ProcessId)
+            return false;
+        // Ours, but the dock's own window is not the bar.
+        return NativeMethods.GetAncestor(under, NativeMethods.GA_ROOT) != _hwnd;
+    }
+
+    /// <summary>
     /// True when the cursor is physically inside the dock icon the open bar hangs from. Measured
     /// against the screen rather than asked of the pointer events, for the reason
     /// <see cref="EnsureGroupHoverWatch"/> gives: the icon's window-relative bounds scaled by the
     /// dock's DPI and offset by the window's position, the same conversion the reorder drag does.
     /// </summary>
-    private bool CursorIsOverGroupTrigger()
+    private bool CursorIsOverGroupTrigger() => CursorIsOver(_openGroupAnchor) ?? false;
+
+    /// <summary>
+    /// Whether the cursor is physically inside <paramref name="element"/> — true, false, or
+    /// <c>null</c> for "could not tell", which is what an un-parented element mid-relayout or an
+    /// unavailable cursor position gives. The two callers want opposite things from that third
+    /// answer, which is why it is an answer rather than a guess: the watch treats it as "not over
+    /// it" and lets the bar close, while hover-to-open treats it as no objection and opens, so an
+    /// element it cannot measure falls back to trusting the pointer event rather than silently
+    /// never opening a group again.
+    /// </summary>
+    private bool? CursorIsOver(FrameworkElement? element)
     {
-        if (_openGroupAnchor is null || !NativeMethods.GetCursorPos(out var cursor))
-            return false;
+        if (element is null || !NativeMethods.GetCursorPos(out var cursor))
+            return null;
 
         try
         {
             double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
-            var bounds = _openGroupAnchor.TransformToVisual(RootGrid).TransformBounds(
-                new Windows.Foundation.Rect(
-                    0, 0, _openGroupAnchor.ActualWidth, _openGroupAnchor.ActualHeight));
+            var bounds = element.TransformToVisual(RootGrid).TransformBounds(
+                new Windows.Foundation.Rect(0, 0, element.ActualWidth, element.ActualHeight));
 
             double left = _appWindow.Position.X + bounds.X * scale;
             double top = _appWindow.Position.Y + bounds.Y * scale;
@@ -413,9 +480,7 @@ public sealed partial class DockWindow
         }
         catch
         {
-            // The anchor can be un-parented mid-tick by a relayout; "not over it" simply lets the
-            // bar close, which is the safe way to be wrong here.
-            return false;
+            return null;
         }
     }
 

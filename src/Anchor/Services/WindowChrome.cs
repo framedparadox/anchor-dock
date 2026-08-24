@@ -79,9 +79,13 @@ public static class WindowChrome
     }
 
     /// <summary>Applies the Windows 11 rounded-corner treatment to the window.</summary>
-    public static void SetRoundedCorners(nint hwnd, bool small = false)
+    /// <param name="round">False disables rounding — used for the tiny shared-edge notch, where
+    /// DWM's ~8px radius would eat the whole handle.</param>
+    public static void SetRoundedCorners(nint hwnd, bool small = false, bool round = true)
     {
-        int pref = small ? NativeMethods.DWMWCP_ROUNDSMALL : NativeMethods.DWMWCP_ROUND;
+        int pref = !round
+            ? NativeMethods.DWMWCP_DONOTROUND
+            : (small ? NativeMethods.DWMWCP_ROUNDSMALL : NativeMethods.DWMWCP_ROUND);
         NativeMethods.DwmSetWindowAttribute(
             hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
     }
@@ -91,9 +95,9 @@ public static class WindowChrome
     /// preference when the non-client frame is stripped or the window is moved/resized — which
     /// shows up most often in installed/MSIX builds where startup timing differs from dev.
     /// </summary>
-    public static void EnsureRoundedCorners(nint hwnd, bool small = false)
+    public static void EnsureRoundedCorners(nint hwnd, bool small = false, bool round = true)
     {
-        SetRoundedCorners(hwnd, small);
+        SetRoundedCorners(hwnd, small, round);
         NativeMethods.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
             NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE |
             NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE |

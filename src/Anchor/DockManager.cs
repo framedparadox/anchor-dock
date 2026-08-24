@@ -113,6 +113,11 @@ public sealed class DockManager
     /// </summary>
     public void ReleaseShellIntegration()
     {
+        // Before the message window goes: the display-change debounce is armed by its messages,
+        // and a tick arriving mid-teardown would re-place docks that are on their way out.
+        _displayChangeTimer?.Stop();
+        _displayChangeTimer = null;
+
         _tray?.Dispose();
         _hotkeys?.Dispose();
         _messageWindow?.Dispose();
@@ -204,6 +209,8 @@ public sealed class DockManager
                     UpdateAvailable?.Invoke(release);
             };
 
+            _messageWindow.MessageReceived += OnSystemMessage;
+
             _hotkeys = new HotkeyService(_messageWindow);
             _hotkeys.Pressed += OnHotkeyPressed;
             ApplyHotkey();
@@ -215,6 +222,89 @@ public sealed class DockManager
             // Anchor running without its tray icon is degraded, not broken — never let this take
             // the app down at startup.
             Diag.Log("Tray/hotkey setup failed: " + ex);
+        }
+    }
+
+    // ---- Display-topology changes ------------------------------------------
+    //
+    // Each dock caches its monitor: outer bounds, work area, and — the one that matters most —
+    // whether another screen sits immediately behind the edge it is snapped to. That flag decides
+    // whether hiding may slide the window off the edge (nothing out there) or must collapse it to
+    // a notch that stays on this monitor (a screen out there). Plugging a monitor in next to a
+    // snapped dock silently invalidates it, and a dock still holding the stale "no neighbour"
+    // answer hides by sliding straight onto the new screen — exactly what an edge-snapped dock
+    // must never do. Unplugging one strands a dock on coordinates that no longer exist.
+    //
+    // So re-place every dock when the arrangement changes. Re-placing is what recomputes all of
+    // it, including the neighbour flag.
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _displayChangeTimer;
+
+    /// <summary>
+    /// How long to wait after the last display message before re-placing. A monitor being
+    /// attached, detached or rearranged produces a burst of these, and the display metrics Windows
+    /// reports mid-burst are the ones it is still in the middle of changing — so coalesce the
+    /// burst and read the arrangement once it has settled.
+    /// </summary>
+    private static readonly TimeSpan DisplayChangeDebounce = TimeSpan.FromMilliseconds(400);
+
+    private void OnSystemMessage(uint msg, nint wParam, nint lParam)
+    {
+        bool displaysChanged =
+            msg == NativeMethods.WM_DISPLAYCHANGE ||
+            (msg == NativeMethods.WM_SETTINGCHANGE && (uint)wParam == NativeMethods.SPI_SETWORKAREA);
+
+        if (displaysChanged)
+            ScheduleDisplayChangeRelayout();
+    }
+
+    private void ScheduleDisplayChangeRelayout()
+    {
+        if (_shuttingDown)
+            return;
+
+        // Restarting the timer on each message is the coalescing: only the last one in a burst
+        // gets to fire.
+        _displayChangeTimer ??= CreateDisplayChangeTimer();
+        _displayChangeTimer.Stop();
+        _displayChangeTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateDisplayChangeTimer()
+    {
+        var queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        var timer = queue.CreateTimer();
+        timer.Interval = DisplayChangeDebounce;
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => RelayoutForDisplayChange();
+        return timer;
+    }
+
+    /// <summary>
+    /// Re-places every dock for the current monitor arrangement. Each dock is guarded on its own:
+    /// one that cannot be re-placed (its window already closing, say) must not stop the others
+    /// from being rescued.
+    /// </summary>
+    private void RelayoutForDisplayChange()
+    {
+        if (_shuttingDown)
+            return;
+
+        // A dock the user hid from the tray is not on screen and must stay that way; it re-places
+        // itself from ShowAfterUserHide when it is summoned back.
+        if (_hiddenByUser)
+            return;
+
+        foreach (var dock in _docks)
+        {
+            try
+            {
+                dock.RelayoutAfterExternalMove();
+            }
+            catch (Exception ex)
+            {
+                Diag.Log("Display change: could not re-place a dock — " + ex.Message);
+            }
         }
     }
 
