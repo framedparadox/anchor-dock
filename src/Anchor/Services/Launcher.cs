@@ -177,6 +177,77 @@ public static class Launcher
         }
     }
 
+    /// <summary>
+    /// True when <see cref="DockItem.Target"/> is <em>expected</em> to be a real path on disk, so
+    /// "Open file location" belongs in the item's menu. Checked against the kind alone — no
+    /// <see cref="File.Exists"/>/<see cref="Directory.Exists"/> here — because this runs every time
+    /// a menu is built (every right-click), and a target that's actually an unreachable UNC path or
+    /// a disconnected mapped drive would stat the network and could freeze the whole dock just to
+    /// decide what a menu should say. <see cref="OpenFileLocation"/> does that real check itself,
+    /// on the one right-click in a hundred that actually chooses the entry.
+    /// <para>
+    /// This can say yes for a target that turns out not to have a location — a "Shortcut" add
+    /// resolves to <see cref="DockItemKind.File"/> just as a real file does (see
+    /// <c>DockItemFactory.Classify</c>), but its target can be a shell command or URI like
+    /// <c>"ms-settings:"</c> — in which case the entry is shown but clicking it quietly does
+    /// nothing, which is the safer failure than a menu that can hang.
+    /// </para>
+    /// </summary>
+    public static bool SupportsFileLocation(DockItem item) =>
+        item.Kind is DockItemKind.Application or DockItemKind.File or DockItemKind.Folder &&
+        !string.IsNullOrWhiteSpace(item.Target);
+
+    /// <summary>
+    /// Reveals the item's target in Explorer: opens its containing folder with the target itself
+    /// selected — the same "Open file location" a Windows shortcut's own right-click menu offers.
+    /// A no-op (besides a log line) for anything that isn't really a path on disk.
+    /// </summary>
+    public static void OpenFileLocation(DockItem item)
+    {
+        if (!SupportsFileLocation(item) || !(File.Exists(item.Target) || Directory.Exists(item.Target)))
+        {
+            Diag.Log($"OpenFileLocation skipped: '{item.Target}' is not a path on disk");
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                // No space after the comma: that's the canonical form Explorer's /select expects.
+                // A Windows path can't contain a double quote, so nothing else here needs escaping
+                // — except a trailing backslash (a drive root like "C:\", or a UNC share root),
+                // which QuoteForCommandLine doubles so the parser reads it as a literal backslash
+                // rather than as escaping the closing quote.
+                Arguments = $"/select,{QuoteForCommandLine(item.Target)}",
+                UseShellExecute = true,
+            });
+            Diag.Log($"OpenFileLocation: revealed '{item.Target}'");
+        }
+        catch (Exception ex)
+        {
+            Diag.Log($"OpenFileLocation FAILED: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Wraps a path in quotes for a raw Win32 command line — the convention
+    /// <see cref="ProcessStartInfo.Arguments"/> expects, since (unlike <c>ArgumentList</c>) it does
+    /// no escaping of its own. Doubles a trailing run of backslashes before the closing quote: the
+    /// standard argv-parsing rule is that backslashes immediately before a quote are escapes for
+    /// it unless there's an even number of them, so a path ending in exactly one — a drive root
+    /// like <c>C:\</c>, or a UNC share root — would otherwise have its closing quote read as
+    /// escaped rather than as ending the quoted argument.
+    /// </summary>
+    private static string QuoteForCommandLine(string path)
+    {
+        int trailingBackslashes = path.Length - path.TrimEnd('\\').Length;
+        return trailingBackslashes == 0
+            ? $"\"{path}\""
+            : $"\"{path}{new string('\\', trailingBackslashes)}\"";
+    }
+
     /// <summary>Working directory for a real local file/app, or null. Never throws.</summary>
     private static string? TryGetWorkingDirectory(DockItem item)
     {

@@ -936,11 +936,11 @@ public sealed partial class SettingsWindow : Window
 
             foreach (var item in profile.Items)
             {
-                AppsList.Children.Add(BuildRow(dock, item));
+                AppsList.Children.Add(BuildRow(dock, item, profile.Items));
                 // A group's children never appear on the strip themselves, so list them under it —
                 // indented — rather than leaving them invisible outside the fly-out.
                 foreach (var child in item.Children)
-                    AppsList.Children.Add(BuildRow(dock, child, insideGroup: true));
+                    AppsList.Children.Add(BuildRow(dock, child, item.Children, insideGroup: true));
             }
         }
     }
@@ -948,7 +948,7 @@ public sealed partial class SettingsWindow : Window
     /// <summary>A dock's name, or a positional fallback when the user hasn't given it one.</summary>
     private string DockLabel(DockProfile profile) => _manager.LabelFor(profile);
 
-    private Border BuildRow(DockWindow dock, DockItem item, bool insideGroup = false)
+    private Border BuildRow(DockWindow dock, DockItem item, IList<DockItem> siblings, bool insideGroup = false)
     {
         var grid = new Grid { ColumnSpacing = 14, VerticalAlignment = VerticalAlignment.Center };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1021,6 +1021,54 @@ public sealed partial class SettingsWindow : Window
             Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center,
         };
+
+        // Move up/down: this row's own position among its siblings — the top-level dock order for
+        // a plain item, or its group's order for one shown indented underneath it. The dock itself
+        // offers a drag gesture for both; this is the same move reachable without one.
+        int position = siblings.IndexOf(item);
+        var moveUp = new Button
+        {
+            Content = new FontIcon
+            {
+                Glyph = "\uE70E", // ChevronUp
+                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                FontSize = 14,
+            },
+            VerticalAlignment = VerticalAlignment.Center,
+            IsEnabled = position > 0,
+        };
+        ToolTipService.SetToolTip(moveUp, Loc.Get("Apps.MoveUp"));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(moveUp, Loc.Get("Apps.MoveUp"));
+        moveUp.Click += (_, _) =>
+        {
+            if (insideGroup)
+                dock.MoveGroupChild(item, -1);
+            else
+                dock.MoveTopLevelItem(item, -1);
+        };
+        actions.Children.Add(moveUp);
+
+        var moveDown = new Button
+        {
+            Content = new FontIcon
+            {
+                Glyph = "\uE70D", // ChevronDown
+                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                FontSize = 14,
+            },
+            VerticalAlignment = VerticalAlignment.Center,
+            IsEnabled = position >= 0 && position < siblings.Count - 1,
+        };
+        ToolTipService.SetToolTip(moveDown, Loc.Get("Apps.MoveDown"));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(moveDown, Loc.Get("Apps.MoveDown"));
+        moveDown.Click += (_, _) =>
+        {
+            if (insideGroup)
+                dock.MoveGroupChild(item, +1);
+            else
+                dock.MoveTopLevelItem(item, +1);
+        };
+        actions.Children.Add(moveDown);
 
         // Edit: the same panel the dock's own right-click menu opens, carrying the item's name,
         // its target and its icon. A separator has none of the three, so it gets no button.

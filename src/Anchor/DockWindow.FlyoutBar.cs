@@ -71,6 +71,10 @@ public sealed partial class DockWindow
     /// <param name="OnDragOut">Called when a cell is dragged clear of the bar, which is how an
     /// item is taken back out of a group. Null means the bar has nothing to drag out of it (a
     /// folder bar is a view of the disk, not a container).</param>
+    /// <param name="OnReorder">Called with the bar's new left-to-right (or top-to-bottom) order
+    /// once a drag that reordered cells within the bar ends. Null means the bar's cells have no
+    /// order of their own to change (a folder bar reflects the file system, not something the
+    /// user arranges).</param>
     /// <param name="KeepDockInteractive">Lets pointer input over the dock strip keep reaching the
     /// dock while the bar is up, instead of being swallowed by the fly-out's light-dismiss layer
     /// — see <see cref="ShowDockBarFlyout"/>. A group bar needs it (hover has to keep working
@@ -81,6 +85,7 @@ public sealed partial class DockWindow
         Func<DockItem, bool>? OnActivate = null,
         Action<FrameworkElement, DockItem, Flyout, ContextRequestedEventArgs>? OnContext = null,
         Action<DockItem>? OnDragOut = null,
+        Action<IReadOnlyList<DockItem>>? OnReorder = null,
         bool KeepDockInteractive = false);
 
     /// <summary>Opens a bar for the icon <paramref name="anchor"/>, clear of the dock's border.</summary>
@@ -225,6 +230,7 @@ public sealed partial class DockWindow
     private FrameworkElement BuildBar(Flyout flyout, DockBarOptions options)
     {
         bool vertical = BarIsVertical;
+        bool draggable = options.OnDragOut is not null || options.OnReorder is not null;
 
         var stack = new StackPanel
         {
@@ -233,14 +239,28 @@ public sealed partial class DockWindow
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        foreach (var item in options.Items)
-            stack.Children.Add(BuildBarCell(item, flyout, options));
+
+        // The live order backing the stack's own children: WatchCellDrag keeps the two in lock
+        // step as a reorder drag proceeds, and this is what's handed to options.OnReorder once the
+        // gesture ends. A bar that can't be dragged at all (a folder's) has no use for one.
+        var order = options.Items.ToList();
+        Canvas? ghostLayer = draggable ? new Canvas { IsHitTestVisible = false } : null;
+
+        foreach (var item in order)
+            stack.Children.Add(BuildBarCell(item, flyout, options, stack, order, ghostLayer));
+
+        // The ghost layer shares a Grid with the stack, on top of it in z-order, so a dragged
+        // cell's floating copy (see WatchCellDrag) draws over every real cell instead of being
+        // interleaved among them.
+        FrameworkElement content = ghostLayer is null
+            ? stack
+            : new Grid { Children = { stack, ghostLayer } };
 
         // Only the flow axis can overflow — the other is exactly one cell wide — so the scroll
         // viewer is disabled across it rather than left to add a second, useless scrollbar.
         return new ScrollViewer
         {
-            Content = stack,
+            Content = content,
             MaxHeight = vertical ? BarMaxExtent : double.PositiveInfinity,
             MaxWidth = vertical ? double.PositiveInfinity : BarMaxExtent,
             VerticalScrollBarVisibility = vertical ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled,
@@ -260,32 +280,16 @@ public sealed partial class DockWindow
     /// fly-out's entries in particular are created and resolved at the moment the bar opens.
     /// </para>
     /// </summary>
-    private Button BuildBarCell(DockItem item, Flyout flyout, DockBarOptions options)
+    private Button BuildBarCell(
+        DockItem item, Flyout flyout, DockBarOptions options,
+        StackPanel stack, List<DockItem> order, Canvas? ghostLayer)
     {
         var host = new Grid();
 
         void RenderIcon()
         {
             host.Children.Clear();
-            if (item.IconImage is not null)
-            {
-                host.Children.Add(new Image
-                {
-                    Source = item.IconImage,
-                    Width = DockMetrics.Icon,
-                    Height = DockMetrics.Icon,
-                    Stretch = Stretch.Uniform,
-                });
-            }
-            else
-            {
-                host.Children.Add(new FontIcon
-                {
-                    Glyph = item.Glyph,
-                    FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                    FontSize = DockMetrics.Glyph,
-                });
-            }
+            host.Children.Add(BuildIconVisual(item));
         }
         RenderIcon();
 
@@ -312,8 +316,17 @@ public sealed partial class DockWindow
         ToolTipService.SetToolTip(button, item.DisplayName);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, item.DisplayName);
 
+        bool suppressClick = false;
         button.Click += (_, _) =>
         {
+            if (suppressClick)
+            {
+                // The click that ends a drag (reorder or drag-out), not an activation — WinUI can
+                // still fire Click on release if the cursor happens to be back over this cell,
+                // exactly as a plain tap would (see HookCellDrag).
+                suppressClick = false;
+                return;
+            }
             flyout.Hide();
             if (options.OnActivate is null || !options.OnActivate(item))
                 LaunchOrFocus(item);
@@ -328,79 +341,238 @@ public sealed partial class DockWindow
             };
         }
 
-        if (options.OnDragOut is { } onDragOut)
-            HookDragOut(button, item, flyout, onDragOut);
+        HookCellDrag(button, item, flyout, options, stack, order, ghostLayer, v => suppressClick = v);
 
         button.Unloaded += (_, _) => item.PropertyChanged -= OnItemPropertyChanged;
         return button;
     }
 
-    // ---- Dragging a cell back out of the bar -------------------------------
+    // ---- Dragging a cell within (or clear of) the bar ----------------------
     //
-    // The counterpart to dropping an icon onto a group: drag one out of the open bar and it goes
-    // back on the strip. Measured as movement ACROSS the bar's flow, because along the flow is
-    // where the bar's own cells are — a drag up or down a vertical bar is aiming at another cell
-    // in it, and only a drag sideways is unambiguously "out".
+    // One gesture, two things it can turn into: dragging along the bar's own flow reorders the
+    // cell among its siblings — the bar's counterpart to reordering the main strip — while
+    // dragging it clear ACROSS the flow pulls it back out onto the dock, the reverse of dropping
+    // an icon onto the group in the first place. Only the second applies to a folder bar (a view
+    // of the disk has nothing of its own to reorder); see DockBarOptions.OnReorder/OnDragOut.
     //
     // Cursor-polled rather than pointer-captured for the same reason the dock's own drag is (see
     // DockWindow.DragTick): the bar is a light-dismiss popup, and the press that starts the
     // gesture is exactly the kind of thing that dismisses it out from under a captured pointer.
 
+    /// <summary>How far the cursor must move before a press on a cell becomes a drag — reordering
+    /// it, or (once past <see cref="DragOutThreshold"/>) pulling it clear of the bar — rather than
+    /// a click. Matches the main dock's own <c>DragThreshold</c>.</summary>
+    private const double BarDragThreshold = 12;
+
     /// <summary>How far across the bar the cursor must travel to count as "out of it".</summary>
     private const double DragOutThreshold = 52;
 
-    private void HookDragOut(Button cell, DockItem item, Flyout flyout, Action<DockItem> onDragOut)
+    private void HookCellDrag(
+        Button cell, DockItem item, Flyout flyout, DockBarOptions options,
+        StackPanel stack, List<DockItem> order, Canvas? ghostLayer, Action<bool> setSuppressClick)
     {
+        if (options.OnDragOut is null && options.OnReorder is null)
+            return; // nothing a drag on this bar could do — leave the press to Click alone
+
         cell.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) =>
         {
             if (!e.GetCurrentPoint(cell).Properties.IsLeftButtonPressed)
                 return;
             if (!NativeMethods.GetCursorPos(out var start))
                 return;
-            WatchForDragOut(start, item, flyout, onDragOut);
+            WatchCellDrag(start, cell, item, flyout, options, stack, order, ghostLayer, setSuppressClick);
         }), handledEventsToo: true);
     }
 
     /// <summary>
-    /// The drag-out watch currently running, if any. Held only so closing the dock can stop it:
-    /// it otherwise ends itself on the next mouse-release, but a timer still ticking against a
-    /// closed window's dispatcher is the kind of thing that outlives its usefulness.
+    /// The drag watch currently running, if any. Held only so closing the dock can stop it: it
+    /// otherwise ends itself on the next mouse-release, but a timer still ticking against a closed
+    /// window's dispatcher is the kind of thing that outlives its usefulness.
     /// </summary>
-    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _dragOutTimer;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _barCellDragTimer;
 
-    private void WatchForDragOut(
-        NativeMethods.POINT start, DockItem item, Flyout flyout, Action<DockItem> onDragOut)
+    /// <summary>
+    /// Undoes whichever gesture is currently mid-drag (dimmed opacity, floating ghost, click
+    /// suppression) — set once that gesture actually starts dragging, cleared by its own Cleanup.
+    /// Invoked (then cleared) before a new watch starts, so a second press pre-empting the first —
+    /// unreachable with a single mouse, but not with two simultaneous touch contacts on different
+    /// cells — can't leave the first cell dimmed and click-dead forever with nothing left to end
+    /// its gesture and run its own Cleanup.
+    /// </summary>
+    private Action? _barCellDragCleanup;
+
+    private void WatchCellDrag(
+        NativeMethods.POINT start, Button cell, DockItem item, Flyout flyout, DockBarOptions options,
+        StackPanel stack, List<DockItem> order, Canvas? ghostLayer, Action<bool> setSuppressClick)
     {
-        bool acrossIsX = BarIsVertical; // a vertical bar is escaped sideways, and vice versa
-
         // One watch at a time: a second press before the first released would otherwise leave two
-        // timers racing to file the same gesture.
-        _dragOutTimer?.Stop();
+        // timers racing to file the same gesture, and the first gesture's own visual state (if it
+        // had already started dragging) stuck forever with nothing left to clean it up.
+        _barCellDragTimer?.Stop();
+        _barCellDragCleanup?.Invoke();
+        _barCellDragCleanup = null;
+
+        bool vertical = BarIsVertical; // a vertical bar reorders along Y and is escaped along X
+        double pitch = DockMetrics.Cell + BarSpacing; // uniform: a group's children are never separators
+        int startIndex = order.IndexOf(item);
+        if (startIndex < 0)
+            return;
+
+        bool dragging = false;
+        int currentIndex = startIndex;
+        var initialOrder = order.ToList();
+        Border? ghost = null;
+        Windows.Foundation.Point cellOrigin = default;
+
+        void Cleanup()
+        {
+            cell.Opacity = 1;
+            if (ghost is not null)
+                ghostLayer?.Children.Remove(ghost);
+            // Idempotent if Click already ran and reset this itself (the common case: WinUI drops
+            // a button out of its pressed state once the pointer strays off it, so Click usually
+            // never fires here at all). Without this, a gesture that ends with Click never firing
+            // would leave the flag stuck true and silently eat the cell's next legitimate click.
+            setSuppressClick(false);
+            // This gesture is over one way or another — nothing left for a pre-empting press to
+            // undo, and _barCellDragCleanup must not go on to invoke a Cleanup whose cell/ghost
+            // have already been reset (or, once another gesture starts, invoke the wrong one).
+            _barCellDragCleanup = null;
+        }
+
+        void CommitReorder()
+        {
+            if (options.OnReorder is { } onReorder && !order.SequenceEqual(initialOrder))
+                onReorder(order);
+        }
 
         var timer = DispatcherQueue.CreateTimer();
-        _dragOutTimer = timer;
+        _barCellDragTimer = timer;
         timer.Interval = TimeSpan.FromMilliseconds(16);
         timer.Tick += (_, _) =>
         {
-            // Button released without escaping: this was a click, which the cell's own Click
-            // handler has already dealt with.
+            // Button released: this either never became a drag (a click, which Click already
+            // handled) or it did, in which case whatever it settled into is now final.
             if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) == 0)
             {
                 timer.Stop();
+                if (dragging)
+                {
+                    Cleanup();
+                    CommitReorder();
+                }
                 return;
             }
 
             if (!NativeMethods.GetCursorPos(out var now))
                 return;
 
-            double across = acrossIsX ? Math.Abs(now.X - start.X) : Math.Abs(now.Y - start.Y);
-            if (across < DragOutThreshold * (NativeMethods.GetDpiForWindow(_hwnd) / 96.0))
+            double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
+            double along = (vertical ? now.Y - start.Y : now.X - start.X) / scale;
+            double across = Math.Abs(vertical ? now.X - start.X : now.Y - start.Y) / scale;
+            bool pastDragOut = options.OnDragOut is not null && across >= DragOutThreshold;
+
+            if (!dragging)
+            {
+                bool pastReorderStart = options.OnReorder is not null &&
+                    (Math.Abs(along) >= BarDragThreshold || across >= BarDragThreshold);
+                if (!pastReorderStart && !pastDragOut)
+                    return; // still a potential click
+
+                dragging = true;
+                setSuppressClick(true);
+                cell.Opacity = 0.35;
+                _barCellDragCleanup = Cleanup;
+                if (ghostLayer is not null)
+                {
+                    cellOrigin = cell.TransformToVisual(ghostLayer)
+                        .TransformPoint(new Windows.Foundation.Point(0, 0));
+                    ghost = BuildCellGhost(item);
+                    ghostLayer.Children.Add(ghost);
+                    Canvas.SetLeft(ghost, cellOrigin.X);
+                    Canvas.SetTop(ghost, cellOrigin.Y);
+                }
+            }
+
+            if (pastDragOut)
+            {
+                timer.Stop();
+                Cleanup();
+                flyout.Hide();
+                options.OnDragOut!(item);
+                return;
+            }
+
+            if (ghost is not null)
+            {
+                if (vertical)
+                    Canvas.SetTop(ghost, cellOrigin.Y + along);
+                else
+                    Canvas.SetLeft(ghost, cellOrigin.X + along);
+            }
+
+            if (options.OnReorder is null)
                 return;
 
-            timer.Stop();
-            flyout.Hide();
-            onDragOut(item);
+            // Absolute, not incremental: always measured from the fixed start index and the raw
+            // cursor delta, so re-inserting the cell below can never make this drift.
+            int target = Math.Clamp(startIndex + (int)Math.Round(along / pitch), 0, order.Count - 1);
+            if (target != currentIndex)
+            {
+                order.RemoveAt(currentIndex);
+                order.Insert(target, item);
+                stack.Children.RemoveAt(currentIndex);
+                stack.Children.Insert(target, cell);
+                currentIndex = target;
+            }
         };
         timer.Start();
+    }
+
+    /// <summary>
+    /// The icon-or-glyph visual for an item at the density's normal (unmagnified) size — shared by
+    /// a live bar cell, which re-renders this on an <see cref="DockItem.IconImage"/> change, and its
+    /// drag ghost, which just needs a single snapshot of whatever was already showing.
+    /// </summary>
+    private static FrameworkElement BuildIconVisual(DockItem item) =>
+        item.IconImage is not null
+            ? new Image
+            {
+                Source = item.IconImage,
+                Width = DockMetrics.Icon,
+                Height = DockMetrics.Icon,
+                Stretch = Stretch.Uniform,
+            }
+            : new FontIcon
+            {
+                Glyph = item.Glyph,
+                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                FontSize = DockMetrics.Glyph,
+            };
+
+    /// <summary>
+    /// A small floating copy of a bar cell's icon, shown while it's being dragged — the bar's own
+    /// version of the strip's <c>DragGhost</c>. Built fresh per drag rather than kept around like
+    /// the strip's, since the bar's whole content is torn down and rebuilt from scratch every time
+    /// it opens.
+    /// </summary>
+    private static Border BuildCellGhost(DockItem item)
+    {
+        var host = new Grid
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { BuildIconVisual(item) },
+        };
+
+        return new Border
+        {
+            Width = DockMetrics.Cell,
+            Height = DockMetrics.Cell,
+            CornerRadius = new CornerRadius(DockMetrics.CellCorner),
+            Background = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"],
+            Child = host,
+            IsHitTestVisible = false,
+        };
     }
 }

@@ -110,6 +110,45 @@ public sealed partial class DockWindow
         RaiseItemsChanged();
     }
 
+    /// <summary>
+    /// Swaps a child with its neighbor one slot earlier (-1) or later (+1) within its own group.
+    /// Used by the Settings "Apps &amp; links" page, which — unlike the group's own fly-out (see
+    /// <see cref="ReorderGroupChildren"/>) — has no drag gesture of its own to reorder by.
+    /// </summary>
+    public void MoveGroupChild(DockItem child, int direction)
+    {
+        var group = _profile.Items.FirstOrDefault(i => i.IsGroup && i.Children.Contains(child));
+        if (group is null)
+            return;
+        var list = group.Children;
+        int i = list.IndexOf(child);
+        int j = i + direction;
+        if (j < 0 || j >= list.Count)
+            return;
+        (list[i], list[j]) = (list[j], list[i]);
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
+    /// <summary>
+    /// Applies a new order to a group's <em>visible</em> children — what dragging a cell to a new
+    /// slot inside the group's own fly-out bar produces (see <see cref="DockBarOptions.OnReorder"/>
+    /// and <c>WatchCellDrag</c> in <c>DockWindow.FlyoutBar.cs</c>). Hidden children keep their
+    /// existing absolute slots and the visible ones are refilled around them in the new order —
+    /// the same rule <see cref="DockWindow.SyncMasterFromVisible"/> applies when a reorder on the
+    /// main strip (which likewise only ever shows visible items) is written back to the master list.
+    /// </summary>
+    public void ReorderGroupChildren(DockItem group, IReadOnlyList<DockItem> visibleOrder)
+    {
+        var q = new Queue<DockItem>(visibleOrder);
+        for (int i = 0; i < group.Children.Count && q.Count > 0; i++)
+            if (!group.Children[i].Hidden)
+                group.Children[i] = q.Dequeue();
+
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
     // ---- The fly-out -------------------------------------------------------
 
     /// <summary>The group whose fly-out is currently open, and the fly-out itself — tracked so a
@@ -193,6 +232,9 @@ public sealed partial class DockWindow
             // Dragging a cell clear of the bar is the reverse of dropping an icon onto the group:
             // it puts the item back on the strip, next to the group it came out of.
             OnDragOut: RemoveFromGroup,
+            // Dragging a cell within the bar reorders it among its siblings, the same as dragging
+            // an icon on the main strip does among the top-level items.
+            OnReorder: newOrder => ReorderGroupChildren(group, newOrder),
             // Hover has to keep working on the strip underneath the bar — both to close this bar
             // again and to swap to another group — and the bar's own light-dismiss layer would
             // otherwise take the pointer away from the dock entirely.
@@ -449,6 +491,8 @@ public sealed partial class DockWindow
         }));
         if (child.HasCustomIcon)
             menu.Items.Add(Mi(Loc.Get("Menu.ResetIcon"), () => SetCustomIcon(child, null)));
+        if (Launcher.SupportsFileLocation(child))
+            menu.Items.Add(Mi(Loc.Get("Menu.OpenFileLocation"), () => { owner.Hide(); Launcher.OpenFileLocation(child); }));
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(Mi(Loc.Get("Menu.RemoveFromGroup"), () => { owner.Hide(); RemoveFromGroup(child); }));
         menu.Items.Add(Mi(Loc.Get("Menu.Remove"), () => { owner.Hide(); RemoveGroupChild(child); }));
