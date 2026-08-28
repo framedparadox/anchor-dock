@@ -150,7 +150,7 @@ public sealed partial class DockWindow : Window
             _pollTimer?.Stop();
             _slideTimer?.Stop();
             _dragTimer?.Stop();
-            _dragOutTimer?.Stop();
+            _barCellDragTimer?.Stop();
             _groupCloseTimer?.Stop();
             _visualAnimTimer?.Stop();
             DockItemAnimations.ShowLabelsChanged -= _showLabelsHandler;
@@ -765,6 +765,9 @@ public sealed partial class DockWindow : Window
                         () => SetFolderFlyout(item, !item.FolderFlyout)));
                 }
 
+                if (Launcher.SupportsFileLocation(item))
+                    menu.Items.Add(Mi(Loc.Get("Menu.OpenFileLocation"), () => Launcher.OpenFileLocation(item)));
+
                 menu.Items.Add(BuildMoveToGroupMenu(target, item));
 
                 // Both of these are hidden rather than shown greyed out: with one dock there is
@@ -818,6 +821,26 @@ public sealed partial class DockWindow : Window
             return;
         Items.Move(i, j);
         SyncMasterFromVisible();
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
+    /// <summary>
+    /// Swaps a top-level item with its neighbor one slot earlier (-1) or later (+1) among ALL
+    /// items — hidden ones included. Used by the Settings "Apps &amp; links" page, which lists
+    /// (and can reorder) hidden items too; the dock's own "Move left/right" context menu uses
+    /// <see cref="MoveItem"/> instead, since a right-click there only ever reaches a visible item
+    /// and "left/right" means the visible strip order, not this full one.
+    /// </summary>
+    public void MoveTopLevelItem(DockItem item, int direction)
+    {
+        var list = _profile.Items;
+        int i = list.IndexOf(item);
+        int j = i + direction;
+        if (i < 0 || j < 0 || j >= list.Count)
+            return;
+        (list[i], list[j]) = (list[j], list[i]);
+        RebuildVisible();
         PersistAndRelayout();
         RaiseItemsChanged();
     }

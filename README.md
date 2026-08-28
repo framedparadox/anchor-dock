@@ -158,9 +158,11 @@ old glass-frost slider:
   glass and spacing as the strip itself, running across the dock's flow (vertical out of a
   horizontal dock, horizontal out of a side-snapped one) and always away from the edge it's
   snapped to. Fill a group by **dragging an icon onto it**, or with *Move to group* on an item's
-  right-click menu; drag a cell sideways out of an open bar to put it back on the strip. A group's
-  own menu offers *Ungroup*. Settings ▸ Appearance ▸ *Open groups on hover* (on by default) opens
-  the bar as soon as the cursor lands on the icon; turn it off and a click both opens and closes.
+  right-click menu; drag a cell along the bar to reorder it among its siblings, or sideways clear
+  of the bar to put it back on the strip — the same two gestures the main dock offers its own
+  items. A group's own menu offers *Ungroup*. Settings ▸ Appearance ▸ *Open groups on hover* (on by
+  default) opens the bar as soon as the cursor lands on the icon; turn it off and a click both
+  opens and closes.
 
 - **Folder fly-outs** — turn on *Show folder contents* for a folder and it lists what's inside it
   in the same bar instead of opening Explorer, macOS-stack style. Click a subfolder to drill in,
@@ -207,8 +209,8 @@ old glass-frost slider:
   search, and the master switch plus a list for per-item shortcuts), a **Docks** page (one card per
   dock: name, monitor, position, transpose-on-side-edges, auto-hide, always-on-top, remove), an
   **Apps & links** page that lists every entry — grouped by dock, with a group's contents indented
-  — with a show/hide switch and a remove button, and an **About** page (version, source/issue/license
-  links, and a privacy expander).
+  — with move up/down buttons, a show/hide switch and a remove button, and an **About** page
+  (version, source/issue/license links, and a privacy expander).
 - **Add-to-Dock window** — a Windows-app-style modal for adding an **app / file / folder / web
   link / shortcut / separator / group**, with a type picker, Browse, and auto-suggested names.
 
@@ -233,8 +235,9 @@ old glass-frost slider:
   right-click menu) while keeping them in the list.
 - **Empty state** — with no items the dock shows a **"＋ Add New"** button.
 - **Per-item menu** — right-click an icon: Open, Edit (name, target and icon in one panel), Show
-  folder contents (folders), Move to group, Move to dock (with more than one dock), Shortcut (with
-  per-item shortcuts on), Move left/right, Hide, Remove.
+  folder contents (folders), Open file location (apps, files and folders), Move to group, Move to
+  dock (with more than one dock), Shortcut (with per-item shortcuts on), Move left/right, Hide,
+  Remove.
 - **Keyboard & screen-reader friendly** — items and the gear are real `Button`s: Tab / arrow-key
   focus, Space/Enter to launch, focus visuals, and Narrator names. Context menus are reachable
   with the Menu key / Shift+F10; auto-hide honors the *reduced-motion* and *high-contrast*
@@ -386,9 +389,12 @@ integration-shaped and are verified by manual testing.
 - **Drag a file from Explorer** onto the dock to add it, onto an **app icon** to open it with that
   app, or onto a **group** to file it in there. The target icon swells to show which it will be.
 - **Right-click an icon** → *Open, Edit…, Move to group ▸, Move left, Move right, Hide, Remove* —
-  plus *Show folder contents* on a folder, *Move to dock ▸* once there is a second dock, and
-  *Shortcut ▸* once per-item shortcuts are switched on. A group instead offers *Open group, Edit…,
-  Ungroup*; a separator only the placement and removal commands.
+  plus *Show folder contents* on a folder, *Open file location* on an app, file or folder (quietly
+  does nothing if the target turns out not to exist), *Move to dock ▸* once there is a second dock,
+  and *Shortcut ▸* once per-item shortcuts are switched on. A group instead offers *Open group,
+  Edit…, Ungroup*; a separator only the placement and removal commands. Inside a group's fly-out,
+  right-clicking a child offers the same *Open*, *Edit…* and *Open file location*, plus *Move out
+  of group* and *Remove*.
 - **Edit…** opens a small window carrying the item's **name**, its **target** and its **icon**,
   with the icon picker as a fly-out beside the icon field. It is reachable from Settings ▸ Apps &
   links too, from the pencil button on each row.

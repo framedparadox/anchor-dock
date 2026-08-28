@@ -6,6 +6,30 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Round 6 — group items become fully reorderable, and Explorer is one right-click away
+
+#### Added
+
+- **A group's fly-out bar is now drag-to-reorder**, the same gesture the main strip already offered
+  its own items. Dragging a cell along the bar's own flow slides it past its siblings — a floating
+  ghost tracks the cursor while the cell's own slot dims, mirroring the strip's own reorder cue —
+  and dragging it clear across the flow still pulls it back out onto the dock, unchanged. Both
+  share one cursor-polled gesture in `DockWindow.WatchCellDrag`, since a folder fly-out (a view of
+  the disk, not something the user arranges) only ever gets the second half.
+- **Settings ▸ Apps & links can now reorder items**, not just show or hide them: every row gets a
+  *Move up*/*Move down* pair, for a top-level dock item and for a group's own children alike,
+  reaching the same reorder the dock's drag gesture and its right-click "Move left/right" already
+  offer — without a mouse drag. Backed by two new methods, `DockWindow.MoveTopLevelItem` and
+  `.MoveGroupChild`.
+- ***Open file location*** joins the right-click menu on the dock and inside a group's fly-out, for
+  any app, file or folder whose target actually exists on disk. It hands Explorer the same
+  `/select,"path"` a shortcut's own "Open file location" uses — opening the containing folder with
+  the item itself highlighted, rather than launching it. A "Shortcut" add whose target is really a
+  shell command (`ms-settings:`, `shell:RecycleBinFolder`) has no location to reveal — the menu
+  can't tell without a filesystem check it has no business doing just to decide what to show, so
+  the entry still appears (`Launcher.SupportsFileLocation` gates only on kind) but quietly does
+  nothing if chosen.
+
 ### Round 5 — a group's fly-out stops flickering, and hover becomes a setting
 
 #### Fixed
