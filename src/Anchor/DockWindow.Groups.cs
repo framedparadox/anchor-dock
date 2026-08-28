@@ -289,14 +289,16 @@ public sealed partial class DockWindow
     /// really doing rather than whatever it last said before the setting changed.
     /// </para>
     /// <para>
-    /// Also conditional, while edge-snapped, on the dock itself already being revealed. A snapped,
-    /// auto-hidden dock still carries its full strip inside the window while hidden (only a sliver
-    /// of it is left on screen — see <c>DockWindow.AutoHide.cs</c>), so a stray pointer hit on that
-    /// sliver can land on a group icon before the dock has had any chance to slide/shrink back into
-    /// view. Opening the fly-out right then would show the group's children floating over a dock
-    /// that itself never appeared — reveal has to win that race, so hover-to-open simply waits
-    /// until <see cref="_revealed"/> is true. A floating (unsnapped) dock is always revealed, so
-    /// this never changes anything for it.
+    /// Also conditional, while edge-snapped, on the dock itself having actually finished revealing
+    /// — not just started to. A snapped, auto-hidden dock still carries its full strip inside the
+    /// window while hidden (only a sliver of it is left on screen — see
+    /// <c>DockWindow.AutoHide.cs</c>), so a stray pointer hit on that sliver can land on a group
+    /// icon the moment a reveal is triggered, well before the slide that carries the dock there has
+    /// actually landed. Opening the fly-out right then would show the group's children floating
+    /// over a dock that has not visually arrived — reveal has to win that race, so hover-to-open
+    /// waits on <see cref="RevealSettled"/>, not the raw <see cref="_revealed"/> flag, which flips
+    /// true the instant the reveal is decided rather than when it finishes. A floating (unsnapped)
+    /// dock is always settled, so this never changes anything for it.
     /// </para>
     /// </summary>
     private void TrackGroupHover(FrameworkElement? anchor, DockItem? group)
@@ -311,7 +313,7 @@ public sealed partial class DockWindow
 
         if (group is null || anchor is null)
             return;
-        if (_profile.Snapped && !_revealed)
+        if (_profile.Snapped && !RevealSettled)
             return;
         if (!_manager.Config.GroupOpenOnHover || ReferenceEquals(_clickClosedGroup, group))
             return;
