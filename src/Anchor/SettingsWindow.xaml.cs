@@ -1,10 +1,12 @@
 using Anchor.Controls;
+using Anchor.Interop;
 using Anchor.Models;
 using Anchor.Services;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 
 namespace Anchor;
@@ -897,6 +899,18 @@ public sealed partial class SettingsWindow : Window
 
     // ---- Apps page ---------------------------------------------------------
 
+    /// <summary>Which siblings list (top-level or a group's children) a row's item belongs to, and
+    /// the dock/insideGroup context needed to commit a reorder once it's dropped. Stashed on each
+    /// row's Tag so the drag handlers below don't need to re-derive it from the visual tree.</summary>
+    private sealed record RowDragInfo(DockWindow Dock, DockItem Item, IList<DockItem> Siblings, bool InsideGroup);
+
+    /// <summary>The item currently being dragged, and the siblings list it came from — a drop is
+    /// only honored onto another row from that same list, since dragging between a top-level order
+    /// and a group's own children isn't a supported gesture here (use "Add to group" / the group's
+    /// own fly-out for that instead).</summary>
+    private DockItem? _dragItem;
+    private IList<DockItem>? _dragSiblings;
+
     private void AddNew_Click(object sender, RoutedEventArgs e) => _manager.OpenAddNew();
 
     private void RebuildApps()
@@ -938,9 +952,13 @@ public sealed partial class SettingsWindow : Window
             {
                 AppsList.Children.Add(BuildRow(dock, item, profile.Items));
                 // A group's children never appear on the strip themselves, so list them under it —
-                // indented — rather than leaving them invisible outside the fly-out.
-                foreach (var child in item.Children)
-                    AppsList.Children.Add(BuildRow(dock, child, item.Children, insideGroup: true));
+                // indented — rather than leaving them invisible outside the fly-out. Collapsing the
+                // group hides this sub-list without touching the children themselves.
+                if (!item.IsGroup || !item.IsCollapsed)
+                {
+                    foreach (var child in item.Children)
+                        AppsList.Children.Add(BuildRow(dock, child, item.Children, insideGroup: true));
+                }
             }
         }
     }
@@ -948,7 +966,7 @@ public sealed partial class SettingsWindow : Window
     /// <summary>A dock's name, or a positional fallback when the user hasn't given it one.</summary>
     private string DockLabel(DockProfile profile) => _manager.LabelFor(profile);
 
-    private Border BuildRow(DockWindow dock, DockItem item, IList<DockItem> siblings, bool insideGroup = false)
+    private FrameworkElement BuildRow(DockWindow dock, DockItem item, IList<DockItem> siblings, bool insideGroup = false)
     {
         var grid = new Grid { ColumnSpacing = 14, VerticalAlignment = VerticalAlignment.Center };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1022,53 +1040,28 @@ public sealed partial class SettingsWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        // Move up/down: this row's own position among its siblings — the top-level dock order for
-        // a plain item, or its group's order for one shown indented underneath it. The dock itself
-        // offers a drag gesture for both; this is the same move reachable without one.
-        int position = siblings.IndexOf(item);
-        var moveUp = new Button
+        // Collapse/expand: a group's own disclosure control, hiding its indented children below
+        // it in this list. No caption — the chevron direction alone conveys expanded vs. collapsed,
+        // the same way the show/hide switch below needs none. Only meaningful for a group that
+        // actually has children to hide.
+        if (item.IsGroup && item.Children.Count > 0)
         {
-            Content = new FontIcon
+            var collapseToggle = new Button
             {
-                Glyph = "\uE70E", // ChevronUp
-                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                FontSize = 14,
-            },
-            VerticalAlignment = VerticalAlignment.Center,
-            IsEnabled = position > 0,
-        };
-        ToolTipService.SetToolTip(moveUp, Loc.Get("Apps.MoveUp"));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(moveUp, Loc.Get("Apps.MoveUp"));
-        moveUp.Click += (_, _) =>
-        {
-            if (insideGroup)
-                dock.MoveGroupChild(item, -1);
-            else
-                dock.MoveTopLevelItem(item, -1);
-        };
-        actions.Children.Add(moveUp);
-
-        var moveDown = new Button
-        {
-            Content = new FontIcon
-            {
-                Glyph = "\uE70D", // ChevronDown
-                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                FontSize = 14,
-            },
-            VerticalAlignment = VerticalAlignment.Center,
-            IsEnabled = position >= 0 && position < siblings.Count - 1,
-        };
-        ToolTipService.SetToolTip(moveDown, Loc.Get("Apps.MoveDown"));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(moveDown, Loc.Get("Apps.MoveDown"));
-        moveDown.Click += (_, _) =>
-        {
-            if (insideGroup)
-                dock.MoveGroupChild(item, +1);
-            else
-                dock.MoveTopLevelItem(item, +1);
-        };
-        actions.Children.Add(moveDown);
+                Content = new FontIcon
+                {
+                    Glyph = item.IsCollapsed ? "\uE76C" : "\uE70D", // ChevronRight / ChevronDown
+                    FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                    FontSize = 14,
+                },
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            var collapseTip = Loc.Get(item.IsCollapsed ? "Apps.ExpandGroup" : "Apps.CollapseGroup");
+            ToolTipService.SetToolTip(collapseToggle, collapseTip);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(collapseToggle, collapseTip);
+            collapseToggle.Click += (_, _) => dock.SetGroupCollapsed(item, !item.IsCollapsed);
+            actions.Children.Add(collapseToggle);
+        }
 
         // Edit: the same panel the dock's own right-click menu opens, carrying the item's name,
         // its target and its icon. A separator has none of the three, so it gets no button.
@@ -1089,25 +1082,6 @@ public sealed partial class SettingsWindow : Window
             edit.Click += (_, _) => _manager.OpenItemEditor(dock, item);
             actions.Children.Add(edit);
         }
-
-        // Show/hide switch (On = shown on the dock). No on/off caption — the switch state alone
-        // conveys it; the accessible name/tooltip carry the meaning for AT users.
-        var toggle = new ToggleSwitch
-        {
-            IsOn = !item.Hidden,
-            OnContent = null,
-            OffContent = null,
-            MinWidth = 0,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        ToolTipService.SetToolTip(toggle, Loc.Get("Apps.ShowOnDock"));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(toggle, Loc.Get("Apps.ShowOnDock"));
-        toggle.Toggled += (s, _) =>
-        {
-            if (s is ToggleSwitch ts)
-                dock.SetItemHidden(item, !ts.IsOn);
-        };
-        actions.Children.Add(toggle);
 
         // Lift a grouped item back out onto the dock. Only meaningful inside a group, so it isn't
         // built at all for a top-level row.
@@ -1150,6 +1124,25 @@ public sealed partial class SettingsWindow : Window
             actions.Children.Add(addToGroup);
         }
 
+        // Show/hide switch (On = shown on the dock). No on/off caption — the switch state alone
+        // conveys it; the accessible name/tooltip carry the meaning for AT users.
+        var toggle = new ToggleSwitch
+        {
+            IsOn = !item.Hidden,
+            OnContent = null,
+            OffContent = null,
+            MinWidth = 0,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTipService.SetToolTip(toggle, Loc.Get("Apps.ShowOnDock"));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(toggle, Loc.Get("Apps.ShowOnDock"));
+        toggle.Toggled += (s, _) =>
+        {
+            if (s is ToggleSwitch ts)
+                dock.SetItemHidden(item, !ts.IsOn);
+        };
+        actions.Children.Add(toggle);
+
         // Remove.
         var remove = new Button
         {
@@ -1189,7 +1182,279 @@ public sealed partial class SettingsWindow : Window
         // The DockItem outlives this row (it's rebuilt wholesale on every RebuildApps), so the
         // subscription above must be torn down explicitly or it leaks a handler per rebuild.
         row.Unloaded += (_, _) => item.PropertyChanged -= OnItemPropertyChanged;
+
+        // Drag-to-reorder: a hand-rolled press/poll/release gesture — the same pattern
+        // DockWindow.xaml.cs (Dock_PointerPressed/DragTick) already uses for the dock's own strip,
+        // and for the same reason: routed PointerMoved only keeps arriving at the pressed row while
+        // the cursor stays over it, so a real (even moderately fast) drag can leave the row's bounds
+        // before the move threshold is ever reached, and the drag silently never starts. Polling the
+        // global cursor and button state on a timer sidesteps routed pointer delivery entirely. It
+        // also has to avoid WinUI's built-in CanDrag/DragStarting, which swallows the click on any
+        // button nested inside the dragged element — that's why the group collapse toggle stopped
+        // responding once this was CanDrag-based. Never marking a pointer event handled or capturing
+        // the pointer means a plain click still reaches the row's buttons exactly as if none of this
+        // were here; only crossing the move threshold ever calls Reorder*.
+        row.Tag = new RowDragInfo(dock, item, siblings, insideGroup);
+        row.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(Row_PointerPressed), handledEventsToo: true);
+
         return row;
+    }
+
+    private const int RowDragThreshold = 8;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _rowDragTimer;
+    private bool _rowDragging;
+    private NativeMethods.POINT _rowDragStartCursor;
+
+    /// <summary>The floating copy of the row being dragged — shown at the cursor, the same way
+    /// DockWindow's own strip shows <c>DragGhost</c> while reordering. Sized once, from the row that
+    /// was actually pressed, at the moment the drag starts.</summary>
+    private Border? _dragGhost;
+    private double _dragGhostHalfHeight;
+
+    private void Row_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (!e.GetCurrentPoint((UIElement)sender).Properties.IsLeftButtonPressed)
+            return;
+
+        var row = (FrameworkElement)sender;
+        var info = (RowDragInfo)row.Tag!;
+        _dragItem = info.Item;
+        _dragSiblings = info.Siblings;
+        _rowDragging = false;
+        NativeMethods.GetCursorPos(out _rowDragStartCursor);
+
+        _rowDragTimer ??= CreateRowDragTimer();
+        if (!_rowDragTimer.IsRunning)
+            _rowDragTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateRowDragTimer()
+    {
+        var t = DispatcherQueue.CreateTimer();
+        t.Interval = TimeSpan.FromMilliseconds(8);
+        t.Tick += (_, _) => RowDragTick();
+        return t;
+    }
+
+    private void RowDragTick()
+    {
+        // Button released -> end the gesture. The list is already in the right order — every slot
+        // change happened live, below — so there's nothing left to resolve here.
+        if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) == 0)
+        {
+            _rowDragTimer?.Stop();
+            bool wasDragging = _rowDragging;
+            _rowDragging = false;
+            HideDragGhost();
+
+            var dragItem = _dragItem;
+            _dragItem = null;
+            _dragSiblings = null;
+
+            if (wasDragging && dragItem is not null)
+            {
+                var finalRow = FindRowForItem(dragItem);
+                if (finalRow is not null)
+                    finalRow.Opacity = 1;
+            }
+            return;
+        }
+
+        if (_dragItem is null)
+            return;
+
+        NativeMethods.GetCursorPos(out var cur);
+
+        if (!_rowDragging)
+        {
+            int dx = cur.X - _rowDragStartCursor.X;
+            int dy = cur.Y - _rowDragStartCursor.Y;
+            if (Math.Abs(dx) <= RowDragThreshold && Math.Abs(dy) <= RowDragThreshold)
+                return; // still a potential click
+
+            _rowDragging = true;
+            var sourceRow = FindRowForItem(_dragItem);
+            if (sourceRow is not null)
+                ShowDragGhost(_dragItem, sourceRow);
+        }
+
+        // The row representing the dragged item gets rebuilt from scratch — a new instance — every
+        // time a live reorder below actually moves it, so it has to be re-found and re-dimmed every
+        // tick rather than held onto across ticks.
+        var currentRow = FindRowForItem(_dragItem);
+        if (currentRow is not null)
+            currentRow.Opacity = 0.35; // the real row sits low-visibility at its live position; the ghost is what reads as "held"
+
+        UpdateDragGhostPosition(cur);
+        TryLiveReorder(_dragItem, _dragSiblings!);
+    }
+
+    /// <summary>Converts the cursor's current screen position into <c>AppsList</c>'s own coordinate
+    /// space — screen -> this window's client area via <see cref="NativeMethods.ScreenToClient"/>,
+    /// physical pixels -> DIPs via the window's DPI, then window content -> AppsList via
+    /// <see cref="UIElement.TransformToVisual"/> — and finds the row under it, the same way a
+    /// routed pointer point would have.</summary>
+    private bool TryFindDropTarget(DockItem dragItem, IList<DockItem> dragSiblings,
+        out FrameworkElement target, out RowDragInfo targetInfo, out bool after)
+    {
+        target = null!;
+        targetInfo = null!;
+        after = false;
+
+        NativeMethods.GetCursorPos(out var cur);
+        if (!NativeMethods.ScreenToClient(_hwnd, ref cur))
+            return false;
+
+        double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
+        var rootPoint = new Windows.Foundation.Point(cur.X / scale, cur.Y / scale);
+        var dropPoint = RootGrid.TransformToVisual(AppsList).TransformPoint(rootPoint);
+
+        var found = FindRowAt(dropPoint);
+        if (found is null || found.Tag is not RowDragInfo foundInfo)
+            return false;
+        if (!ReferenceEquals(foundInfo.Siblings, dragSiblings) || ReferenceEquals(foundInfo.Item, dragItem))
+            return false;
+
+        // Above or below the target row depending on which half of it the cursor is over, so
+        // crossing into either half moves the dragged item to the slot that's visually implied.
+        double targetTop = found.TransformToVisual(AppsList).TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
+        target = found;
+        targetInfo = foundInfo;
+        after = dropPoint.Y - targetTop > found.ActualHeight / 2;
+        return true;
+    }
+
+    /// <summary>
+    /// Moves the dragged item to wherever the cursor implies <em>right now</em> — called every tick
+    /// while dragging, not just at drop, so the list reflows live around the cursor exactly the way
+    /// the dock's own strip (and the Windows taskbar) already do. <see cref="DockWindow.ReorderTopLevelItem"/>
+    /// and <see cref="DockWindow.ReorderGroupChild"/> already no-op when the target slot hasn't
+    /// actually changed, so calling this unconditionally every tick is cheap.
+    /// </summary>
+    private void TryLiveReorder(DockItem dragItem, IList<DockItem> dragSiblings)
+    {
+        if (!TryFindDropTarget(dragItem, dragSiblings, out _, out var targetInfo, out bool after))
+            return;
+
+        int fromIndex = targetInfo.Siblings.IndexOf(dragItem);
+        int toIndex = targetInfo.Siblings.IndexOf(targetInfo.Item) + (after ? 1 : 0);
+        if (fromIndex < toIndex)
+            toIndex--;
+        if (toIndex == fromIndex)
+            return;
+
+        if (targetInfo.InsideGroup)
+            targetInfo.Dock.ReorderGroupChild(dragItem, toIndex);
+        else
+            targetInfo.Dock.ReorderTopLevelItem(dragItem, toIndex);
+    }
+
+    /// <summary>Builds the floating drag ghost — a compact icon+name copy of <paramref name="item"/>,
+    /// sized to match <paramref name="sourceRow"/> — and drops it into <c>DragGhostCanvas</c>.</summary>
+    private void ShowDragGhost(DockItem item, FrameworkElement sourceRow)
+    {
+        var content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var iconHost = new Grid { Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Center };
+        if (item.IconImage is not null)
+        {
+            iconHost.Children.Add(new Image
+            {
+                Source = item.IconImage,
+                Width = 28,
+                Height = 28,
+                Stretch = Stretch.Uniform,
+            });
+        }
+        else
+        {
+            iconHost.Children.Add(new FontIcon
+            {
+                Glyph = item.Glyph,
+                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+                FontSize = 18,
+            });
+        }
+        content.Children.Add(iconHost);
+
+        content.Children.Add(new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(item.DisplayName) ? Loc.Get("Apps.Unnamed") : item.DisplayName,
+            Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+
+        _dragGhost = new Border
+        {
+            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"],
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 10, 14, 10),
+            Width = sourceRow.ActualWidth,
+            Child = content,
+        };
+        _dragGhostHalfHeight = sourceRow.ActualHeight / 2;
+
+        DragGhostCanvas.Children.Add(_dragGhost);
+        UpdateDragGhostPosition(_rowDragStartCursor);
+    }
+
+    /// <summary>Keeps the ghost centered on the cursor vertically, pinned to the list's left edge
+    /// horizontally — the same "slides along one axis only" feel as the dock's own drag ghost.</summary>
+    private void UpdateDragGhostPosition(NativeMethods.POINT cursorScreen)
+    {
+        if (_dragGhost is null)
+            return;
+        if (!NativeMethods.ScreenToClient(_hwnd, ref cursorScreen))
+            return;
+
+        double scale = NativeMethods.GetDpiForWindow(_hwnd) / 96.0;
+        var rootPoint = new Windows.Foundation.Point(cursorScreen.X / scale, cursorScreen.Y / scale);
+        var canvasPoint = RootGrid.TransformToVisual(DragGhostCanvas).TransformPoint(rootPoint);
+
+        Canvas.SetLeft(_dragGhost, 0);
+        Canvas.SetTop(_dragGhost, canvasPoint.Y - _dragGhostHalfHeight);
+    }
+
+    private void HideDragGhost()
+    {
+        if (_dragGhost is not null)
+            DragGhostCanvas.Children.Remove(_dragGhost);
+        _dragGhost = null;
+    }
+
+    /// <summary>The row currently representing <paramref name="item"/> in the Apps &amp; links list,
+    /// if any — rows are rebuilt wholesale on every model change, so a row reference held across
+    /// ticks goes stale the moment a live reorder rebuilds the list; this re-resolves it instead.</summary>
+    private FrameworkElement? FindRowForItem(DockItem item)
+    {
+        foreach (var child in AppsList.Children)
+            if (child is FrameworkElement row && row.Tag is RowDragInfo info && ReferenceEquals(info.Item, item))
+                return row;
+        return null;
+    }
+
+    /// <summary>Which row in the Apps &amp; links list, if any, contains the given point (in
+    /// <c>AppsList</c>'s own coordinate space) — used to resolve a drag-reorder's drop target.</summary>
+    private FrameworkElement? FindRowAt(Windows.Foundation.Point point)
+    {
+        foreach (var child in AppsList.Children)
+        {
+            if (child is not FrameworkElement row || row.Tag is not RowDragInfo)
+                continue;
+            var transform = row.TransformToVisual(AppsList);
+            var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, row.ActualWidth, row.ActualHeight));
+            if (bounds.Contains(point))
+                return row;
+        }
+        return null;
     }
 
     /// <summary>

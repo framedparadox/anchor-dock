@@ -88,6 +88,23 @@ public sealed partial class DockWindow
         Action<IReadOnlyList<DockItem>>? OnReorder = null,
         bool KeepDockInteractive = false);
 
+    /// <summary>
+    /// The bar flyout currently holding the auto-hide pause, if any.
+    /// <para>
+    /// <see cref="ShowDockBarFlyout"/> pairs one <see cref="DockWindow.PauseAutoHideForDrag"/> with
+    /// one <see cref="DockWindow.ResumeAutoHideAfterDrag"/> per bar it opens, via that bar's own
+    /// <c>Closed</c> event. But a bar can be superseded before its own <c>Hide()</c> finishes
+    /// closing it: hovering from one group icon straight onto the next (<c>ShowGroupFlyout</c>) and
+    /// clicking a subfolder inside a folder stack (<c>ShowFolderFlyout</c>) both hide the bar that
+    /// is currently up and open a new one in the same call, and the old bar's <c>Closed</c> only
+    /// fires afterwards, once WinUI gets around to it. Without tracking which bar is actually
+    /// current, that stale <c>Closed</c> calls <c>ResumeAutoHideAfterDrag</c> for the bar that just
+    /// closed — resuming the cursor poll while the <em>new</em> bar is the one now on screen, which
+    /// lets the dock slide off its edge into auto-hide while its own fly-out is still open above it.
+    /// </para>
+    /// </summary>
+    private Flyout? _activeBarFlyout;
+
     /// <summary>Opens a bar for the icon <paramref name="anchor"/>, clear of the dock's border.</summary>
     private Flyout ShowDockBarFlyout(FrameworkElement anchor, DockBarOptions options)
     {
@@ -122,7 +139,17 @@ public sealed partial class DockWindow
         // The dock auto-hides on a cursor-position poll, and the cursor is about to leave the
         // strip for the bar. Hold it out while the bar is up, then re-arm on close.
         PauseAutoHideForDrag();
-        flyout.Closed += (_, _) => ResumeAutoHideAfterDrag();
+        _activeBarFlyout = flyout;
+        flyout.Closed += (_, _) =>
+        {
+            // Only the bar that is still current gets to resume auto-hide. One that was replaced
+            // before it finished closing (see _activeBarFlyout) leaves that job to whichever bar
+            // superseded it — its own Closed will do the same check and actually resume.
+            if (!ReferenceEquals(_activeBarFlyout, flyout))
+                return;
+            _activeBarFlyout = null;
+            ResumeAutoHideAfterDrag();
+        };
 
         flyout.ShowAt(RootGrid, new FlyoutShowOptions
         {

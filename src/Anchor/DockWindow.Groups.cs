@@ -131,6 +131,43 @@ public sealed partial class DockWindow
     }
 
     /// <summary>
+    /// Moves a child to an arbitrary slot within its own group, for the Settings "Apps &amp; links"
+    /// page's drag-to-reorder rows. Unlike <see cref="MoveGroupChild"/>, which only swaps adjacent
+    /// neighbors, this drops the child directly where the drag ended.
+    /// </summary>
+    public void ReorderGroupChild(DockItem child, int toIndex)
+    {
+        var group = _profile.Items.FirstOrDefault(i => i.IsGroup && i.Children.Contains(child));
+        if (group is null)
+            return;
+        var list = group.Children;
+        int from = list.IndexOf(child);
+        if (from < 0)
+            return;
+        toIndex = Math.Clamp(toIndex, 0, list.Count - 1);
+        if (from == toIndex)
+            return;
+        list.RemoveAt(from);
+        list.Insert(toIndex, child);
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
+    /// <summary>
+    /// Collapses or expands a group's children in the Settings "Apps &amp; links" list. Doesn't
+    /// touch <see cref="Items"/> or the dock's own strip — a group's children never appear there,
+    /// only in that list — so no <c>RebuildVisible</c> is needed, just persistence.
+    /// </summary>
+    public void SetGroupCollapsed(DockItem group, bool collapsed)
+    {
+        if (!group.IsGroup || group.IsCollapsed == collapsed)
+            return;
+        group.IsCollapsed = collapsed;
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
+    /// <summary>
     /// Applies a new order to a group's <em>visible</em> children — what dragging a cell to a new
     /// slot inside the group's own fly-out bar produces (see <see cref="DockBarOptions.OnReorder"/>
     /// and <c>WatchCellDrag</c> in <c>DockWindow.FlyoutBar.cs</c>). Hidden children keep their

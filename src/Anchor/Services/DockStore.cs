@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using Anchor.Models;
 
 namespace Anchor.Services;
@@ -61,6 +62,12 @@ public static class DockStore
     /// corrupt yields defaults rather than an exception, because the alternative is an app that
     /// won't start. The result is always migrated, so callers can rely on
     /// <see cref="DockConfig.Docks"/> being populated.
+    /// <para>
+    /// A file that exists but couldn't be used is preserved (see <see cref="PreserveUnreadable"/>)
+    /// before defaults are handed back — <see cref="Anchor.DockManager.Start"/> saves whatever this
+    /// returns on first run, and without a copy that save would overwrite the one file that still
+    /// held the user's real dock with a freshly seeded one, discarding it for good.
+    /// </para>
     /// </summary>
     public static DockConfig Load()
     {
@@ -68,17 +75,62 @@ public static class DockStore
         {
             if (File.Exists(FilePath))
             {
-                var json = File.ReadAllText(FilePath);
+                var json = ReadAllTextWithRetry(FilePath);
                 var cfg = JsonSerializer.Deserialize<DockConfig>(json, Options);
                 if (cfg is not null)
                     return cfg.Migrate();
+                Diag.Log("DockStore.Load: dock.json parsed to no config (a JSON 'null' body) — treating as corrupt");
             }
         }
         catch (Exception ex)
         {
             Diag.Log("DockStore.Load failed: " + ex.Message);
         }
+        PreserveUnreadable();
         return new DockConfig().Migrate();
+    }
+
+    /// <summary>
+    /// Reads the file, riding out a lock held by another process — most plausibly a moment of
+    /// antivirus scanning — rather than treating the very first failed attempt as corruption. A
+    /// lock like that clears in milliseconds; a handful of short retries costs nothing next to what
+    /// <see cref="Load"/> would otherwise do with it, which is discard the user's whole config.
+    /// </summary>
+    private static string ReadAllTextWithRetry(string path)
+    {
+        const int attempts = 3;
+        for (int i = 1; ; i++)
+        {
+            try
+            {
+                return File.ReadAllText(path);
+            }
+            catch (IOException) when (i < attempts)
+            {
+                Thread.Sleep(50);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Copies an unreadable <c>dock.json</c> aside so a bad load never silently costs the user
+    /// their configuration — only the failed read does, not the file itself. Best-effort: a failure
+    /// here only costs the backup, never the fallback to defaults that keeps Anchor starting.
+    /// </summary>
+    private static void PreserveUnreadable()
+    {
+        try
+        {
+            if (!File.Exists(FilePath))
+                return; // first run — nothing to preserve
+            var backup = FilePath + $".unreadable-{DateTime.Now:yyyyMMdd-HHmmss}.bak";
+            File.Copy(FilePath, backup, overwrite: true);
+            Diag.Log($"DockStore.Load: preserved the unreadable config as '{backup}'");
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("DockStore.Load: failed to preserve the unreadable config: " + ex.Message);
+        }
     }
 
     public static void Save(DockConfig config)

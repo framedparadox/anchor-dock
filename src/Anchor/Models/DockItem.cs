@@ -97,6 +97,13 @@ public sealed class DockItem : INotifyPropertyChanged
     /// </summary>
     public bool FolderFlyout { get; set; }
 
+    /// <summary>
+    /// For a <see cref="DockItemKind.Group"/>: hides <see cref="Children"/> from the Settings
+    /// ▸ Apps &amp; links list. Purely a display preference for that list — the dock's own
+    /// fly-out always shows every child regardless.
+    /// </summary>
+    public bool IsCollapsed { get; set; }
+
     // ---- Runtime-only visual state (never serialized) ----------------------
 
     private ImageSource? _iconImage;
@@ -177,6 +184,24 @@ public sealed class DockItem : INotifyPropertyChanged
     [JsonIgnore]
     public bool IsGroup => Kind == DockItemKind.Group;
 
+    /// <summary>
+    /// True for the transient empty cell the strip opens up while something is being dragged in
+    /// from outside — the "shell" standing where the drop will land, so the items part around it
+    /// exactly as they part around an icon being reordered. Never persisted and never in a
+    /// profile's item list: the dock inserts one into its <em>visible</em> collection for the life
+    /// of the drag and takes it out again on the drop (see <c>DockWindow.DropTargets</c>).
+    /// </summary>
+    [JsonIgnore]
+    public bool IsPlaceholder { get; private init; }
+
+    /// <summary>
+    /// Creates the drop shell. A <see cref="DockItemKind.File"/> because that is the kind that
+    /// gets a full cell's slot (a separator's is narrow) <em>and</em> that the per-icon drop
+    /// handlers pass straight through — an empty cell has nothing to open a dropped file with.
+    /// </summary>
+    public static DockItem CreatePlaceholder() =>
+        new() { Kind = DockItemKind.File, IsPlaceholder = true };
+
     /// <summary>True when the user has pinned an icon of their own onto this item — either a
     /// custom image file or a built-in glyph chosen from the icon picker.</summary>
     [JsonIgnore]
@@ -214,7 +239,7 @@ public sealed class DockItem : INotifyPropertyChanged
         if (_hovered == hovered)
             return;
         _hovered = hovered;
-        _hoverOpacityTarget = hovered && !IsSeparator ? 1 : 0;
+        _hoverOpacityTarget = hovered && !IsSeparator && !IsPlaceholder ? 1 : 0;
         if (DockItemAnimations.ReducedMotion)
         {
             _hoverOpacityDisplay = _hoverOpacityTarget;
@@ -249,6 +274,30 @@ public sealed class DockItem : INotifyPropertyChanged
     /// <summary>Full opacity at rest; dimmed to a placeholder while this item is being dragged.</summary>
     [JsonIgnore]
     public double CellOpacity => _dragging ? 0.35 : 1;
+
+    // ---- Drop shell (runtime-only) -----------------------------------------
+
+    private bool _placeholderMuted;
+
+    /// <summary>
+    /// Hides the shell's own fill while leaving its slot open. Used while the drag is over an icon
+    /// that will take the drop itself (a file onto an app, or anything into a group), where the
+    /// swelled icon is the cue and a second one would contradict it. The slot stays open all the
+    /// same, because closing it would shift every cell past it by a full cell width and hand the
+    /// drag to whichever icon slid under the cursor — which re-opens the slot, and so on.
+    /// </summary>
+    public void SetPlaceholderMuted(bool muted)
+    {
+        if (_placeholderMuted == muted)
+            return;
+        _placeholderMuted = muted;
+        OnPropertyChanged(nameof(PlaceholderVisibility));
+    }
+
+    /// <summary>The empty slot itself, drawn only for a drop shell and only while it is the cue.</summary>
+    [JsonIgnore]
+    public Visibility PlaceholderVisibility =>
+        IsPlaceholder && !_placeholderMuted ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Advances hover/magnify easing. Returns true if any displayed value changed.</summary>
     internal bool AnimateVisuals(double hoverStep, double magnifyStep)
@@ -345,9 +394,11 @@ public sealed class DockItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(SeparatorLineHeight));
     }
 
-    /// <summary>The launch button is shown for everything except a separator.</summary>
+    /// <summary>The launch button is shown for everything except a separator and a drop shell,
+    /// neither of which has anything to launch.</summary>
     [JsonIgnore]
-    public Visibility ButtonVisibility => IsSeparator ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility ButtonVisibility =>
+        IsSeparator || IsPlaceholder ? Visibility.Collapsed : Visibility.Visible;
 
     /// <summary>The thin divider line is shown only for a separator.</summary>
     [JsonIgnore]

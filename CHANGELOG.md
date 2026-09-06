@@ -6,6 +6,140 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Round 9 — crash and hang hardening
+
+Prompted by Microsoft Partner Center health insights reporting crashes and hangs in the field. A
+full-codebase audit (four parallel passes plus a runtime stress test against a published build)
+found and fixed ten concrete bugs, written up in [`docs/crash-report.md`](docs/crash-report.md) and
+[`docs/hang-report.md`](docs/hang-report.md); the checklist behind the audit is now a standing
+skill, `crash-hang-review`, for the next time this needs doing.
+
+#### Fixed
+
+- **A corrupt or momentarily-locked `dock.json` could silently cost a user their whole
+  configuration.** `DockStore.Load()` fell back to defaults *in memory* on any read/parse failure,
+  and the very next save then overwrote the still-present original file with those fresh
+  defaults — an antivirus scan catching the file at the wrong instant, or a one-off truncated
+  write, permanently erased a real dock. Reads now retry briefly past a locked-file `IOException`,
+  and a file that's still unreadable after that is copied aside as `dock.json.unreadable-<stamp>.bak`
+  before defaults are handed back, so nothing is discarded without a copy surviving somewhere.
+- **A hand-edited `dock.json` with a stray JSON `null` in an items array crashed the app on every
+  subsequent launch.** A `null` list entry deserializes cleanly (these are reference-type lists) and
+  reached `DockWindow`'s constructor, which throws walking it — before any window exists, so the bad
+  entry was never removed and the crash recurred every time. `DockConfig.Migrate()` now strips null
+  dock/item/child entries and repairs an explicitly-nulled `Children` list back to empty.
+- **One bad dock profile could take the whole app down with it.** Building each dock's window during
+  startup (and during the language-change/import rebuild) is now individually try/caught and logged,
+  so a single corrupt or unbuildable profile is skipped rather than crashing every dock.
+- **Dragging a file onto the dock, then removing that dock mid-drag, crashed the app ~200ms later.**
+  The new drop-shell watchdog timer (Round 8) didn't stop itself on window close the way every other
+  polling timer on the window does, so it kept ticking against a closed `AppWindow` and threw reading
+  its position. It now stops itself on `Closed`.
+- An unguarded `DataView.Contains` call in the per-icon drag-over handler could throw on a live
+  drag's own timing hazard (a call the code right next to it already knew to guard) and crash the
+  process mid-drag. Now goes through the same guarded check as its neighbor.
+- **Anything that could stall on a removed network share or unplugged drive was moved off the UI
+  thread**, since any of it freezing the dock reads as a hang to a user: launching an item, dropping
+  files on an app, revealing an item's file location, and — the worst of these — resolving a pinned
+  shortcut's target, which ran synchronously on every ~2-second running-app poll and could freeze
+  every dock for as long as an unresponsive volume stayed down.
+- **Opening a folder stack on a very large folder could freeze the dock.** The listing capped its
+  *output* at 60 entries but sorted the entire folder first — over a slow network share that made a
+  single click cost a walk of the whole folder. The cap now bounds the raw enumeration itself.
+- **A group or folder fly-out closing while a new one opened in the same gesture** (hovering from one
+  group straight onto the next, or drilling into a folder stack) could leave the dock's auto-hide
+  timer resumed against the wrong bar, letting the dock slide away while its own fly-out was still
+  open above it. Only the fly-out that's actually still current can now resume auto-hide.
+- **Opening Settings leaked a handler per Apps & Links row, every time.** Found by an empirical
+  stress-test pass, not the static audits: each row subscribes to its `DockItem`'s
+  `PropertyChanged` to refresh its icon, and the only teardown relied on `Unloaded` firing on
+  window close — which it doesn't, reliably. The `DockItem`s are long-lived (owned by
+  `DockManager.Config`), so every Settings open pinned one more dangling closure on them; measured
+  at +34 GDI objects and +63 handles per open/close cycle, linearly, with no plateau. The window's
+  `Closed` handler now clears the Apps & Links list itself, driving the same teardown that already
+  worked correctly for a live rebuild. This closed most of the memory growth and all of a creeping
+  per-open slowdown, but a re-verification pass found GDI-object/handle growth persisted almost
+  unchanged — a second leak underneath the first.
+- Settings, the item editor, the new-group dialog and the add-item dialog all set
+  `SystemBackdrop = new MicaBackdrop()` in their constructor and never released it, unlike the
+  long-lived dock window and the search window, which already dispose their backdrop controller on
+  close — a plausible remaining source for the GDI/handle growth above, so each window's close
+  handler now also sets `SystemBackdrop = null`. **Measured to make no difference**: a follow-up
+  empirical pass found the same deterministic per-open GDI/handle growth on Settings, the editor
+  and the add-item dialog alike, unchanged by this fix. Left in (it's correct regardless) but the
+  underlying growth is tracked as an open issue — see `docs/crash-report.md` finding C7 — rather
+  than claimed as resolved.
+
+### Round 8 — a drop opens the slot it is going to land in
+
+#### Added
+
+- **Dragging something onto the dock now parts the strip around an empty slot where the drop will
+  land**, and the drop lands *there* rather than on the end of the strip. It is the same cue a
+  reorder already gave — the strip opening up around a cell in flight — so adding an item and moving
+  one now read as the same gesture, which is what they are. The slot follows the cursor as it moves
+  along the strip, and several files dropped together fill it and the slots after it, in order.
+  The empty cell is a transient `DockItem` (`CreatePlaceholder`) that lives only in the dock's
+  *visible* collection, never in the profile, so nothing about it can reach the config — and it maps
+  back onto the master list through the new `InsertDockItem`, so a hidden neighbour doesn't quietly
+  shift where the drop goes.
+- Where that slot is comes from `SlotAt`, which is now **shared with the reorder gesture** rather
+  than written twice: both place a cell by walking the strip's own (non-uniform) cell extents and
+  inserting where the position passes each midpoint, so the two can never disagree about where a
+  cell starts.
+
+#### Changed
+
+- **The dock grows from where it is while a drop slot is open**, instead of re-deriving its
+  placement. A centered dock re-centers as it widens, which slid every icon half a cell sideways
+  the moment the gap opened — and took the gap itself out from under the cursor that asked for it,
+  putting the drop one slot off. It settles back to its usual placement once the slot closes,
+  whether the drop landed or not.
+- **An icon that takes the drop itself keeps the slot open but silences it.** Dropping a file on an
+  app, or anything into a group, is announced by that icon swelling, so a second cue beside it
+  would contradict it — but *closing* the slot there would shift every cell past it by a full cell
+  width and hand the drag to whichever icon slid under the cursor, which promptly re-opens it. So
+  the geometry stays put and only the fill goes.
+- The slot closes when the drag leaves, is cancelled, or is dropped. A cell's own `DragLeave`
+  bubbles up to the strip every time the cursor crosses between two icons, so it is the cursor —
+  not the event — that is asked whether the drag has really gone. A watchdog covers a `DragLeave`
+  that never arrives, and is careful about the difference between a drag that is *gone* and one
+  merely being **held still**: a drag held still raises no `DragOver` either, and someone lining a
+  file up between two icons holds it still on purpose, so the slot goes only once the cursor has
+  left the dock or the button carrying the drag is up.
+
+### Round 7 — apps can be dragged onto the dock
+
+#### Fixed
+
+- **Dragging an app from the Start menu onto the dock showed the "no entry" cursor and did
+  nothing.** An app in Start's list is not a file: it lives in the shell's virtual `AppsFolder`
+  namespace and is identified by an AppUserModelID, so the shell offers such a drag as a
+  `"Shell IDList Array"` (CFSTR_SHELLIDLIST) and nothing else — no CF_HDROP, which means
+  `DataView.Contains(StorageItems)` says there is nothing there. That question was the only one
+  the dock asked, so every one of those drags was refused. It now asks whether the drag carries
+  shell items *or* storage items, and reads them either way — the items come back from
+  `GetStorageItemsAsync` regardless of what `Contains` admitted to, as path-less stand-ins for the
+  shell items. New `Services/ShellDrop.cs` resolves each of those: the app's own exe if it has one
+  (so a dragged-in Chrome is the same dock item as one added by browsing to it — running
+  indicators, arguments and *Open file location* all key off a real path), and otherwise the
+  AppUserModelID as a `shell:AppsFolder\<id>` target, which is how a Store app with no exe of its
+  own is launched. `IconService` reaches those icons through the item ID list the shell parses that
+  target into, since nothing that takes a path can answer for one.
+- **An app dropped on the dock is now added as a shortcut wherever it lands**, icon or not.
+  Dropping a *file* on an app icon still opens the file with that app, as it always has — but a
+  dropped app took that same path, so "open Chrome with Notepad" is what a drop on an icon meant.
+  A dock strip is mostly icons, so that made adding an app by dragging it a matter of hitting the
+  few pixels between two of them. `Item_DragOver` says "Add to dock" for those drags and lets them
+  through to the strip's own handler; the caption is decided from a read of the payload started as
+  the drag enters each cell, deliberately without a deferral (a deferral applies DragEnter's own
+  "no operation" when it completes, which left the shell drawing the "no entry" cursor over a dock
+  that was in fact accepting the drop).
+- ***Open file location*** no longer appears for a Store app pinned from the Start menu. Round 6
+  gated the entry on kind alone, deliberately, to keep a filesystem call out of building a menu —
+  a `shell:AppsFolder\…` target needs no such call to rule out, since it is knowable from the
+  target itself that there is no folder to reveal.
+
 ### Round 6 — group items become fully reorderable, and Explorer is one right-click away
 
 #### Added

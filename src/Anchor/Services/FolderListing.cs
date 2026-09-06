@@ -25,6 +25,21 @@ public static class FolderListing
     public const int MaxEntries = 60;
 
     /// <summary>
+    /// Hard ceiling on how many raw directory entries are ever pulled off disk before sorting,
+    /// independent of <see cref="MaxEntries"/>/<c>max</c>. "Folders first, then alphabetical"
+    /// needs every candidate entry visible to the sort to be correct, but <c>OrderBy</c> cannot
+    /// yield its first result until it has buffered the <em>entire</em> input — so a naive
+    /// <c>.OrderBy(...).Take(max)</c> walks a folder's contents in full no matter how small <c>max</c>
+    /// is. A folder holding tens of thousands of entries — especially over a slow network share,
+    /// where each entry can cost a round trip — must not turn "click a stack" into a filesystem
+    /// walk proportional to the folder's total size rather than to what's actually shown. Past
+    /// this many raw entries the sort simply works with what it's already seen; the exact top
+    /// <see cref="MaxEntries"/> alphabetically is not worth guaranteeing for a folder this large,
+    /// and the bar's own "Open in File Explorer" cell is the honest answer for one.
+    /// </summary>
+    private const int EnumerationCap = 5000;
+
+    /// <summary>
     /// The folder's contents as dock items: directories first, then files, each alphabetical —
     /// Explorer's own order, so the bar lists things where the user expects to find them.
     /// <para>
@@ -45,9 +60,13 @@ public static class FolderListing
                 return items;
 
             // Hidden and system entries are skipped for the same reason Explorer hides them by
-            // default: a stack full of desktop.ini and $RECYCLE.BIN is noise, not contents.
+            // default: a stack full of desktop.ini and $RECYCLE.BIN is noise, not contents. The
+            // EnumerationCap Take() runs before the sort so it actually bounds how much of the
+            // folder gets pulled off disk — a Take() placed after OrderBy would only bound the
+            // output, not the walk that has to happen first to produce it.
             foreach (var entry in new DirectoryInfo(path)
                          .EnumerateFileSystemInfos()
+                         .Take(EnumerationCap)
                          .Where(e => (e.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0)
                          .OrderBy(e => e is DirectoryInfo ? 0 : 1)
                          .ThenBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase)

@@ -682,6 +682,12 @@
                         <StackPanel x:Name="AppsList" Spacing="8" HorizontalAlignment="Stretch"
                                     AutomationProperties.AutomationId="SettingsAppsList" />
                     </ScrollViewer>
+
+                    <!-- Floating copy of whichever row is being dragged (see SettingsWindow.xaml.cs,
+                         ShowDragGhost) — same cell as the ScrollViewer above so it overlays the list;
+                         declared after it so it paints on top. Never hit-test visible: it only ever
+                         tracks the cursor, and must never itself become the thing FindRowAt lands on. -->
+                    <Canvas x:Name="DragGhostCanvas" Grid.Row="2" IsHitTestVisible="False" />
                 </Grid>
 
                 <!-- ==================== ABOUT ==================== -->

@@ -67,6 +67,10 @@ public static class IconService
                 case DockItemKind.File:
                     if (File.Exists(item.Target))
                         return await ShellIconAsync(item.Target, decodeSize);
+                    // A Start-menu app has no file behind it to ask about — its icon is reached
+                    // through the item ID list the shell resolves its AppUserModelID to.
+                    if (DockItemFactory.IsAppsFolderTarget(item.Target))
+                        return await ShellIconFromParsingNameAsync(item.Target, decodeSize);
                     break;
 
                 case DockItemKind.Folder:
@@ -145,6 +149,39 @@ public static class IconService
             hIcon = info.hIcon;
         }
 
+        return await FromIconHandleAsync(hIcon, decodeSize);
+    }
+
+    /// <summary>
+    /// The same shell icon, for an item that is not a file: a Start-menu app, whose
+    /// <c>shell:AppsFolder\…</c> target the shell parses into an item ID list that the image list
+    /// answers for exactly as it does for a path.
+    /// </summary>
+    private static async Task<ImageSource?> ShellIconFromParsingNameAsync(string parsingName, int decodeSize)
+    {
+        if (NativeMethods.SHParseDisplayName(parsingName, nint.Zero, out nint pidl, 0, out _) != 0 ||
+            pidl == nint.Zero)
+        {
+            Diag.Log($"IconService: the shell doesn't recognize '{parsingName}'");
+            return null;
+        }
+
+        try
+        {
+            nint hIcon = TryGetShellIcon(pidl, NativeMethods.SHIL_JUMBO);
+            if (hIcon == nint.Zero)
+                hIcon = TryGetShellIcon(pidl, NativeMethods.SHIL_EXTRALARGE);
+            return hIcon == nint.Zero ? null : await FromIconHandleAsync(hIcon, decodeSize);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(pidl);
+        }
+    }
+
+    /// <summary>Turns an HICON into a decoded image source, and releases the handle either way.</summary>
+    private static async Task<ImageSource?> FromIconHandleAsync(nint hIcon, int decodeSize)
+    {
         try
         {
             using var icon = System.Drawing.Icon.FromHandle(hIcon);
@@ -169,14 +206,26 @@ public static class IconService
         nint listHandle = NativeMethods.SHGetFileInfo(
             path, 0, ref info, (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
             NativeMethods.SHGFI_SYSICONINDEX);
-        if (listHandle == nint.Zero)
-            return nint.Zero;
+        return listHandle == nint.Zero ? nint.Zero : IconFromSystemImageList(info.iIcon, imageList);
+    }
 
+    /// <summary>The same lookup for an item ID list rather than a path.</summary>
+    private static nint TryGetShellIcon(nint pidl, int imageList)
+    {
+        var info = new NativeMethods.SHFILEINFO();
+        nint listHandle = NativeMethods.SHGetFileInfoPidl(
+            pidl, 0, ref info, (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
+            NativeMethods.SHGFI_PIDL | NativeMethods.SHGFI_SYSICONINDEX);
+        return listHandle == nint.Zero ? nint.Zero : IconFromSystemImageList(info.iIcon, imageList);
+    }
+
+    private static nint IconFromSystemImageList(int index, int imageList)
+    {
         var iid = NativeMethods.IID_IImageList;
         if (NativeMethods.SHGetImageList(imageList, ref iid, out var shellList) != 0)
             return nint.Zero;
 
-        return shellList.GetIcon(info.iIcon, NativeMethods.ILD_TRANSPARENT, out nint hIcon) == 0
+        return shellList.GetIcon(index, NativeMethods.ILD_TRANSPARENT, out nint hIcon) == 0
             ? hIcon
             : nint.Zero;
     }

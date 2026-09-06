@@ -106,6 +106,11 @@ public sealed partial class EditWindow : Window
         {
             _item.PropertyChanged -= OnItemPropertyChanged;
             _dock.HoldAutoHide(false);
+            // MicaBackdrop's compositor connection is otherwise only released whenever this
+            // window's CLR object happens to be collected — for a dialog opened and closed as
+            // often as this one, that lags GC and shows up as a steady per-open climb in GDI
+            // object/handle counts. Clearing it here disconnects it immediately.
+            SystemBackdrop = null;
         };
     }
 

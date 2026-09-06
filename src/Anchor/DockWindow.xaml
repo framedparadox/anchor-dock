@@ -15,7 +15,7 @@
          the shell's high-contrast colors come through instead. -->
     <Grid x:Name="RootGrid" Background="Transparent" RequestedTheme="Dark"
           AutomationProperties.AutomationId="AnchorDockRoot"
-          AllowDrop="True" DragOver="Root_DragOver" Drop="Root_Drop">
+          AllowDrop="True" DragOver="Root_DragOver" DragLeave="Root_DragLeave" Drop="Root_Drop">
         <Grid.Resources>
             <!-- Windows-11-taskbar-style icon chrome: a rounded, theme-aware fill that appears on
                  hover/press. The default ButtonStyle's own PointerOver/Pressed fill exists too,
@@ -150,6 +150,7 @@
                                   Background="Transparent"
                                   Tag="{x:Bind}"
                                   AllowDrop="True"
+                                  DragEnter="Item_DragEnter"
                                   DragOver="Item_DragOver"
                                   DragLeave="Item_DragLeave"
                                   Drop="Item_Drop"
@@ -167,6 +168,24 @@
                                         Opacity="{x:Bind HoverOpacity, Mode=OneWay}"
                                         IsHitTestVisible="False"
                                         AutomationProperties.AccessibilityView="Raw" />
+
+                                <!-- The drop shell: the empty slot the strip opens up while
+                                     something is dragged in from outside, standing where the drop
+                                     will land (see DockWindow.DropTargets, TrackDropShell). Only
+                                     the transient placeholder item ever shows it, so every real
+                                     cell binds this to Collapsed and pays nothing for it. The
+                                     hairline outline is what tells it apart from the hover fill
+                                     above, which is otherwise the same rounded rectangle. -->
+                                <Grid Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}"
+                                      IsHitTestVisible="False"
+                                      AutomationProperties.AccessibilityView="Raw">
+                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                            CornerRadius="{x:Bind CellCorner, Mode=OneWay}" />
+                                    <Border BorderBrush="{ThemeResource TextFillColorPrimaryBrush}"
+                                            BorderThickness="1"
+                                            Opacity="0.25"
+                                            CornerRadius="{x:Bind CellCorner, Mode=OneWay}" />
+                                </Grid>
 
                                 <!-- Sized to the cell, exactly as the gear below is. Without it the
                                      button takes its size from its content — a 24px icon in a 40px

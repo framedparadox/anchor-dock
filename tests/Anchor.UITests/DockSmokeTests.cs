@@ -428,6 +428,73 @@ public sealed class DockSmokeTests
         return group!;
     }
 
+    /// <summary>A floating dock holding one group, "Group", with two children — enough to prove a
+    /// collapse hides more than a single row and an expand brings all of them back.</summary>
+    private static string TwoChildGroupDockJson() => """
+    {
+      "Language": "en",
+      "Seeded": true,
+      "Docks": [
+        {
+          "Name": "Dock 1",
+          "Snapped": false,
+          "AutoHide": false,
+          "FreeX": 400,
+          "FreeY": 240,
+          "Items": [
+            {
+              "Kind": "Group",
+              "DisplayName": "Group",
+              "Children": [
+                { "Kind": "Application", "DisplayName": "File Explorer", "Target": "C:/Windows/explorer.exe" },
+                { "Kind": "Application", "DisplayName": "Notepad", "Target": "C:/Windows/System32/notepad.exe" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    """;
+
+    /// <summary>True once an Apps &amp; links row named <paramref name="name"/> is on screen (or
+    /// once it is not) — a row is a plain <c>Border</c>/<c>TextBlock</c> rather than a Button, so
+    /// this looks the item's display name up by name alone, unlike a fly-out bar cell.</summary>
+    private static bool RowExists(Window settings, string name) =>
+        settings.FindFirstDescendant(cf => cf.ByName(name)) is not null;
+
+    [UIFact]
+    public void The_collapse_button_hides_and_the_expand_button_restores_a_groups_children_rows()
+    {
+        // Seeded directly rather than built through "Move to group" — that route is exercised (and
+        // known flaky in a sandboxed run) elsewhere; this test is only about the toggle.
+        using var app = AnchorApp.Launch(TwoChildGroupDockJson());
+        var dock = app.WaitForDock();
+
+        AnchorApp.Press(AnchorApp.FindById(dock, "AnchorSettingsButton")!);
+        var settings = app.WaitForWindow("Anchor Settings");
+        AnchorApp.Press(AnchorApp.FindById(settings, "SettingsNavApps")!);
+
+        // Expanded by default: both children show up as their own indented rows.
+        Assert.True(AnchorApp.WaitUntil(() => RowExists(settings, "File Explorer")));
+        Assert.True(RowExists(settings, "Notepad"));
+
+        var collapse = AnchorApp.FindButtonByName(settings, "Collapse group");
+        Assert.NotNull(collapse);
+        AnchorApp.Press(collapse!);
+
+        Assert.True(AnchorApp.WaitUntil(() => !RowExists(settings, "File Explorer") && !RowExists(settings, "Notepad")),
+            "Collapsing the group did not hide both of its children's rows.");
+
+        var expand = AnchorApp.FindButtonByName(settings, "Expand group");
+        Assert.NotNull(expand);
+        AnchorApp.Press(expand!);
+
+        Assert.True(AnchorApp.WaitUntil(() => RowExists(settings, "File Explorer") && RowExists(settings, "Notepad")),
+            "Expanding the group did not restore both of its children's rows.");
+
+        settings.Close();
+    }
+
     [UIFact]
     public void The_dock_survives_opening_and_closing_Settings()
     {

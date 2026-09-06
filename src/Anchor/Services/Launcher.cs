@@ -16,6 +16,18 @@ public static class Launcher
             return;
         }
 
+        // Every check and call below can touch the file system or hand off to the shell, and a
+        // dock item's target can be on a network share or removable drive that has since gone
+        // away. File.Exists and Process.Start (via ShellExecute) can both block for the OS's own
+        // SMB/mount timeout against a path like that — tens of seconds, sometimes much longer —
+        // and this is always reached directly from a click, a drop or a hotkey on the UI thread.
+        // Doing the actual launch on a thread-pool thread means a stalled target only ever costs
+        // that thread; the dock keeps drawing and responding to input either way.
+        Task.Run(() => LaunchCore(item));
+    }
+
+    private static void LaunchCore(DockItem item)
+    {
         // A "File" item with no registered handler doesn't throw and doesn't visibly open
         // anything — ShellExecute silently spins up a helper process that exits on its own.
         // Detect that up front and hand it to the shell's own "Open with" picker instead of
@@ -69,6 +81,15 @@ public static class Launcher
         if (item.Kind != DockItemKind.Application || string.IsNullOrWhiteSpace(item.Target))
             return;
 
+        // Same reasoning as Launch: this runs synchronously on the UI thread as part of a drop
+        // handler, and Process.Start/the working-directory check below can stall against a target
+        // on a since-disconnected network or removable drive. Push the actual work off the UI
+        // thread so that stall can't freeze the drop gesture (or the dock) with it.
+        Task.Run(() => LaunchWithCore(item, paths));
+    }
+
+    private static void LaunchWithCore(DockItem item, IReadOnlyList<string> paths)
+    {
         try
         {
             var psi = new ProcessStartInfo
@@ -195,7 +216,10 @@ public static class Launcher
     /// </summary>
     public static bool SupportsFileLocation(DockItem item) =>
         item.Kind is DockItemKind.Application or DockItemKind.File or DockItemKind.Folder &&
-        !string.IsNullOrWhiteSpace(item.Target);
+        !string.IsNullOrWhiteSpace(item.Target) &&
+        // A Start-menu app is an entry in a virtual folder, not a file, so it has no location to
+        // open. This one is known up front — no filesystem call needed to rule it out.
+        !DockItemFactory.IsAppsFolderTarget(item.Target);
 
     /// <summary>
     /// Reveals the item's target in Explorer: opens its containing folder with the target itself
@@ -204,7 +228,23 @@ public static class Launcher
     /// </summary>
     public static void OpenFileLocation(DockItem item)
     {
-        if (!SupportsFileLocation(item) || !(File.Exists(item.Target) || Directory.Exists(item.Target)))
+        if (!SupportsFileLocation(item))
+        {
+            Diag.Log($"OpenFileLocation skipped: '{item.Target}' is not a path on disk");
+            return;
+        }
+
+        // Called synchronously from a context-menu click on the UI thread. The existence check
+        // just below is exactly the kind of call that can stall for the OS's own SMB/mount
+        // timeout against a target whose network share or removable drive has since gone away —
+        // do it, and the Process.Start that follows, on a thread-pool thread so a stale item can't
+        // freeze the dock just because its menu was clicked.
+        Task.Run(() => OpenFileLocationCore(item));
+    }
+
+    private static void OpenFileLocationCore(DockItem item)
+    {
+        if (!(File.Exists(item.Target) || Directory.Exists(item.Target)))
         {
             Diag.Log($"OpenFileLocation skipped: '{item.Target}' is not a path on disk");
             return;
@@ -251,7 +291,8 @@ public static class Launcher
     /// <summary>Working directory for a real local file/app, or null. Never throws.</summary>
     private static string? TryGetWorkingDirectory(DockItem item)
     {
-        if (item.Kind is not (DockItemKind.Application or DockItemKind.File))
+        if (item.Kind is not (DockItemKind.Application or DockItemKind.File) ||
+            DockItemFactory.IsAppsFolderTarget(item.Target))
             return null; // folders, web links, shell commands: let the shell decide
         try
         {

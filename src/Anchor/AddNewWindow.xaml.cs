@@ -81,6 +81,12 @@ public sealed partial class AddNewWindow : Window
         };
 
         SelectType(AddKind.App);
+
+        // MicaBackdrop's compositor connection is otherwise only released whenever this window's
+        // CLR object happens to be collected — for a dialog opened and closed as often as this
+        // one, that lags GC and shows up as a steady per-open climb in GDI object/handle counts.
+        // Clearing it here disconnects it immediately.
+        Closed += (_, _) => SystemBackdrop = null;
     }
 
     /// <summary>Applies the given app theme to this window's root (called on open and whenever

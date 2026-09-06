@@ -51,6 +51,72 @@ public class DockConfigTests
     }
 
     [Fact]
+    public void Migrate_drops_null_entries_from_a_hand_edited_items_array()
+    {
+        // dock.json is documented as hand-editable, and a literal JSON `null` inside an items
+        // array deserializes as a null list entry rather than failing the whole file (DockItem is
+        // a reference type). DockWindow's own constructor walks every item as it lays out and
+        // would NullReferenceException on the first one that isn't real — before any window
+        // exists, which is a crash on every subsequent launch. Migrate has to make that shape
+        // impossible to see downstream.
+        const string json = """
+        {
+          "Docks": [
+            {
+              "Items": [
+                null,
+                { "Kind": "Application", "DisplayName": "Notepad", "Target": "notepad.exe" },
+                {
+                  "Kind": "Group",
+                  "DisplayName": "Tools",
+                  "Children": [ null, { "DisplayName": "Calc" } ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+        var cfg = JsonSerializer.Deserialize<DockConfig>(json, Options)!.Migrate();
+
+        var dock = Assert.Single(cfg.Docks);
+        Assert.Equal(2, dock.Items.Count);
+        Assert.Equal("Notepad", dock.Items[0].DisplayName);
+
+        var group = dock.Items[1];
+        Assert.Equal(DockItemKind.Group, group.Kind);
+        Assert.Equal("Calc", Assert.Single(group.Children).DisplayName);
+    }
+
+    [Fact]
+    public void Migrate_repairs_a_group_whose_children_list_was_explicitly_null()
+    {
+        // "Children": null overwrites the property's own empty-list default the same way a
+        // missing field wouldn't — anything that later does `group.Children.Add(...)` or iterates
+        // it (the fly-out, the strip, Settings ▸ Apps & links) would NullReferenceException.
+        const string json = """
+        { "Docks": [ { "Items": [ { "Kind": "Group", "DisplayName": "Empty", "Children": null } ] } ] }
+        """;
+
+        var cfg = JsonSerializer.Deserialize<DockConfig>(json, Options)!.Migrate();
+
+        var group = Assert.Single(Assert.Single(cfg.Docks).Items);
+        Assert.NotNull(group.Children);
+        Assert.Empty(group.Children);
+    }
+
+    [Fact]
+    public void Migrate_drops_a_null_dock_alongside_a_real_one()
+    {
+        // The same hand-editing hazard one level up: "Docks": [null, {...}].
+        const string json = """{ "Docks": [ null, { "Name": "Real" } ] }""";
+
+        var cfg = JsonSerializer.Deserialize<DockConfig>(json, Options)!.Migrate();
+
+        Assert.Equal("Real", Assert.Single(cfg.Docks).Name);
+    }
+
+    [Fact]
     public void Migrate_is_idempotent()
     {
         var cfg = new DockConfig().Migrate();
@@ -402,6 +468,13 @@ public class DockConfigTests
             {
                 new DockItem { DisplayName = "Notepad", Hotkey = "Ctrl+Alt+1" },
                 new DockItem { Kind = DockItemKind.Folder, DisplayName = "Home", FolderFlyout = true },
+                new DockItem
+                {
+                    Kind = DockItemKind.Group,
+                    DisplayName = "Tools",
+                    IsCollapsed = true,
+                    Children = { new DockItem { DisplayName = "Calc" } },
+                },
             },
         });
 
@@ -411,5 +484,6 @@ public class DockConfigTests
         var items = Assert.Single(loaded.Docks).Items;
         Assert.Equal("Ctrl+Alt+1", items[0].Hotkey);
         Assert.True(items[1].FolderFlyout);
+        Assert.True(items[2].IsCollapsed);
     }
 }

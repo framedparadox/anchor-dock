@@ -71,7 +71,7 @@ public sealed class DockManager
         DockItemAnimations.SetShowLabels(Config.ShowItemLabels);
 
         foreach (var profile in Config.Docks.ToList())
-            _docks.Add(CreateWindow(profile, seedDefaults: firstRun && profile.Items.Count == 0));
+            TryCreateAndAddWindow(profile, seedDefaults: firstRun && profile.Items.Count == 0);
 
         // A dock is a tool window with no taskbar button, so the tray icon is the only always-
         // available handle on a running Anchor — and, with the global shortcut, the way back to a
@@ -102,6 +102,31 @@ public sealed class DockManager
         // stale entry behind that the tray and Settings still think exists.
         window.Closed += (_, _) => _docks.Remove(window);
         return window;
+    }
+
+    /// <summary>
+    /// Creates a dock window for <paramref name="profile"/> and adds it to <see cref="_docks"/>,
+    /// but never lets a single bad profile take the rest of the app with it.
+    /// <para>
+    /// <see cref="DockStore.Load"/> already sanitizes the shapes a corrupt <c>dock.json</c> is
+    /// known to produce, but this runs before <see cref="App"/>'s own
+    /// <c>UnhandledException</c> handler has any window to blame the failure on — an exception
+    /// here would otherwise propagate straight out of <c>OnLaunched</c> and crash the process on
+    /// every subsequent launch, since the same profile is still first in the list next time. One
+    /// dock failing to build is recoverable (the rest still come up, and Settings ▸ Docks can
+    /// still remove the bad one); an unguarded crash loop before any window exists is not.
+    /// </para>
+    /// </summary>
+    private void TryCreateAndAddWindow(DockProfile profile, bool seedDefaults)
+    {
+        try
+        {
+            _docks.Add(CreateWindow(profile, seedDefaults));
+        }
+        catch (Exception ex)
+        {
+            Diag.Log($"DockManager: failed to create a window for dock '{profile.Id}' — skipping it: {ex}");
+        }
     }
 
     public void Save() => DockStore.Save(Config);
@@ -823,7 +848,7 @@ public sealed class DockManager
         }
 
         foreach (var profile in Config.Docks)
-            _docks.Add(CreateWindow(profile, seedDefaults: false));
+            TryCreateAndAddWindow(profile, seedDefaults: false);
 
         foreach (var dock in _docks)
             dock.Activate();
