@@ -25,15 +25,75 @@ public static class ShortcutResolver
 
     private readonly record struct CacheEntry(DateTime Stamp, string? Target);
 
+    // Keyed and locked the same as Cache: a lookup for a path that is already being resolved on a
+    // thread-pool thread is joined to that same task rather than starting a second one. Without
+    // this, a share that stays unresponsive would pick up one more stuck thread-pool thread every
+    // poll (see RunningAppMonitor, which calls Resolve every couple of seconds) for as long as it
+    // stays down.
+    private static readonly Dictionary<string, Task<string?>> InFlight =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// How long <see cref="Resolve"/> waits on the calling thread before giving up on a lookup
+    /// that hasn't come back yet. <see cref="Resolve"/> runs on the UI thread on every running-app
+    /// poll (<c>RunningAppMonitor.IsRunning</c>/<c>TryFocus</c>), for every <c>.lnk</c> item on
+    /// every dock, every couple of seconds — a shortcut whose target volume (a network share, a
+    /// mounted image) has gone unresponsive must not be able to turn <see cref="File.Exists"/> or
+    /// the COM read below into the OS's own SMB/mount timeout (tens of seconds, sometimes much
+    /// longer) on the thread that draws the dock. The lookup itself is not abandoned when this
+    /// expires — it keeps running on its thread-pool thread and populates the cache whenever it
+    /// does finish — only this call gives up early and reports "not resolved for now".
+    /// </summary>
+    private static readonly TimeSpan LookupTimeout = TimeSpan.FromMilliseconds(300);
+
     /// <summary>
     /// The executable a shortcut points at, or null if <paramref name="path"/> isn't a resolvable
-    /// shortcut. Never throws.
+    /// shortcut — including one whose lookup didn't finish within <see cref="LookupTimeout"/>, in
+    /// which case the caller simply sees "not resolved" for this call and the next poll tries
+    /// again. Never throws, never blocks past that timeout.
     /// </summary>
     public static string? Resolve(string path)
     {
         if (string.IsNullOrWhiteSpace(path) ||
-            !path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) ||
-            !File.Exists(path))
+            !path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        Task<string?> lookup;
+        lock (Cache)
+        {
+            if (!InFlight.TryGetValue(path, out lookup!))
+            {
+                lookup = Task.Run(() => ResolveCore(path));
+                InFlight[path] = lookup;
+                // Runs whenever the lookup finishes, however long that takes, so a slow path
+                // doesn't stay "in flight" forever and queue every later call behind the same
+                // stale task.
+                lookup.ContinueWith(_ =>
+                {
+                    lock (Cache)
+                    {
+                        if (InFlight.TryGetValue(path, out var current) && current == lookup)
+                            InFlight.Remove(path);
+                    }
+                }, TaskScheduler.Default);
+            }
+        }
+
+        try
+        {
+            return lookup.Wait(LookupTimeout) ? lookup.Result : null;
+        }
+        catch
+        {
+            // ResolveCore never throws on its own — everything inside it is already guarded — but
+            // Task.Result rethrows a faulted task's exception, and this is never worth surfacing.
+            return null;
+        }
+    }
+
+    private static string? ResolveCore(string path)
+    {
+        if (!File.Exists(path))
             return null;
 
         DateTime stamp;

@@ -90,6 +90,11 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     public static partial short GetAsyncKeyState(int vKey);
 
+    // ---- Screen <-> client coordinate conversion (timer-polled dragging) --
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ScreenToClient(nint hwnd, ref POINT point);
+
     // ---- Shell icon extraction (SHGetFileInfo) -----------------------------
     // A fallback icon source for anything the filesystem says exists. Needed because the
     // WinRT Storage thumbnail pipeline (IconService's primary path, for higher-res icons)
@@ -172,6 +177,29 @@ internal static partial class NativeMethods
 
     [DllImport("shell32.dll")]
     public static extern int SHGetImageList(int iImageList, ref Guid riid, out IImageList ppv);
+
+    // ---- Shell items that are not files (Store apps) -----------------------
+    //
+    // An app dropped from the Start menu may have no file behind it at all: a Store app is an
+    // item in the virtual "AppsFolder" namespace, identified by an AppUserModelID. The dock
+    // stores those as "shell:AppsFolder\<id>", which ShellExecute launches — but which no API
+    // that takes a path will answer for, so the two below go through the item ID list the shell
+    // parses that name into instead (see Services/ShellDrop.cs and IconService).
+
+    /// <summary>Turns a parsing name ("shell:AppsFolder\Chrome", or a path) into an ITEMIDLIST.
+    /// The caller owns what comes back: free it with <c>Marshal.FreeCoTaskMem</c>.</summary>
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int SHParseDisplayName(
+        string pszName, nint pbc, out nint ppidl, uint sfgaoIn, out uint psfgaoOut);
+
+    /// <summary>Pass an ITEMIDLIST rather than a path as SHGetFileInfo's first argument.</summary>
+    public const uint SHGFI_PIDL = 0x8;
+
+    /// <summary>SHGetFileInfo against an ITEMIDLIST (with <see cref="SHGFI_PIDL"/>) instead of a
+    /// path — the only way to reach the icon of an item that has no path.</summary>
+    [DllImport("shell32.dll", EntryPoint = "SHGetFileInfoW", CharSet = CharSet.Unicode)]
+    public static extern nint SHGetFileInfoPidl(
+        nint pidl, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbFileInfo, uint uFlags);
 
     // ---- Hidden helper window (tray callbacks + global hotkeys) ------------
     //

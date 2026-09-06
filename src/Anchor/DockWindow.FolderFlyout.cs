@@ -26,10 +26,17 @@ public sealed partial class DockWindow
     /// Opens a bar over <paramref name="path"/>'s contents, anchored on the dock icon that was
     /// clicked. Clicking a folder inside it re-opens the bar on <em>that</em> folder — still
     /// anchored on the same dock icon, since the cell the click came from goes away with the bar.
+    /// <para>
+    /// <see cref="FolderListing.Read"/> runs on a thread-pool thread rather than inline: it walks
+    /// the target directory, and a folder on a slow or disconnected network share can make that
+    /// walk take far longer than a click should ever be able to block the UI thread for. This is
+    /// reached directly from <c>Item_Click</c>, so without this the whole dock would freeze for
+    /// as long as the listing did.
+    /// </para>
     /// </summary>
-    private void ShowFolderFlyout(FrameworkElement anchor, string path)
+    private async void ShowFolderFlyout(FrameworkElement anchor, string path)
     {
-        var entries = FolderListing.Read(path);
+        var entries = await Task.Run(() => FolderListing.Read(path));
 
         // Always offer the way out to the real file manager: a stack is for the common case, and
         // "everything else in here" has to remain one click away.

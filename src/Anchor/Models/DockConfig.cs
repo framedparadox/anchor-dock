@@ -227,7 +227,35 @@ public sealed class DockConfig
         if (Docks.Count == 0)
             Docks.Add(new DockProfile());
 
+        SanitizeItems();
+
         return this;
+    }
+
+    /// <summary>
+    /// Strips out the shapes a hand-edited (or partially overwritten) <c>dock.json</c> can produce
+    /// that no exception ever flags: a literal JSON <c>null</c> inside an items array deserializes
+    /// as a null list entry rather than failing the file, since <see cref="DockItem"/> is a
+    /// reference type — and an explicit <c>"Children": null</c> on a group overwrites its default
+    /// empty list the same way. Every consumer downstream (starting with <c>DockWindow</c>'s own
+    /// constructor, which walks every item as it lays out) assumes every entry is real and would
+    /// <see cref="NullReferenceException"/> on the first one that isn't — before any window exists,
+    /// which is a crash on every subsequent launch, not just this one. Run once here so nothing
+    /// later has to guard against it.
+    /// </summary>
+    private void SanitizeItems()
+    {
+        Docks.RemoveAll(d => d is null);
+
+        foreach (var profile in Docks)
+        {
+            profile.Items.RemoveAll(item => item is null);
+            foreach (var item in profile.Items)
+            {
+                item.Children ??= new List<DockItem>();
+                item.Children.RemoveAll(child => child is null);
+            }
+        }
     }
 
     /// <summary>

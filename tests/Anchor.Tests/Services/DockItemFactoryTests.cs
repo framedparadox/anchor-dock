@@ -75,4 +75,40 @@ public class DockItemFactoryTests : IDisposable
     {
         Assert.Equal("readme", DockItemFactory.SuggestName("readme.txt"));
     }
+
+    // ---- Start-menu apps ---------------------------------------------------
+    //
+    // A Store app dropped from the Start menu has no path at all, only an AppUserModelID (see
+    // Services/ShellDrop.cs). Those IDs are full of dots, so anything that reads the tail of one
+    // as a file extension classifies "…Calculator_8wekyb3d8bbwe!App" as a plain file — an item
+    // the dock would show with a document icon and open with a text editor.
+
+    [Theory]
+    [InlineData(@"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App")]
+    [InlineData(@"shell:AppsFolder\Chrome")]
+    [InlineData(@"SHELL:APPSFOLDER\Chrome")]
+    public void Classify_recognizes_a_start_menu_app_as_an_application(string target)
+    {
+        Assert.Equal(DockItemKind.Application, DockItemFactory.Classify(target));
+    }
+
+    [Fact]
+    public void SuggestName_of_a_start_menu_app_is_its_id_without_the_folder()
+    {
+        // Only a fallback — a drop names the item from the shell ("Calculator") — but it must not
+        // come back as "Microsoft" (the first dotted segment) or as the whole shell command.
+        Assert.Equal(
+            "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App",
+            DockItemFactory.SuggestName(@"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"));
+    }
+
+    [Theory]
+    [InlineData(@"shell:AppsFolder\Chrome", true)]
+    [InlineData(@"C:\Windows\explorer.exe", false)]
+    [InlineData("https://example.com", false)]
+    [InlineData(null, false)]
+    public void IsAppsFolderTarget_only_matches_the_shell_command(string? target, bool expected)
+    {
+        Assert.Equal(expected, DockItemFactory.IsAppsFolderTarget(target));
+    }
 }

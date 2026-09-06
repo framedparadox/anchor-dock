@@ -1,3 +1,4 @@
+using Anchor.Models;
 using Anchor.Services;
 using Xunit;
 
@@ -83,5 +84,27 @@ public class LauncherTests
         Assert.Equal(
             "\"C:\\weird name.txt\"",
             Launcher.BuildArguments(null, new[] { "C:\\weird\" name.txt" }));
+    }
+
+    [Fact]
+    public void An_app_path_offers_open_file_location()
+    {
+        Assert.True(Launcher.SupportsFileLocation(new DockItem
+        {
+            Kind = DockItemKind.Application,
+            Target = @"C:\Windows\explorer.exe",
+        }));
+    }
+
+    [Fact]
+    public void A_start_menu_app_does_not_offer_open_file_location()
+    {
+        // A Store app is an entry in a virtual folder, not a file, so there is no folder to
+        // reveal it in — and the menu shouldn't offer an entry that could only do nothing.
+        Assert.False(Launcher.SupportsFileLocation(new DockItem
+        {
+            Kind = DockItemKind.Application,
+            Target = @"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App",
+        }));
     }
 }

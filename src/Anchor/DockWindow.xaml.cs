@@ -181,7 +181,9 @@ public sealed partial class DockWindow : Window
     /// </summary>
     private void SyncMasterFromVisible()
     {
-        var q = new Queue<DockItem>(Items);
+        // The drop shell is a visual, not an item: it lives in the visible collection for the
+        // life of a drag (see DockWindow.DropTargets) and has nothing to write back.
+        var q = new Queue<DockItem>(Items.Where(i => !i.IsPlaceholder));
         for (int i = 0; i < _profile.Items.Count && q.Count > 0; i++)
             if (!_profile.Items[i].Hidden)
                 _profile.Items[i] = q.Dequeue();
@@ -189,11 +191,24 @@ public sealed partial class DockWindow : Window
 
     // ---- Public API (used by the Settings / Add windows) ------------------
 
-    public void AddDockItem(DockItem item)
+    public void AddDockItem(DockItem item) => InsertDockItem(Items.Count, item);
+
+    /// <summary>
+    /// Adds an item at a given slot in the <em>visible</em> strip — which is what a drop knows,
+    /// since that is the strip the drop shell opened a slot in. The slot is mapped back onto the
+    /// master list, so a hidden neighbour doesn't quietly shift where the item lands.
+    /// </summary>
+    public void InsertDockItem(int visibleIndex, DockItem item)
     {
-        _profile.Items.Add(item);
+        visibleIndex = Math.Clamp(visibleIndex, 0, Items.Count);
+
+        // Past the last visible item means the end of the master list, hidden tail and all;
+        // otherwise the new item goes exactly where the visible item it displaces sits.
+        int master = visibleIndex < Items.Count ? _profile.Items.IndexOf(Items[visibleIndex]) : -1;
+        _profile.Items.Insert(master < 0 ? _profile.Items.Count : master, item);
+
         if (!item.Hidden)
-            Items.Add(item);
+            Items.Insert(visibleIndex, item);
         PersistAndRelayout();
         RaiseItemsChanged();
         _ = LoadOneIconAsync(item);
@@ -220,12 +235,14 @@ public sealed partial class DockWindow : Window
     // ---- Drag & drop onto the dock ---------------------------------------
     //
     // Drop apps, shortcuts (.lnk), files or folders from Explorer / the desktop straight onto
-    // the dock to add them; a dropped URL (from a browser) becomes a web link.
+    // the dock to add them; a dropped URL (from a browser) becomes a web link. Apps dragged out
+    // of the Start menu count too, though they are not files and arrive in a different shape
+    // entirely — Services/ShellDrop.cs is what makes both look the same from here.
 
     private void Root_DragOver(object sender, DragEventArgs e)
     {
         var data = e.DataView;
-        if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems) ||
+        if (ShellDrop.HasShellItems(data) ||
             data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.WebLink) ||
             data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
         {
@@ -236,6 +253,10 @@ public sealed partial class DockWindow : Window
                 ui.IsCaptionVisible = true;
                 ui.IsGlyphVisible = true;
             }
+
+            // Part the strip around the slot this drop would land in — the same cue a reorder
+            // gives, and the slot the drop below then actually uses.
+            TrackDropShell(e);
         }
         else
         {
@@ -249,28 +270,19 @@ public sealed partial class DockWindow : Window
         try
         {
             var data = e.DataView;
-            if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
+            if (ShellDrop.HasShellItems(data))
             {
-                foreach (var storageItem in await data.GetStorageItemsAsync())
-                {
-                    var target = storageItem.Path;
-                    if (string.IsNullOrWhiteSpace(target))
-                        continue;
-                    AddDockItem(new DockItem
-                    {
-                        Kind = DockItemFactory.Classify(target),
-                        DisplayName = DockItemFactory.SuggestName(target),
-                        Target = target,
-                    });
-                }
+                // The shell stays open across the read and is then replaced by what the read
+                // resolved, so the strip parts once instead of closing and re-opening.
+                AddDroppedItems(await ShellDrop.ReadAsync(data), TakeDropSlot());
             }
             else if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.WebLink))
             {
-                AddWebLinkFromDrop((await data.GetWebLinkAsync())?.ToString());
+                AddWebLinkFromDrop((await data.GetWebLinkAsync())?.ToString(), TakeDropSlot());
             }
             else if (data.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
             {
-                AddWebLinkFromDrop(await data.GetTextAsync());
+                AddWebLinkFromDrop(await data.GetTextAsync(), TakeDropSlot());
             }
         }
         catch (Exception ex)
@@ -279,11 +291,26 @@ public sealed partial class DockWindow : Window
         }
         finally
         {
+            // The drag is over: what it was carrying must not answer for the next one, and the
+            // slot it opened closes even when nothing came of it (a drop of unusable text).
+            _dragPayload = null;
+            ClearDropShell();
             deferral.Complete();
         }
     }
 
-    private void AddWebLinkFromDrop(string? text)
+    /// <summary>
+    /// Adds everything a drop resolved to, in the order it was dropped, starting at the slot the
+    /// drop shell was holding open — so a drop lands where it was aimed rather than on the end of
+    /// the strip. Several files dropped together fill the slots after it, keeping their order.
+    /// </summary>
+    private void AddDroppedItems(IReadOnlyList<ShellDrop.DroppedItem> dropped, int at)
+    {
+        foreach (var item in dropped)
+            InsertDockItem(at++, item.ToDockItem());
+    }
+
+    private void AddWebLinkFromDrop(string? text, int at)
     {
         if (string.IsNullOrWhiteSpace(text))
             return;
@@ -300,7 +327,7 @@ public sealed partial class DockWindow : Window
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             return;
 
-        AddDockItem(new DockItem
+        InsertDockItem(at, new DockItem
         {
             Kind = DockItemKind.WebLink,
             DisplayName = DockItemFactory.SuggestName(uri.ToString()),
@@ -605,6 +632,19 @@ public sealed partial class DockWindow : Window
             y = work.Y + work.Height - h - margin;
         }
 
+        // While the strip is parted around a drop shell, the dock grows from where it already is
+        // instead of re-deriving its placement. A centered dock would otherwise slide half a cell
+        // sideways the moment the gap opened — which moves every icon on the strip, and takes the
+        // gap itself out from under the cursor that asked for it, rather than parting the two
+        // cells the drop goes between. The dock settles back to its usual placement when the
+        // shell closes, whether the drop landed or not. The cross axis is pinned along with it,
+        // which is safe because a cell added to the flow never changes it.
+        if (_dropShell is not null && _shownRect.Width > 0)
+        {
+            x = Math.Clamp(_shownRect.X, work.X, Math.Max(work.X, work.X + work.Width - w));
+            y = Math.Clamp(_shownRect.Y, work.Y, Math.Max(work.Y, work.Y + work.Height - h));
+        }
+
         _shownRect = new RectInt32(x, y, w, h);
         _work = work;
         _appWindow.MoveAndResize(_shownRect);
@@ -840,6 +880,27 @@ public sealed partial class DockWindow : Window
         if (i < 0 || j < 0 || j >= list.Count)
             return;
         (list[i], list[j]) = (list[j], list[i]);
+        RebuildVisible();
+        PersistAndRelayout();
+        RaiseItemsChanged();
+    }
+
+    /// <summary>
+    /// Moves a top-level item to an arbitrary slot among ALL items (hidden ones included), for the
+    /// Settings "Apps &amp; links" page's drag-to-reorder rows. Unlike <see cref="MoveTopLevelItem"/>,
+    /// which only swaps adjacent neighbors, this drops the item directly where the drag ended.
+    /// </summary>
+    public void ReorderTopLevelItem(DockItem item, int toIndex)
+    {
+        var list = _profile.Items;
+        int from = list.IndexOf(item);
+        if (from < 0)
+            return;
+        toIndex = Math.Clamp(toIndex, 0, list.Count - 1);
+        if (from == toIndex)
+            return;
+        list.RemoveAt(from);
+        list.Insert(toIndex, item);
         RebuildVisible();
         PersistAndRelayout();
         RaiseItemsChanged();
@@ -1417,14 +1478,8 @@ public sealed partial class DockWindow : Window
         DragGhost.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>
-    /// Maps the cursor onto the slot the dragged item should occupy. Cells are not a uniform
-    /// pitch (a separator is a narrow slot), so this walks the strip accumulating each cell's own
-    /// extent. It measures against the layout of the <b>other</b> items — the dragged item
-    /// excluded — and inserts where the cursor passes each one's midpoint: those midpoints don't
-    /// move as the dragged item is re-inserted around them, so the result is stable instead of
-    /// oscillating between two slots whenever a wide icon crosses a narrow separator.
-    /// </summary>
+    /// <summary>Maps the cursor onto the slot the dragged item should occupy, and slides the
+    /// strip so that is the slot it sits in.</summary>
     private void UpdateItemReorder(int cursorScreenX, int cursorScreenY)
     {
         if (_reorderItem is null || _reorderScale <= 0)
@@ -1442,33 +1497,68 @@ public sealed partial class DockWindow : Window
         if (from < 0)
             return;
 
-        int target = 0;
-        double edge = 0;
-        DockItem? overGroup = null;
-        foreach (var item in Items)
-        {
-            if (ReferenceEquals(item, _reorderItem))
-                continue;
-
-            // Hovering the middle of a GROUP means "file it in here" rather than "put it beside
-            // here". Only the central band counts, so the outer thirds of a group's cell still
-            // reorder past it — otherwise a group would be impossible to move an item across.
-            if (item.IsGroup && CanBeGrouped(_reorderItem) &&
-                rel > edge + item.CellExtent * 0.25 && rel < edge + item.CellExtent * 0.75)
-                overGroup = item;
-
-            if (rel > edge + item.CellExtent / 2)
-                target++;
-            edge += item.CellExtent + CellSpacing;
-        }
-
+        var overGroup = GroupAt(rel, _reorderItem);
         SetDropTarget(overGroup);
         if (overGroup is not null)
             return; // the drop will file it into the group; don't shuffle the strip underneath
 
-        target = Math.Clamp(target, 0, count - 1);
+        int target = Math.Clamp(SlotAt(rel, _reorderItem), 0, count - 1);
         if (target != from)
             Items.Move(from, target);
+    }
+
+    /// <summary>
+    /// The slot a cell placed at <paramref name="rel"/> — a position along the strip's flow, in
+    /// DIPs from the item host's leading edge — should take. Cells are not a uniform pitch (a
+    /// separator is a narrow slot), so this walks the strip accumulating each cell's own extent.
+    /// It measures against the layout of the <b>other</b> items — <paramref name="exclude"/>, the
+    /// one being placed, left out — and inserts where the position passes each one's midpoint:
+    /// those midpoints don't move as the placed cell is re-inserted around them, so the result is
+    /// stable instead of oscillating between two slots whenever a wide icon crosses a narrow
+    /// separator.
+    /// <para>
+    /// Shared by both things that place a cell on the strip — an item being reordered, and the
+    /// shell an incoming drag opens (see <c>DockWindow.DropTargets</c>) — so the two can never
+    /// disagree about where a cell starts.
+    /// </para>
+    /// </summary>
+    private int SlotAt(double rel, DockItem? exclude)
+    {
+        int slot = 0;
+        double edge = 0;
+        foreach (var item in Items)
+        {
+            if (ReferenceEquals(item, exclude))
+                continue;
+            if (rel > edge + item.CellExtent / 2)
+                slot++;
+            edge += item.CellExtent + CellSpacing;
+        }
+        return slot;
+    }
+
+    /// <summary>
+    /// The group <paramref name="rel"/> falls in the middle of, if any: hovering the middle of a
+    /// GROUP means "file it in here" rather than "put it beside here". Only the central band
+    /// counts, so the outer thirds of a group's cell still reorder past it — otherwise a group
+    /// would be impossible to move an item across.
+    /// </summary>
+    private DockItem? GroupAt(double rel, DockItem dragged)
+    {
+        if (!CanBeGrouped(dragged))
+            return null;
+
+        double edge = 0;
+        foreach (var item in Items)
+        {
+            if (ReferenceEquals(item, dragged))
+                continue;
+            if (item.IsGroup &&
+                rel > edge + item.CellExtent * 0.25 && rel < edge + item.CellExtent * 0.75)
+                return item;
+            edge += item.CellExtent + CellSpacing;
+        }
+        return null;
     }
 
     private void EndItemReorder(DockItem? dragged)
