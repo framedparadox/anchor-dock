@@ -59,6 +59,8 @@
   "IconPicker.Title": "选择图标",
   "IconPicker.Browse": "浏览图片…",
   "IconPicker.BrowseApp": "从应用或 DLL 中选择…",
+  "IconPicker.Color": "颜色",
+  "IconPicker.ColorDefault": "默认颜色",
   "Group.Empty": "此分组为空。把项目拖到分组图标上，或右键点击某个项目并选择“移动到分组”，即可放入其中。",
   "Folder.Empty": "此文件夹中没有内容。",
   "Folder.OpenInExplorer": "在文件资源管理器中打开",

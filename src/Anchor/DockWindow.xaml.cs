@@ -1042,13 +1042,28 @@ public sealed partial class DockWindow : Window
     /// Pins a built-in glyph (from the icon picker) onto an item, or clears it (null) so the
     /// kind's default glyph comes back. Clears any custom image path too — mutually exclusive
     /// with <see cref="DockItem.CustomIconPath"/>. Needs no async resolution: the glyph renders
-    /// the moment it's set.
+    /// the moment it's set. Leaves <see cref="DockItem.IconColor"/> alone — a tint chosen for
+    /// the folder glyph is independent of which glyph is showing.
     /// </summary>
     public void SetCustomGlyph(DockItem item, string? glyph)
     {
         item.CustomGlyph = string.IsNullOrWhiteSpace(glyph) ? null : glyph;
         item.CustomIconPath = null;
         item.IconImage = null;
+        SaveConfig();
+        RaiseItemsChanged();
+    }
+
+    /// <summary>
+    /// Tints the item's glyph (<c>#RRGGBB</c>), or clears the tint (null/empty) so the theme's
+    /// primary text colour comes back. No-op when the value is unchanged after normalizing.
+    /// </summary>
+    public void SetIconColor(DockItem item, string? color)
+    {
+        var normalized = IconColorChoices.Normalize(color);
+        if (item.IconColor == normalized)
+            return;
+        item.IconColor = normalized;
         SaveConfig();
         RaiseItemsChanged();
     }
@@ -1446,6 +1461,7 @@ public sealed partial class DockWindow : Window
         DragGhostGlyph.Glyph = item.Glyph;
         DragGhostGlyph.Visibility = item.GlyphVisibility;
         DragGhostGlyph.FontSize = DockMetrics.Glyph;
+        item.ApplyGlyphForeground(DragGhostGlyph);
 
         DragGhost.Visibility = Visibility.Visible;
     }

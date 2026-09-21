@@ -6,6 +6,13 @@ not necessarily when it shipped in a release.
 
 ## [Unreleased]
 
+### Added
+
+- **Group icon colours.** The icon picker for a group (new-group window and *Edit…*) now includes a
+  colour row so the default folder glyph — or any picked glyph — can be tinted without a custom
+  image. Stored on the item as `IconColor` (`#RRGGBB`) in `dock.json`; independent of
+  `CustomGlyph` / `CustomIconPath`, and suppressed under High Contrast.
+
 ### Round 9 — crash and hang hardening
 
 Prompted by Microsoft Partner Center health insights reporting crashes and hangs in the field. A

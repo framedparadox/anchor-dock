@@ -207,7 +207,8 @@ old glass-frost slider:
   Add one from the dock's right-click menu or the Add window; drag it like any other item.
 - **Custom icons** — *Edit…* ▸ *Change icon…* points an item at any PNG / ICO / JPG / BMP / GIF (or
   a glyph from the built-in set), and *Use the default icon* on the right-click menu puts the shell
-  or favicon icon back.
+  or favicon icon back. For a **group**, the same picker also offers a colour row so the default
+  folder glyph (or any picked glyph) can be tinted without needing a custom image file.
 - **Settings window** — a gear button opens a Windows-Settings-style window (Mica, left
   navigation) with a **General** page (language, running-app indicators, start-with-Windows,
   import/export, reset), an **Appearance** page (theme, icon size, gear position, magnification,
@@ -470,6 +471,9 @@ right then. Nothing is lost, and nothing needs doing by hand.
           "CustomIconPath": null,    // optional icon overriding the shell/favicon one
           "CustomGlyph": null,       // optional built-in glyph from the icon picker (exclusive
                                      //   with CustomIconPath)
+          "IconColor": null,         // optional #RRGGBB tint for the glyph (groups use this to
+                                     //   colour the default folder icon; ignored while a custom
+                                     //   image is set). Omitted when unset
           "Hidden": false,           // true = kept in the list but not drawn on the dock
           "Hotkey": "Ctrl+Alt+1",    // optional per-item shortcut; only live when
                                      //   ItemHotkeysEnabled is true. Omitted when unset
@@ -692,6 +696,8 @@ src/Anchor/
   Services/
     AcrylicBackdropManager.cs  Applies + keeps-alive the taskbar-style acrylic.
     IconService.cs             Shell-thumbnail icons for apps/files/folders; cached favicons for links.
+    IconChoices.cs             Built-in glyph swatches for the icon picker.
+    IconColorChoices.cs        Curated #RRGGBB palette for tinting a group's folder glyph.
     Launcher.cs                ShellExecute-based launching (apps, files, URLs).
     RunningAppService.cs       Which pinned apps have a window open, and focusing those windows.
     RunningAppMonitor.cs       The poll behind that, shared by every dock.
@@ -762,7 +768,9 @@ then pick its monitor — each dock keeps its own items and edge.
 
 **Can I use my own icon for an item?** Right-click it → **Edit…** → **Change icon…** and pick a
 PNG, ICO, JPG, BMP or GIF. **Use the default icon** puts the shell/favicon icon back. (It's still the
-`CustomIconPath` field in `dock.json` underneath, if you'd rather edit that.)
+`CustomIconPath` field in `dock.json` underneath, if you'd rather edit that.) For a **group**, the
+same picker also lets you colour the folder glyph so similar groups stay distinct without a
+custom image.
 
 **How do I keep a long dock short?** Put related items in a group: right-click one →
 **Move to group ▸ New group…**, then add more the same way. The group is a single icon that opens

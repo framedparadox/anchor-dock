@@ -47,6 +47,7 @@ public sealed partial class NewGroupWindow : Window
     private readonly nint _hwnd;
     private readonly AppWindow _appWindow;
     private IconSelection? _pendingIcon;
+    private string? _pendingColor;
 
     /// <param name="manager">App-wide state — the theme this window matches, above all.</param>
     /// <param name="dock">The dock the new group is added to.</param>
@@ -161,12 +162,16 @@ public sealed partial class NewGroupWindow : Window
         }
         else
         {
-            IconPreview.Children.Add(new FontIcon
+            var glyph = new FontIcon
             {
                 Glyph = _pendingIcon?.Glyph ?? DefaultGroupGlyph,
                 FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                 FontSize = 22,
-            });
+            };
+            // Preview the pending tint the same way the dock will once the group exists.
+            if (IconColorChoices.TryParse(_pendingColor, out var color))
+                glyph.Foreground = new SolidColorBrush(color);
+            IconPreview.Children.Add(glyph);
         }
     }
 
@@ -180,12 +185,28 @@ public sealed partial class NewGroupWindow : Window
             // icon field.
             ShouldConstrainToRootBounds = false,
         };
-        flyout.Content = IconPickerPanel.Build(_hwnd, swatchStyle: null, selection =>
+
+        void ShowPicker()
         {
-            flyout.Hide();
-            _pendingIcon = selection;
-            RenderIcon();
-        });
+            flyout.Content = IconPickerPanel.Build(
+                _hwnd,
+                swatchStyle: null,
+                selection =>
+                {
+                    flyout.Hide();
+                    _pendingIcon = selection;
+                    RenderIcon();
+                },
+                onColorSelected: color =>
+                {
+                    _pendingColor = color;
+                    RenderIcon();
+                    ShowPicker(); // move the accent ring onto the colour just picked
+                },
+                currentColor: _pendingColor);
+        }
+
+        ShowPicker();
         flyout.ShowAt(IconButton, new FlyoutShowOptions
         {
             Placement = FlyoutPlacementMode.Bottom,
@@ -202,6 +223,8 @@ public sealed partial class NewGroupWindow : Window
             _dock.MoveItemToGroup(_pendingItem, group);
         if (_pendingIcon is { } selection)
             _dock.ApplyIconSelection(group, selection);
+        if (_pendingColor is not null)
+            _dock.SetIconColor(group, _pendingColor);
         Close();
     }
 

@@ -993,19 +993,22 @@ public sealed partial class SettingsWindow : Window
             }
             else
             {
-                iconHost.Children.Add(new FontIcon
+                var glyph = new FontIcon
                 {
                     Glyph = item.Glyph,
                     FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                     FontSize = 18,
-                });
+                };
+                item.ApplyGlyphForeground(glyph);
+                iconHost.Children.Add(glyph);
             }
         }
         RenderIcon();
 
         void OnItemPropertyChanged(object? s, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(DockItem.IconImage))
+            if (e.PropertyName is nameof(DockItem.IconImage) or nameof(DockItem.Glyph)
+                or nameof(DockItem.IconColor) or nameof(DockItem.HasIconColor))
                 RenderIcon();
         }
         item.PropertyChanged += OnItemPropertyChanged;
@@ -1373,12 +1376,14 @@ public sealed partial class SettingsWindow : Window
         }
         else
         {
-            iconHost.Children.Add(new FontIcon
+            var glyph = new FontIcon
             {
                 Glyph = item.Glyph,
                 FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                 FontSize = 18,
-            });
+            };
+            item.ApplyGlyphForeground(glyph);
+            iconHost.Children.Add(glyph);
         }
         content.Children.Add(iconHost);
 

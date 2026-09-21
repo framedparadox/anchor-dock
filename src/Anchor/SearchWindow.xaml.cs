@@ -146,14 +146,22 @@ public sealed partial class SearchWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        FrameworkElement icon = item.IconImage is not null
-            ? new Image { Source = item.IconImage, Width = 24, Height = 24, Stretch = Stretch.Uniform }
-            : new FontIcon
+        FrameworkElement icon;
+        if (item.IconImage is not null)
+        {
+            icon = new Image { Source = item.IconImage, Width = 24, Height = 24, Stretch = Stretch.Uniform };
+        }
+        else
+        {
+            var glyph = new FontIcon
             {
                 Glyph = item.Glyph,
                 FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                 FontSize = 18,
             };
+            item.ApplyGlyphForeground(glyph);
+            icon = glyph;
+        }
         icon.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(icon, 0);
         grid.Children.Add(icon);

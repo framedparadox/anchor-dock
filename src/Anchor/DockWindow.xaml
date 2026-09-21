@@ -217,10 +217,17 @@
                                                AutomationProperties.AccessibilityView="Raw" />
 
                                         <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}"
-                                                  Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
+                                                  Visibility="{x:Bind ThemeGlyphVisibility, Mode=OneWay}"
                                                   FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                                   FontSize="{x:Bind RenderGlyphSize, Mode=OneWay}"
                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                  AutomationProperties.AccessibilityView="Raw" />
+
+                                        <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}"
+                                                  Visibility="{x:Bind ColoredGlyphVisibility, Mode=OneWay}"
+                                                  FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                  FontSize="{x:Bind RenderGlyphSize, Mode=OneWay}"
+                                                  Foreground="{x:Bind ColoredGlyphBrush, Mode=OneWay}"
                                                   AutomationProperties.AccessibilityView="Raw" />
                                         </Grid>
                                         <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"

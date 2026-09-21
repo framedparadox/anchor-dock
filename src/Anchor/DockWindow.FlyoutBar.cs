@@ -334,7 +334,8 @@ public sealed partial class DockWindow
 
         void OnItemPropertyChanged(object? _, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(DockItem.IconImage))
+            if (e.PropertyName is nameof(DockItem.IconImage) or nameof(DockItem.Glyph)
+                or nameof(DockItem.IconColor) or nameof(DockItem.HasIconColor))
                 RenderIcon();
         }
         item.PropertyChanged += OnItemPropertyChanged;
@@ -573,21 +574,28 @@ public sealed partial class DockWindow
     /// a live bar cell, which re-renders this on an <see cref="DockItem.IconImage"/> change, and its
     /// drag ghost, which just needs a single snapshot of whatever was already showing.
     /// </summary>
-    private static FrameworkElement BuildIconVisual(DockItem item) =>
-        item.IconImage is not null
-            ? new Image
+    private static FrameworkElement BuildIconVisual(DockItem item)
+    {
+        if (item.IconImage is not null)
+        {
+            return new Image
             {
                 Source = item.IconImage,
                 Width = DockMetrics.Icon,
                 Height = DockMetrics.Icon,
                 Stretch = Stretch.Uniform,
-            }
-            : new FontIcon
-            {
-                Glyph = item.Glyph,
-                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                FontSize = DockMetrics.Glyph,
             };
+        }
+
+        var glyph = new FontIcon
+        {
+            Glyph = item.Glyph,
+            FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+            FontSize = DockMetrics.Glyph,
+        };
+        item.ApplyGlyphForeground(glyph);
+        return glyph;
+    }
 
     /// <summary>
     /// A small floating copy of a bar cell's icon, shown while it's being dragged — the bar's own

@@ -59,6 +59,8 @@
   "IconPicker.Title": "Choose an icon",
   "IconPicker.Browse": "Browse for an image…",
   "IconPicker.BrowseApp": "Pick from app or DLL…",
+  "IconPicker.Color": "Colour",
+  "IconPicker.ColorDefault": "Default colour",
   "Group.Empty": "This group is empty. Drag an item onto the group icon, or right-click an item and choose “Move to group”, to put it in here.",
   "Folder.Empty": "There's nothing in this folder.",
   "Folder.OpenInExplorer": "Open in File Explorer",

@@ -59,6 +59,8 @@
   "IconPicker.Title": "Choisir une icône",
   "IconPicker.Browse": "Parcourir une image…",
   "IconPicker.BrowseApp": "Choisir depuis une appli ou une DLL…",
+  "IconPicker.Color": "Couleur",
+  "IconPicker.ColorDefault": "Couleur par défaut",
   "Group.Empty": "Ce groupe est vide. Faites glisser un élément sur l'icône du groupe, ou faites un clic droit sur un élément et choisissez « Déplacer vers un groupe », pour l'y placer.",
   "Folder.Empty": "Ce dossier est vide.",
   "Folder.OpenInExplorer": "Ouvrir dans l'Explorateur de fichiers",

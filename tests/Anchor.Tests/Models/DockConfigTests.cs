@@ -473,6 +473,7 @@ public class DockConfigTests
                     Kind = DockItemKind.Group,
                     DisplayName = "Tools",
                     IsCollapsed = true,
+                    IconColor = "#E81123",
                     Children = { new DockItem { DisplayName = "Calc" } },
                 },
             },
@@ -485,5 +486,6 @@ public class DockConfigTests
         Assert.Equal("Ctrl+Alt+1", items[0].Hotkey);
         Assert.True(items[1].FolderFlyout);
         Assert.True(items[2].IsCollapsed);
+        Assert.Equal("#E81123", items[2].IconColor);
     }
 }

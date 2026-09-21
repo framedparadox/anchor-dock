@@ -69,6 +69,33 @@ public sealed class DockItem : INotifyPropertyChanged
         }
     }
 
+    private string? _iconColor;
+
+    /// <summary>
+    /// Optional tint for the glyph when no bitmap icon is shown. Stored as <c>#RRGGBB</c> so a
+    /// hand-edited <c>dock.json</c> stays legible. Null/empty means the theme's primary text
+    /// colour. Applies to the kind's default glyph and to a picked <see cref="CustomGlyph"/>
+    /// alike; ignored while <see cref="IconImage"/> is set (a custom image file carries its own
+    /// colours). Cleared independently of the icon itself — "Use the default icon" does not
+    /// wipe a colour the user chose for the folder glyph.
+    /// </summary>
+    public string? IconColor
+    {
+        get => _iconColor;
+        set
+        {
+            var normalized = Services.IconColorChoices.Normalize(value);
+            if (_iconColor == normalized)
+                return;
+            _iconColor = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasIconColor));
+            OnPropertyChanged(nameof(ThemeGlyphVisibility));
+            OnPropertyChanged(nameof(ColoredGlyphVisibility));
+            OnPropertyChanged(nameof(ColoredGlyphBrush));
+        }
+    }
+
     /// <summary>
     /// When true the item stays in the config (and in the Settings ▸ Apps list) but is not
     /// rendered on the dock. Toggled from the Settings window's per-app show/hide switch.
@@ -118,6 +145,8 @@ public sealed class DockItem : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(ImageVisibility));
             OnPropertyChanged(nameof(GlyphVisibility));
+            OnPropertyChanged(nameof(ThemeGlyphVisibility));
+            OnPropertyChanged(nameof(ColoredGlyphVisibility));
         }
     }
 
@@ -176,6 +205,72 @@ public sealed class DockItem : INotifyPropertyChanged
 
     [JsonIgnore]
     public Visibility GlyphVisibility => _iconImage is null ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// True when <see cref="IconColor"/> parses to a usable tint and High Contrast is not
+    /// forcing the shell's system colours (custom tints are suppressed there — see
+    /// <c>docs/design-colours.md</c>).
+    /// </summary>
+    [JsonIgnore]
+    public bool HasIconColor => TryGetIconColor(out _);
+
+    /// <summary>
+    /// The theme-coloured glyph: shown when there is no bitmap and no custom tint. Paired with
+    /// <see cref="ColoredGlyphVisibility"/> so the dock template can keep a
+    /// <c>ThemeResource</c> Foreground on the default path (which tracks Light/Dark/HC) and a
+    /// bound brush only on the tinted path.
+    /// </summary>
+    [JsonIgnore]
+    public Visibility ThemeGlyphVisibility =>
+        _iconImage is null && !HasIconColor ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The tinted glyph: shown when there is no bitmap and <see cref="HasIconColor"/>.</summary>
+    [JsonIgnore]
+    public Visibility ColoredGlyphVisibility =>
+        _iconImage is null && HasIconColor ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// Brush for the tinted glyph template. Only meaningful while <see cref="HasIconColor"/> is
+    /// true; returns a transparent brush otherwise so a stale binding never paints black.
+    /// </summary>
+    [JsonIgnore]
+    public Brush ColoredGlyphBrush =>
+        TryGetIconColor(out var color)
+            ? new SolidColorBrush(color)
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+
+    /// <summary>
+    /// Resolves <see cref="IconColor"/> to a Windows colour, respecting High Contrast (which
+    /// always wins — custom tints must not override the shell's HC foreground).
+    /// </summary>
+    public bool TryGetIconColor(out Windows.UI.Color color)
+    {
+        color = default;
+        if (IsHighContrast())
+            return false;
+        return Services.IconColorChoices.TryParse(_iconColor, out color);
+    }
+
+    /// <summary>
+    /// Applies <see cref="IconColor"/> to a glyph <see cref="Microsoft.UI.Xaml.Controls.FontIcon"/>,
+    /// or restores the theme primary brush when no tint is set. Shared by every code-built glyph
+    /// (fly-out bars, Settings list, search, editors) so they stay in lockstep with the dock
+    /// template's tinted path.
+    /// </summary>
+    public void ApplyGlyphForeground(Microsoft.UI.Xaml.Controls.FontIcon icon)
+    {
+        if (TryGetIconColor(out var color))
+            icon.Foreground = new SolidColorBrush(color);
+        else if (Application.Current.Resources.TryGetValue("TextFillColorPrimaryBrush", out var brush) &&
+                 brush is Brush themeBrush)
+            icon.Foreground = themeBrush;
+    }
+
+    private static bool IsHighContrast()
+    {
+        try { return new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast; }
+        catch { return false; }
+    }
 
     [JsonIgnore]
     public bool IsSeparator => Kind == DockItemKind.Separator;

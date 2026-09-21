@@ -59,6 +59,8 @@
   "IconPicker.Title": "アイコンを選択",
   "IconPicker.Browse": "画像を参照…",
   "IconPicker.BrowseApp": "アプリまたは DLL から選ぶ…",
+  "IconPicker.Color": "色",
+  "IconPicker.ColorDefault": "既定の色",
   "Group.Empty": "このグループは空です。項目をグループのアイコンにドラッグするか、項目を右クリックして「グループへ移動」を選んでください。",
   "Folder.Empty": "このフォルダーには何もありません。",
   "Folder.OpenInExplorer": "エクスプローラーで開く",

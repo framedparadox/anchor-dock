@@ -163,7 +163,8 @@ public sealed partial class EditWindow : Window
     private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(DockItem.IconImage) or nameof(DockItem.Glyph)
-            or nameof(DockItem.HasCustomIcon))
+            or nameof(DockItem.HasCustomIcon) or nameof(DockItem.IconColor)
+            or nameof(DockItem.HasIconColor))
             RenderIcon();
     }
 
@@ -195,12 +196,14 @@ public sealed partial class EditWindow : Window
             }
             else
             {
-                host.Children.Add(new FontIcon
+                var glyph = new FontIcon
                 {
                     Glyph = _item.Glyph,
                     FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                     FontSize = size * 0.8,
-                });
+                };
+                _item.ApplyGlyphForeground(glyph);
+                host.Children.Add(glyph);
             }
         }
     }
@@ -230,13 +233,35 @@ public sealed partial class EditWindow : Window
             // at the size of the whole grid, which is the point of showing the set unscrolled.
             ShouldConstrainToRootBounds = false,
         };
-        flyout.Content = IconPickerPanel.Build(_hwnd, swatchStyle: null, selection =>
+
+        void ShowPicker()
         {
-            flyout.Hide();
-            // Applied straight away rather than held until Save: the picker is its own confirmed
-            // choice, and the preview beside the button is what says it landed.
-            _dock.ApplyIconSelection(_item, selection);
-        });
+            flyout.Content = IconPickerPanel.Build(
+                _hwnd,
+                swatchStyle: null,
+                selection =>
+                {
+                    flyout.Hide();
+                    // Applied straight away rather than held until Save: the picker is its own
+                    // confirmed choice, and the preview beside the button is what says it landed.
+                    _dock.ApplyIconSelection(_item, selection);
+                },
+                // Groups get a colour row so two "folder" glyphs can still be told apart; every
+                // other kind keeps the glyph+browse panel alone (their shell/favicon picture is
+                // already distinct without a tint).
+                onColorSelected: _item.IsGroup
+                    ? color =>
+                    {
+                        _dock.SetIconColor(_item, color);
+                        // Rebuild so the accent ring moves to the colour just picked, without
+                        // dismissing the flyout — users often try a few tints in a row.
+                        ShowPicker();
+                    }
+                    : null,
+                currentColor: _item.IsGroup ? _item.IconColor : null);
+        }
+
+        ShowPicker();
         flyout.ShowAt(ChangeIconButton, new FlyoutShowOptions
         {
             Placement = FlyoutPlacementMode.Bottom,

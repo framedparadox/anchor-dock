@@ -22,6 +22,7 @@ public class DockItemTests
     [Theory]
     [InlineData(DockItemKind.WebLink, "\uE774")]
     [InlineData(DockItemKind.Folder, "\uE8B7")]
+    [InlineData(DockItemKind.Group, "\uE838")]
     [InlineData(DockItemKind.Separator, "")]
     [InlineData(DockItemKind.Application, "\uE7C3")]
     [InlineData(DockItemKind.File, "\uE7C3")]
@@ -270,6 +271,59 @@ public class DockItemTests
         Assert.Empty(raised);
     }
 
+    [Fact]
+    public void IconColor_normalizes_and_drives_the_tinted_glyph_visibilities()
+    {
+        var item = new DockItem { Kind = DockItemKind.Group };
+        Assert.False(item.HasIconColor);
+        Assert.Equal(Visibility.Visible, item.ThemeGlyphVisibility);
+        Assert.Equal(Visibility.Collapsed, item.ColoredGlyphVisibility);
+
+        var raised = new List<string?>();
+        item.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        item.IconColor = "e81123";
+        Assert.Equal("#E81123", item.IconColor);
+        Assert.True(item.HasIconColor);
+        Assert.Equal(Visibility.Collapsed, item.ThemeGlyphVisibility);
+        Assert.Equal(Visibility.Visible, item.ColoredGlyphVisibility);
+        Assert.Contains(nameof(DockItem.IconColor), raised);
+        Assert.Contains(nameof(DockItem.HasIconColor), raised);
+        Assert.Contains(nameof(DockItem.ThemeGlyphVisibility), raised);
+        Assert.Contains(nameof(DockItem.ColoredGlyphVisibility), raised);
+
+        // A custom image takes the cell: both glyph paths hide, colour stays stored.
+        raised.Clear();
+        item.IconImage = null; // already null; exercise the image-present path via GlyphVisibility
+        // IconImage needs a real ImageSource in UI tests; here we only assert colour is independent
+        // of "Use the default icon" clearing the glyph override.
+        item.CustomGlyph = TestGlyph;
+        item.IconColor = "#0078D4";
+        Assert.Equal("#0078D4", item.IconColor);
+
+        item.CustomGlyph = null; // "use the default icon" path for glyphs
+        Assert.Equal("#0078D4", item.IconColor);
+        Assert.Equal("\uE838", item.Glyph); // Group's own FolderOpen default still tinted
+    }
+
+    [Fact]
+    public void IconColor_rejects_garbage_and_no_op_sets_raise_nothing()
+    {
+        var item = new DockItem();
+        item.IconColor = "#E81123";
+
+        var raised = new List<string?>();
+        item.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        item.IconColor = "#E81123";
+        Assert.Empty(raised);
+
+        item.IconColor = "not-a-colour";
+        Assert.Null(item.IconColor);
+        Assert.False(item.HasIconColor);
+        Assert.Contains(nameof(DockItem.IconColor), raised);
+    }
+
     // ---- Density ----------------------------------------------------------
 
     [Fact]
@@ -387,6 +441,7 @@ public class DockItemTests
         Assert.Equal("", item.Target);
         Assert.Null(item.Arguments);
         Assert.Null(item.CustomIconPath);
+        Assert.Null(item.IconColor);
     }
 
     // ---- The hover highlight ------------------------------------------------

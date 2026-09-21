@@ -59,6 +59,8 @@
   "IconPicker.Title": "Symbol auswählen",
   "IconPicker.Browse": "Bild durchsuchen…",
   "IconPicker.BrowseApp": "Aus App oder DLL wählen…",
+  "IconPicker.Color": "Farbe",
+  "IconPicker.ColorDefault": "Standardfarbe",
   "Group.Empty": "Diese Gruppe ist leer. Ziehen Sie ein Element auf das Gruppensymbol oder wählen Sie im Kontextmenü „In Gruppe verschieben“, um etwas hineinzulegen.",
   "Folder.Empty": "Dieser Ordner ist leer.",
   "Folder.OpenInExplorer": "Im Explorer öffnen",

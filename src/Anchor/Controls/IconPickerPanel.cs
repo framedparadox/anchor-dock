@@ -2,12 +2,15 @@ using Anchor.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
+using Windows.UI;
 
 namespace Anchor.Controls;
 
 /// <summary>
-/// The "choose an icon" panel: every built-in glyph as one unscrolled swatch grid, plus the two
-/// routes to an image of the user's own.
+/// The "choose an icon" panel: every built-in glyph as one unscrolled swatch grid, an optional
+/// colour row for tinting the glyph (groups use this so two folder icons can still be told
+/// apart), plus the two routes to an image of the user's own.
 /// <para>
 /// Built as a plain panel rather than a control or a flyout of its own, because the two places it
 /// appears host it differently — the item editor puts it in a flyout beside its icon field, and
@@ -19,6 +22,7 @@ internal static class IconPickerPanel
 {
     private const int Columns = 6;
     private const double SwatchSize = 36;
+    private const double ColorSwatchSize = 28;
 
     /// <summary>
     /// Builds the panel.
@@ -31,11 +35,17 @@ internal static class IconPickerPanel
     /// <param name="onSelected">Called with the chosen glyph or file path. Never both.</param>
     /// <param name="beforeBrowse">Run just before an OS file dialog opens — it takes focus, which
     /// light-dismisses whatever popup this panel is sitting in.</param>
+    /// <param name="onColorSelected">When set, a colour row is shown under the glyphs. Called with
+    /// a <c>#RRGGBB</c> hex, or null to clear the tint back to the theme colour.</param>
+    /// <param name="currentColor">The item's current <c>IconColor</c>, used to ring the matching
+    /// swatch so the open picker shows which tint is live.</param>
     public static StackPanel Build(
         nint ownerHwnd,
         Style? swatchStyle,
         Action<IconSelection> onSelected,
-        Action? beforeBrowse = null)
+        Action? beforeBrowse = null,
+        Action<string?>? onColorSelected = null,
+        string? currentColor = null)
     {
         var panel = new StackPanel { Spacing = 10, Padding = new Thickness(4), MaxWidth = 320 };
 
@@ -51,6 +61,9 @@ internal static class IconPickerPanel
         // the whole set fits a flyout without one, and a scrolling panel of icons hides half the
         // choice behind a gesture — the point of a swatch grid is that you can see all of it.
         panel.Children.Add(BuildGrid(swatchStyle, onSelected));
+
+        if (onColorSelected is not null)
+            panel.Children.Add(BuildColorRow(onColorSelected, currentColor));
 
         var browseImage = BrowseButton(Loc.Get("IconPicker.Browse"));
         browseImage.Click += async (_, _) =>
@@ -113,6 +126,86 @@ internal static class IconPickerPanel
             grid.Children.Add(swatch);
         }
         return grid;
+    }
+
+    /// <summary>
+    /// One row: a "default / theme" chip, then every curated colour as a filled circle. Shown only
+    /// when the host asked for colour picking (today: groups), so an app/file editor's picker
+    /// stays the glyph+browse panel it was.
+    /// </summary>
+    private static StackPanel BuildColorRow(Action<string?> onColorSelected, string? currentColor)
+    {
+        var row = new StackPanel { Spacing = 6 };
+        var label = new TextBlock
+        {
+            Text = Loc.Get("IconPicker.Color"),
+            Style = Application.Current.Resources.TryGetValue("CaptionTextBlockStyle", out var s) && s is Style caption
+                ? caption
+                : null,
+        };
+        row.Children.Add(label);
+
+        var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        strip.Children.Add(ColorChip(
+            fill: null,
+            name: Loc.Get("IconPicker.ColorDefault"),
+            selected: string.IsNullOrEmpty(currentColor),
+            onClick: () => onColorSelected(null)));
+
+        var current = IconColorChoices.Normalize(currentColor);
+        foreach (var choice in IconColorChoices.All)
+        {
+            var captured = choice;
+            strip.Children.Add(ColorChip(
+                fill: captured.Color,
+                name: captured.Name,
+                selected: string.Equals(current, captured.Hex, StringComparison.OrdinalIgnoreCase),
+                onClick: () => onColorSelected(captured.Hex)));
+        }
+        row.Children.Add(strip);
+        return row;
+    }
+
+    private static Button ColorChip(Color? fill, string name, bool selected, Action onClick)
+    {
+        var disk = new Ellipse
+        {
+            Width = ColorSwatchSize - 8,
+            Height = ColorSwatchSize - 8,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        if (fill is { } color)
+        {
+            disk.Fill = new SolidColorBrush(color);
+        }
+        else
+        {
+            // Hollow chip for "theme default": same size as the filled ones, outlined so it reads
+            // as a colour choice rather than an empty hole in the row.
+            disk.Stroke = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            disk.StrokeThickness = 1.5;
+            disk.Fill = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0));
+        }
+
+        var button = new Button
+        {
+            Width = ColorSwatchSize,
+            Height = ColorSwatchSize,
+            MinWidth = 0,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            CornerRadius = new CornerRadius(ColorSwatchSize / 2),
+            Content = disk,
+            BorderThickness = new Thickness(selected ? 2 : 0),
+            BorderBrush = selected
+                ? (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"]
+                : null,
+        };
+        ToolTipService.SetToolTip(button, name);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);
+        button.Click += (_, _) => onClick();
+        return button;
     }
 
     private static Button BrowseButton(string text) => new()

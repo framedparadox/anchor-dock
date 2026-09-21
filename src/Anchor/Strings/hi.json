@@ -59,6 +59,8 @@
   "IconPicker.Title": "आइकन चुनें",
   "IconPicker.Browse": "छवि ब्राउज़ करें…",
   "IconPicker.BrowseApp": "ऐप या DLL से चुनें…",
+  "IconPicker.Color": "रंग",
+  "IconPicker.ColorDefault": "डिफ़ॉल्ट रंग",
   "Group.Empty": "यह समूह खाली है। किसी आइटम को समूह के आइकन पर खींचें, या आइटम पर राइट-क्लिक करके “समूह में ले जाएँ” चुनें।",
   "Folder.Empty": "इस फ़ोल्डर में कुछ नहीं है।",
   "Folder.OpenInExplorer": "फ़ाइल एक्सप्लोरर में खोलें",
