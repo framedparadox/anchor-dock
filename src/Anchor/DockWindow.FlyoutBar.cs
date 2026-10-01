@@ -142,6 +142,18 @@ public sealed partial class DockWindow
         _activeBarFlyout = flyout;
         flyout.Closed += (_, _) =>
         {
+            // A cell drag in flight on this bar must stop the instant it closes, for ANY reason
+            // (Escape, light-dismiss, the window losing focus) — not just via the drag timer's
+            // own release check. Left running, that 16ms timer goes on calling SetValue (Opacity,
+            // Canvas.Top/Left on the drag ghost) against cell/ghost elements whose native XAML
+            // peer was just torn down with this popup; the next tick throws a stowed exception on
+            // the dispatcher thread that crashes the process (App.xaml.cs leaves e.Handled
+            // false). Only one bar can have an active drag at a time, so it's always safe to stop
+            // the shared timer here regardless of which bar is current.
+            _barCellDragTimer?.Stop();
+            _barCellDragCleanup?.Invoke();
+            _barCellDragCleanup = null;
+
             // Only the bar that is still current gets to resume auto-hide. One that was replaced
             // before it finished closing (see _activeBarFlyout) leaves that job to whichever bar
             // superseded it — its own Closed will do the same check and actually resume.

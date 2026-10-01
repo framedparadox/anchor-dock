@@ -19,6 +19,8 @@ Search that filters every pin at once. **No accounts, no telemetry, no ads, no a
   &nbsp;·&nbsp;
   <a href="#install">Install</a>
   &nbsp;·&nbsp;
+  <a href="https://apps.microsoft.com/detail/9nlp5cwmkdj0"><strong>Get it from Microsoft Store</strong></a>
+  &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
   <a href="CHANGELOG.md">What's new</a>
@@ -36,6 +38,10 @@ Search that filters every pin at once. **No accounts, no telemetry, no ads, no a
 [![Languages](https://img.shields.io/badge/languages-8-lightgrey)](#features)
 
 English · Deutsch · Español · Français · हिन्दी · 日本語 · Português (Brasil) · 简体中文
+
+<a href="https://apps.microsoft.com/detail/9nlp5cwmkdj0">
+  <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" width="200"/>
+</a>
 
 <br>
 
