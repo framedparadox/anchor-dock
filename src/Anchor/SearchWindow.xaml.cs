@@ -70,16 +70,31 @@ public sealed partial class SearchWindow : Window
         // overlay that lingers after that is in the way. Guarded on having been activated first —
         // a window gets a Deactivated on its way to the foreground, and acting on that one would
         // close the card before it ever appeared.
-        Activated += (_, e) =>
-        {
-            if (e.WindowActivationState != WindowActivationState.Deactivated)
-                _wasActivated = true;
-            else if (_wasActivated)
-                Close();
-        };
-        Closed += (_, _) => _backdrop?.Dispose();
+        Activated += OnActivated;
+        Closed += OnClosed;
 
         Refresh(string.Empty);
+    }
+
+    private void OnActivated(object sender, WindowActivatedEventArgs e)
+    {
+        if (e.WindowActivationState != WindowActivationState.Deactivated)
+            _wasActivated = true;
+        else if (_wasActivated)
+            Close();
+    }
+
+    // Named, and every handler of the window's own removed here (this one included): a handler on
+    // the window's own event that references the window is held by the native window for the life
+    // of the process, so lambdas here kept every closed card, its UISettings subscription and its
+    // whole visual tree alive (about 1.2 MB and 2 handles per open). WindowEventLifetimeTests pins
+    // the rule.
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        Activated -= OnActivated;
+        Closed -= OnClosed;
+        _backdrop?.Dispose();
+        NativeReclaim.Request();
     }
 
     /// <summary>Puts the card on the display the cursor is on, a third of the way down — where
