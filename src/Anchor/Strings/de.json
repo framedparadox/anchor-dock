@@ -235,6 +235,7 @@
   "Add.TypeShortcut": "Verknüpfung",
   "Add.TypeSeparator": "Trenner",
   "Add.TypeGroup": "Gruppe",
+  "Add.TypeDrop": "Ziehen & Ablegen",
   "Add.Target": "Ziel",
   "Add.TargetPlaceholder": "Ziel wählen oder eingeben…",
   "Add.Browse": "Durchsuchen…",
@@ -243,6 +244,7 @@
   "Add.Args": "Argumente (optional)",
   "Add.ArgsPlaceholder": "Befehlszeilenargumente",
   "Add.Submit": "Zum Dock hinzufügen",
+  "Add.SubmitMany": "{0} Elemente zum Dock hinzufügen",
 
   "Add.App.Label": "Anwendung",
   "Add.App.Placeholder": "Pfad zu einer .exe oder .lnk",
@@ -261,6 +263,10 @@
   "Add.Shortcut.Hint": "Beliebiger Pfad, URI oder Shell-Befehl. Der Typ wird automatisch erkannt.",
   "Add.Separator.Hint": "Fügt dem Dock eine dünne Trennlinie hinzu, mit der Sie Symbole optisch gruppieren können. Sie hat kein Ziel, und ein Klick darauf bewirkt nichts – ziehen Sie sie wie jedes andere Element an die gewünschte Stelle.",
   "Add.Group.Hint": "Erstellt eine leere Gruppe: ein Dock-Symbol, das ein Flyout mit den enthaltenen Elementen öffnet. Füllen Sie sie, indem Sie mit der rechten Maustaste auf ein Element im Dock klicken und „In Gruppe verschieben“ wählen.",
+  "Add.Drop.Prompt": "Element hierher ziehen und ablegen",
+  "Add.Drop.Hint": "Apps (auch aus dem Startmenü), Dateien, Ordner, Verknüpfungen und Weblinks funktionieren – Sie können sie überall in diesem Fenster ablegen. Typ, Pfad und Name werden automatisch eingetragen, damit Sie sie vor dem Hinzufügen prüfen können.",
+  "Add.Drop.Pending": "{0} Elemente bereit zum Hinzufügen",
+  "Add.Drop.Nothing": "Das lässt sich nicht hinzufügen. Legen Sie Apps, Dateien, Ordner oder Weblinks ab.",
 
   "Add.Error.NoTarget": "Geben Sie zuerst ein Ziel ein oder wählen Sie eines aus.",
   "Add.Error.BadUrl": "Geben Sie eine gültige Webadresse ein, z. B. https://beispiel.de. Für andere URIs oder Befehle verwenden Sie den Typ „Verknüpfung“.",

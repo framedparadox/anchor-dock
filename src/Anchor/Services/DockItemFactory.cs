@@ -38,6 +38,29 @@ public static class DockItemFactory
         };
     }
 
+    /// <summary>
+    /// Turns the text of a dropped link into an http/https address, or null when it isn't one.
+    /// Bare text is only promoted to a URL when it plausibly is one (a single dotted token such as
+    /// <c>example.com</c>), so dropping a sentence of prose never becomes a web link.
+    /// </summary>
+    public static string? TryNormalizeWebUrl(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+        text = text.Trim();
+
+        if (!text.Contains("://"))
+        {
+            if (text.Contains(' ') || !text.Contains('.'))
+                return null;
+            text = "https://" + text;
+        }
+        return Uri.TryCreate(text, UriKind.Absolute, out var uri) &&
+               (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            ? uri.ToString()
+            : null;
+    }
+
     /// <summary>A friendly default display name derived from a target.</summary>
     public static string SuggestName(string target)
     {
