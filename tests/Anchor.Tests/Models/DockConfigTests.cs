@@ -117,6 +117,20 @@ public class DockConfigTests
     }
 
     [Fact]
+    public void Migrate_still_leaves_a_dock_when_the_only_entry_was_null()
+    {
+        // "Docks": [null] is the same hazard with nothing real beside it. Guaranteeing a dock before
+        // the null is removed left none at all: the app started with a tray icon and no window, and
+        // DockConfig.Primary would throw for anything that asked for it.
+        const string json = """{ "Docks": [ null ] }""";
+
+        var cfg = JsonSerializer.Deserialize<DockConfig>(json, Options)!.Migrate();
+
+        Assert.NotNull(Assert.Single(cfg.Docks));
+        Assert.NotNull(cfg.Primary);
+    }
+
+    [Fact]
     public void Migrate_is_idempotent()
     {
         var cfg = new DockConfig().Migrate();

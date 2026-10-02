@@ -237,6 +237,7 @@
   "Add.TypeShortcut": "Raccourci",
   "Add.TypeSeparator": "Séparateur",
   "Add.TypeGroup": "Groupe",
+  "Add.TypeDrop": "Glisser-déposer",
   "Add.Target": "Cible",
   "Add.TargetPlaceholder": "Choisissez ou saisissez une cible…",
   "Add.Browse": "Parcourir…",
@@ -245,6 +246,7 @@
   "Add.Args": "Arguments (facultatif)",
   "Add.ArgsPlaceholder": "Arguments de ligne de commande",
   "Add.Submit": "Ajouter au dock",
+  "Add.SubmitMany": "Ajouter {0} éléments au dock",
 
   "Add.App.Label": "Application",
   "Add.App.Placeholder": "Chemin d'un .exe ou .lnk",
@@ -263,6 +265,10 @@
   "Add.Shortcut.Hint": "N'importe quel chemin, URI ou commande du shell. Le type est détecté automatiquement.",
   "Add.Separator.Hint": "Ajoute un fin séparateur au dock pour regrouper visuellement les icônes. Il n'a pas de cible et cliquer dessus ne fait rien — faites-le glisser pour le placer comme n'importe quel autre élément.",
   "Add.Group.Hint": "Crée un groupe vide : une icône du dock qui ouvre un menu volant contenant ses éléments. Remplissez-le en faisant un clic droit sur un élément du dock et en choisissant « Déplacer vers un groupe ».",
+  "Add.Drop.Prompt": "Glissez-déposez un élément ici",
+  "Add.Drop.Hint": "Applications (y compris celles du menu Démarrer), fichiers, dossiers, raccourcis et liens web fonctionnent — déposez-les n’importe où dans cette fenêtre. Le type, le chemin et le nom sont renseignés pour que vous les vérifiiez avant l’ajout.",
+  "Add.Drop.Pending": "{0} éléments prêts à être ajoutés",
+  "Add.Drop.Nothing": "Impossible d’ajouter cela. Déposez des applications, fichiers, dossiers ou liens web.",
 
   "Add.Error.NoTarget": "Saisissez ou choisissez d'abord une cible.",
   "Add.Error.BadUrl": "Saisissez une adresse web valide, p. ex. https://exemple.com. Pour d'autres URI ou commandes, utilisez le type Raccourci.",

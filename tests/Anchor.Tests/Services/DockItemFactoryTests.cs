@@ -76,6 +76,30 @@ public class DockItemFactoryTests : IDisposable
         Assert.Equal("readme", DockItemFactory.SuggestName("readme.txt"));
     }
 
+    // ---- Dropped links -----------------------------------------------------
+
+    [Theory]
+    [InlineData("https://example.com/a?b=1", "https://example.com/a?b=1")]
+    [InlineData("  http://example.com  ", "http://example.com/")]
+    [InlineData("example.com", "https://example.com/")]
+    public void TryNormalizeWebUrl_accepts_web_addresses_and_adds_a_missing_scheme(string text, string expected)
+    {
+        Assert.Equal(expected, DockItemFactory.TryNormalizeWebUrl(text));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("just some prose.")]
+    [InlineData("hello")]
+    [InlineData("ftp://example.com")]
+    [InlineData(@"C:\Windows\explorer.exe")]
+    public void TryNormalizeWebUrl_rejects_anything_that_is_not_a_web_address(string? text)
+    {
+        Assert.Null(DockItemFactory.TryNormalizeWebUrl(text));
+    }
+
     // ---- Start-menu apps ---------------------------------------------------
     //
     // A Store app dropped from the Start menu has no path at all, only an AppUserModelID (see

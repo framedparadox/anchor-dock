@@ -25,6 +25,7 @@ public sealed class AcrylicBackdropManager : IDisposable
     private FrameworkElement? _themeRoot;
     private bool _disposed;
     private UISettings? _uiSettings;
+    private Microsoft.UI.Dispatching.DispatcherQueue? _dispatcher;
 
     // The last personalization asked for, remembered so re-syncing the recipes from the shell
     // colors can put it back.
@@ -64,6 +65,7 @@ public sealed class AcrylicBackdropManager : IDisposable
         if (_themeRoot is not null)
             _themeRoot.ActualThemeChanged += OnThemeChanged;
 
+        _dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         _uiSettings = new UISettings();
         _uiSettings.ColorValuesChanged += OnSystemColorsChanged;
         SyncWithSystemColors();
@@ -80,16 +82,36 @@ public sealed class AcrylicBackdropManager : IDisposable
         return true;
     }
 
-    private void OnThemeChanged(FrameworkElement sender, object args)
-    {
-        SyncWithSystemColors();
-        UpdateTheme();
-    }
+    // Raised by XAML. An exception that leaves a handler XAML called is not catchable by anyone: XAML
+    // turns it into a stowed-exception fail-fast (0xc000027b), so nothing here may throw.
+    private void OnThemeChanged(FrameworkElement sender, object args) => ApplySystemColors();
 
+    // Raised by UISettings on a thread of its own, not the UI thread, while everything the update
+    // touches (the root's ActualTheme, the composition controller) belongs to the UI thread — so it
+    // is queued there instead of run here. A crash on a Windows.UI.Immersive notification thread
+    // calling into XAML is what the 0xc000027b dumps from this app look like; whether this handler is
+    // the one involved is not proven (see docs/performance), this is the correct shape for it either way.
     private void OnSystemColorsChanged(UISettings sender, object args)
     {
-        SyncWithSystemColors();
-        UpdateTheme();
+        var dispatcher = _dispatcher;
+        if (dispatcher is null || _disposed)
+            return;
+        dispatcher.TryEnqueue(ApplySystemColors);
+    }
+
+    private void ApplySystemColors()
+    {
+        if (_disposed)
+            return;
+        try
+        {
+            SyncWithSystemColors();
+            UpdateTheme();
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("AcrylicBackdropManager: system color update failed: " + ex.Message);
+        }
     }
 
     /// <summary>

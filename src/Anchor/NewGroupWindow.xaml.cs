@@ -77,7 +77,7 @@ public sealed partial class NewGroupWindow : Window
         ApplyTheme(manager.Config.Theme);
         RootGrid.ActualThemeChanged += (_, _) => ApplyChromeTheme();
         // Re-assert on activation: DWM otherwise restores its default rim on some state changes.
-        Activated += (_, _) => ApplyChromeTheme();
+        Activated += OnActivated;
 
         if (_appWindow.Presenter is OverlappedPresenter p)
         {
@@ -113,15 +113,22 @@ public sealed partial class NewGroupWindow : Window
         // The dock is where this was opened from and where the result lands, so hold it on screen
         // for as long as this window is up rather than letting auto-hide slide it away mid-edit.
         _dock.HoldAutoHide(true);
-        Closed += (_, _) =>
-        {
-            _dock.HoldAutoHide(false);
-            // MicaBackdrop's compositor connection is otherwise only released whenever this
-            // window's CLR object happens to be collected — for a dialog opened and closed as
-            // often as this one, that lags GC and shows up as a steady per-open climb in GDI
-            // object/handle counts. Clearing it here disconnects it immediately.
-            SystemBackdrop = null;
-        };
+        Closed += OnClosed;
+    }
+
+    private void OnActivated(object sender, WindowActivatedEventArgs e) => ApplyChromeTheme();
+
+    // Named, and every handler of the window's own removed here (this one included): a handler on
+    // the window's own event that references the window is held by the native window for the life
+    // of the process, so a lambda here kept every closed NewGroupWindow and its whole visual tree
+    // alive. WindowEventLifetimeTests pins the rule.
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        Activated -= OnActivated;
+        Closed -= OnClosed;
+        _dock.HoldAutoHide(false);
+        SystemBackdrop = null;
+        NativeReclaim.Request();
     }
 
     /// <summary>Applies the given app theme to this window's root (called on open and whenever the

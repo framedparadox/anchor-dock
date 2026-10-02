@@ -237,6 +237,7 @@
   "Add.TypeShortcut": "Shortcut",
   "Add.TypeSeparator": "Separator",
   "Add.TypeGroup": "Group",
+  "Add.TypeDrop": "Drag 'n drop",
   "Add.Target": "Target",
   "Add.TargetPlaceholder": "Choose or type a target…",
   "Add.Browse": "Browse…",
@@ -245,6 +246,7 @@
   "Add.Args": "Arguments (optional)",
   "Add.ArgsPlaceholder": "Command-line arguments",
   "Add.Submit": "Add to Dock",
+  "Add.SubmitMany": "Add {0} items to Dock",
 
   "Add.App.Label": "Application",
   "Add.App.Placeholder": "Path to an .exe or .lnk",
@@ -263,6 +265,10 @@
   "Add.Shortcut.Hint": "Any path, URI or shell command. The type is detected automatically.",
   "Add.Separator.Hint": "Adds a thin divider to the dock so you can group icons visually. It has no target and clicking it does nothing — drag it to position it like any other item.",
   "Add.Group.Hint": "Creates an empty group: one dock icon that opens a fly-out of the items inside it. Fill it by right-clicking an item on the dock and choosing “Move to group”.",
+  "Add.Drop.Prompt": "Drag and drop an item here",
+  "Add.Drop.Hint": "Apps (including Start menu apps), files, folders, shortcuts and web links all work — and you can drop them anywhere in this window. The type, path and name are filled in for you to check before you add it.",
+  "Add.Drop.Pending": "{0} items ready to add",
+  "Add.Drop.Nothing": "That can't be added. Drop apps, files, folders or web links.",
 
   "Add.Error.NoTarget": "Enter or choose a target first.",
   "Add.Error.BadUrl": "Enter a valid web address, e.g. https://example.com. For other URIs or commands, use the Shortcut type.",

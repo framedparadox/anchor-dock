@@ -237,6 +237,7 @@
   "Add.TypeShortcut": "快捷方式",
   "Add.TypeSeparator": "分隔线",
   "Add.TypeGroup": "分组",
+  "Add.TypeDrop": "拖放",
   "Add.Target": "目标",
   "Add.TargetPlaceholder": "选择或输入目标…",
   "Add.Browse": "浏览…",
@@ -245,6 +246,7 @@
   "Add.Args": "参数（可选）",
   "Add.ArgsPlaceholder": "命令行参数",
   "Add.Submit": "添加到停靠栏",
+  "Add.SubmitMany": "将 {0} 个项目添加到停靠栏",
 
   "Add.App.Label": "应用程序",
   "Add.App.Placeholder": ".exe 或 .lnk 的路径",
@@ -263,6 +265,10 @@
   "Add.Shortcut.Hint": "任意路径、URI 或 shell 命令。类型会自动识别。",
   "Add.Separator.Hint": "在 Dock 上添加一条细分隔线，用于在视觉上给图标分组。它没有目标，点击也不会有任何反应——像其他项目一样拖动即可调整位置。",
   "Add.Group.Hint": "创建一个空分组：一个 Dock 图标，点击后以浮出控件显示其中的项目。右键点击 Dock 上的项目并选择“移动到分组”即可填充它。",
+  "Add.Drop.Prompt": "将项目拖放到此处",
+  "Add.Drop.Hint": "应用（包括“开始”菜单中的应用）、文件、文件夹、快捷方式和网页链接均可添加，可拖放到此窗口的任意位置。类型、路径和名称会自动填写，供你在添加前检查。",
+  "Add.Drop.Pending": "{0} 个项目可添加",
+  "Add.Drop.Nothing": "无法添加该内容。请拖放应用、文件、文件夹或网页链接。",
 
   "Add.Error.NoTarget": "请先输入或选择一个目标。",
   "Add.Error.BadUrl": "请输入有效的网址，例如 https://example.com。其他 URI 或命令请使用“快捷方式”类型。",

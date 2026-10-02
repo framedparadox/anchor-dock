@@ -5,6 +5,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Anchor;
 
@@ -12,11 +13,12 @@ namespace Anchor;
 /// A Windows-app-style modal for adding a new dock entry: an app, file, folder, web link or a
 /// free-form shortcut/command. Mica-backed, centered, and matches the dock's own topmost state
 /// (see <see cref="SettingsWindow"/>). Not truly modal to the OS, but presented like the shell's
-/// add-item dialogs.
+/// add-item dialogs. Something dragged onto it from Explorer, the Start menu or a browser fills the
+/// form in (see "Drag &amp; drop" below).
 /// </summary>
 public sealed partial class AddNewWindow : Window
 {
-    private enum AddKind { App, File, Folder, Link, Shortcut, Separator, Group }
+    private enum AddKind { App, File, Folder, Link, Shortcut, Separator, Group, DragDrop }
 
     private readonly DockManager _manager;
     private readonly DockWindow _dock;
@@ -24,6 +26,13 @@ public sealed partial class AddNewWindow : Window
     private readonly AppWindow _appWindow;
     private AddKind _kind = AddKind.App;
     private bool _nameEdited;
+    private bool _closed;
+
+    /// <summary>
+    /// What a drop of <em>several</em> items put in the window, waiting for the Add button. Empty
+    /// otherwise — a single item is shown in the fields themselves, where it can be edited.
+    /// </summary>
+    private readonly List<ShellDrop.DroppedItem> _dropped = [];
 
     /// <param name="manager">App-wide state (the theme this window matches, above all).</param>
     /// <param name="dock">The dock the new item is added to — with several on screen, the one
@@ -55,7 +64,7 @@ public sealed partial class AddNewWindow : Window
         ApplyTheme(manager.Config.Theme);
         RootGrid.ActualThemeChanged += (_, _) => ApplyChromeTheme();
         // Re-assert on activation: DWM otherwise restores its default rim on some state changes.
-        Activated += (_, _) => ApplyChromeTheme();
+        Activated += OnActivated;
 
         if (_appWindow.Presenter is OverlappedPresenter p)
         {
@@ -69,7 +78,7 @@ public sealed partial class AddNewWindow : Window
         }
         _appWindow.IsShownInSwitchers = true;
 
-        // Wide enough for the seven type tiles at their translated widths (see AddNewWindow.xaml).
+        // Wide enough for the eight type tiles at their translated widths (see AddNewWindow.xaml).
         WindowChrome.SetClientSizeDip(_appWindow, _hwnd, 740, 580);
         WindowChrome.CenterOnCursor(_appWindow, windowId);
 
@@ -82,11 +91,22 @@ public sealed partial class AddNewWindow : Window
 
         SelectType(AddKind.App);
 
-        // MicaBackdrop's compositor connection is otherwise only released whenever this window's
-        // CLR object happens to be collected — for a dialog opened and closed as often as this
-        // one, that lags GC and shows up as a steady per-open climb in GDI object/handle counts.
-        // Clearing it here disconnects it immediately.
-        Closed += (_, _) => SystemBackdrop = null;
+        Closed += OnClosed;
+    }
+
+    private void OnActivated(object sender, WindowActivatedEventArgs e) => ApplyChromeTheme();
+
+    // Named, and every handler of the window's own removed here (this one included): a handler on
+    // the window's own event that references the window is held by the native window for the life
+    // of the process, so a lambda here kept every closed AddNewWindow and its whole visual tree
+    // alive. WindowEventLifetimeTests pins the rule.
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        _closed = true;
+        Activated -= OnActivated;
+        Closed -= OnClosed;
+        SystemBackdrop = null;
+        NativeReclaim.Request();
     }
 
     /// <summary>Applies the given app theme to this window's root (called on open and whenever
@@ -120,7 +140,11 @@ public sealed partial class AddNewWindow : Window
                      : ReferenceEquals(sender, LinkType) ? AddKind.Link
                      : ReferenceEquals(sender, SeparatorType) ? AddKind.Separator
                      : ReferenceEquals(sender, GroupType) ? AddKind.Group
+                     : ReferenceEquals(sender, DropType) ? AddKind.DragDrop
                      : AddKind.Shortcut;
+
+        // Choosing a type by hand starts a fresh add, so a list left by a drop of several goes.
+        _dropped.Clear();
         SelectType(kind);
     }
 
@@ -136,6 +160,27 @@ public sealed partial class AddNewWindow : Window
         ShortcutType.IsChecked = kind == AddKind.Shortcut;
         SeparatorType.IsChecked = kind == AddKind.Separator;
         GroupType.IsChecked = kind == AddKind.Group;
+        DropType.IsChecked = kind == AddKind.DragDrop;
+
+        // "Drag 'n drop" is the waiting state: an empty drop target in place of the fields — or,
+        // once several items have been dropped together, the list of them. There is nothing to type
+        // either way, and nothing to add until something has landed.
+        bool dropMode = kind == AddKind.DragDrop;
+        bool listing = dropMode && _dropped.Count > 0;
+        DropZone.Visibility = dropMode && !listing ? Visibility.Visible : Visibility.Collapsed;
+        DroppedPanel.Visibility = listing ? Visibility.Visible : Visibility.Collapsed;
+        TargetPanel.Visibility = dropMode ? Visibility.Collapsed : Visibility.Visible;
+        AddButton.IsEnabled = !dropMode || listing;
+        AddButton.Content = listing
+            ? Loc.Format("Add.SubmitMany", _dropped.Count)
+            : Loc.Get("Add.Submit");
+        if (dropMode)
+        {
+            HideError();
+            NamePanel.Visibility = Visibility.Collapsed;
+            ArgsPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
 
         // Neither a separator nor a group points at anything, so the target field goes away for
         // both. A group still has a name (it labels its fly-out); a separator doesn't, so its
@@ -231,10 +276,244 @@ public sealed partial class AddNewWindow : Window
         HideError();
     }
 
+    // ---- Drag & drop -------------------------------------------------------
+    //
+    // Anything the dock itself would take — apps (Start menu ones included), files, folders,
+    // shortcuts, web links — is accepted anywhere in this window, whichever type is selected.
+    // What happens next is what Browse does with a picked file, only more of it: the matching
+    // type is selected and the target and display name are filled in, ready to check, edit and
+    // add. It is deliberately not added on the spot — this is the Add dialog, and its Add button
+    // is how anything gets onto the dock from here.
+
+    private void Root_DragOver(object sender, DragEventArgs e)
+    {
+        if (!ShellDrop.CanAcceptAny(e.DataView))
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
+
+        e.AcceptedOperation = DataPackageOperation.Copy;
+        if (e.DragUIOverride is { } ui)
+        {
+            ui.Caption = Loc.Get("Dock.DropCaption");
+            ui.IsCaptionVisible = true;
+            ui.IsGlyphVisible = true;
+        }
+        SetDropHighlight(true);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// A child's DragLeave bubbles up here every time the pointer crosses from one element to the
+    /// next, so the cue only goes once the pointer is really outside the window's content.
+    /// </summary>
+    private void Root_DragLeave(object sender, DragEventArgs e)
+    {
+        var p = e.GetPosition(RootGrid);
+        if (p.X <= 0 || p.Y <= 0 || p.X >= RootGrid.ActualWidth || p.Y >= RootGrid.ActualHeight)
+            SetDropHighlight(false);
+    }
+
+    private async void Root_Drop(object sender, DragEventArgs e)
+    {
+        SetDropHighlight(false);
+        e.Handled = true;
+
+        var deferral = e.GetDeferral();
+        try
+        {
+            var dropped = await ShellDrop.ReadAnyAsync(e.DataView);
+            if (_closed)
+                return;
+
+            if (dropped.Count == 0)
+            {
+                ShowError(Loc.Get("Add.Drop.Nothing"));
+                return;
+            }
+            FillFrom(dropped);
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("Drop onto the Add window failed: " + ex.Message);
+            if (!_closed)
+                ShowError(Loc.Get("Add.Drop.Nothing"));
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    /// <summary>Lights the drop zone's outline in the accent color while a drop would be taken.</summary>
+    private void SetDropHighlight(bool on) =>
+        DropZoneHighlight.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// Puts what was dropped into the window: one item selects its type and fills in the target and
+    /// name; several are listed, each with its own, for the Add button to add together.
+    /// </summary>
+    private void FillFrom(IReadOnlyList<ShellDrop.DroppedItem> dropped)
+    {
+        _dropped.Clear();
+        if (dropped.Count == 1)
+        {
+            ShowDropped(dropped[0]);
+        }
+        else
+        {
+            _dropped.AddRange(dropped);
+            SelectType(AddKind.DragDrop);
+            ShowDroppedList();
+        }
+
+        // The drag came from another window, which may be the one in front. Bring this one up with
+        // Add focused, so Enter finishes the job.
+        Activate();
+        AddButton.Focus(FocusState.Programmatic);
+    }
+
+    /// <summary>Selects the type a dropped item is, and fills in its path and display name.</summary>
+    private void ShowDropped(ShellDrop.DroppedItem item)
+    {
+        SelectType(KindFor(item.Kind));
+
+        // Marked as edited first: the target's TextChanged would otherwise replace the shell's own
+        // name for the item ("Google Chrome") with one guessed from its path ("chrome").
+        _nameEdited = true;
+        TargetBox.Text = item.Target;
+        NameBox.Text = item.DisplayName;
+        ArgsBox.Text = string.Empty;
+    }
+
+    /// <summary>The type tile that matches what a drop turned out to be.</summary>
+    private static AddKind KindFor(DockItemKind kind) => kind switch
+    {
+        DockItemKind.Application => AddKind.App,
+        DockItemKind.Folder => AddKind.Folder,
+        DockItemKind.WebLink => AddKind.Link,
+        _ => AddKind.File,
+    };
+
+    private void ShowDroppedList()
+    {
+        DroppedHeader.Text = Loc.Format("Add.Drop.Pending", _dropped.Count);
+        DroppedList.Children.Clear();
+        foreach (var item in _dropped)
+            DroppedList.Children.Add(BuildDroppedRow(item));
+    }
+
+    /// <summary>One line of the list of several dropped items: its type, name and path.</summary>
+    private Border BuildDroppedRow(ShellDrop.DroppedItem item)
+    {
+        var kind = KindFor(item.Kind);
+        var symbols = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"];
+        var secondary = (Style)RootGrid.Resources["DroppedSecondaryStyle"];
+
+        var grid = new Grid { ColumnSpacing = 12, VerticalAlignment = VerticalAlignment.Center };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        // The same glyphs as the type tiles above, so the row reads as "an App", "a Folder"…
+        grid.Children.Add(new FontIcon
+        {
+            Glyph = kind switch
+            {
+                AddKind.App => "",
+                AddKind.Folder => "",
+                AddKind.Link => "",
+                _ => "",
+            },
+            FontFamily = symbols,
+            FontSize = 20,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = item.DisplayName,
+            Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        var path = new TextBlock { Text = item.Target, Style = secondary };
+        ToolTipService.SetToolTip(path, item.Target);
+        text.Children.Add(path);
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+
+        var category = new TextBlock
+        {
+            Text = Loc.Get(kind switch
+            {
+                AddKind.App => "Add.TypeApp",
+                AddKind.Folder => "Add.TypeFolder",
+                AddKind.Link => "Add.TypeLink",
+                _ => "Add.TypeFile",
+            }),
+            Style = secondary,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(category, 2);
+        grid.Children.Add(category);
+
+        var remove = new Button
+        {
+            Content = new FontIcon { Glyph = "", FontFamily = symbols, FontSize = 12 }, // Cancel
+            Background = new SolidColorBrush(Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTipService.SetToolTip(remove, Loc.Get("Menu.Remove"));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(remove, Loc.Get("Menu.Remove"));
+        remove.Click += (_, _) => RemoveDropped(item);
+        Grid.SetColumn(remove, 3);
+        grid.Children.Add(remove);
+
+        return new Border { Style = (Style)RootGrid.Resources["DroppedRowStyle"], Child = grid };
+    }
+
+    /// <summary>
+    /// Takes one item off the list. Down to one, the list gives way to the fields (which is where a
+    /// single item lives); down to none, back to the empty drop zone.
+    /// </summary>
+    private void RemoveDropped(ShellDrop.DroppedItem item)
+    {
+        _dropped.Remove(item);
+        switch (_dropped.Count)
+        {
+            case 0:
+                SelectType(AddKind.DragDrop);
+                break;
+            case 1:
+                var last = _dropped[0];
+                _dropped.Clear();
+                ShowDropped(last);
+                break;
+            default:
+                SelectType(AddKind.DragDrop); // refreshes the count on the Add button
+                ShowDroppedList();
+                break;
+        }
+    }
+
     // ---- Commit ------------------------------------------------------------
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
+        // Several items dropped together are each already complete — a type, a target and a name —
+        // so they go straight on, in the order they were dropped.
+        if (_dropped.Count > 0)
+        {
+            foreach (var dropped in _dropped)
+                _dock.AddDockItem(dropped.ToDockItem());
+            Close();
+            return;
+        }
+
         // A separator carries no target or name of its own, so it short-circuits the validation
         // and naming below entirely.
         if (_kind == AddKind.Separator)

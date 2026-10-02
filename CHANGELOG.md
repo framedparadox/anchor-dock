@@ -4,7 +4,24 @@ All notable changes to Anchor are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the change was made,
 not necessarily when it shipped in a release.
 
-## [Unreleased]
+## [v1.2.3]
+
+### Add to Dock: drag 'n drop
+
+#### Added
+
+- **Drop anything onto the Add to Dock window.** Apps (Start menu apps included), files, folders,
+  shortcuts and web links dropped anywhere in the window — whichever type is selected — fill the
+  form in: the matching type is selected, and the path and display name are filled in to check or
+  edit before pressing **Add to Dock** (which takes focus, so Enter finishes it). Several items
+  dropped together are listed with their type, name and path, and added with one button; each can
+  be taken off the list first. A new **Drag 'n drop** tile beside Group shows an empty drop zone.
+
+#### Changed
+
+- The eight type tiles now share one row (star-sized columns, ~81 DIP each, instead of seven fixed
+  88 DIP tiles). The "is this text a web address?" rule the dock strip used for dropped text moved
+  to `DockItemFactory.TryNormalizeWebUrl` so both windows apply the same one.
 
 ### Added
 

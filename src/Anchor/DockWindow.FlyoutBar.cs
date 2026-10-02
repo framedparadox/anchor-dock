@@ -154,6 +154,10 @@ public sealed partial class DockWindow
             _barCellDragCleanup?.Invoke();
             _barCellDragCleanup = null;
 
+            // The bar's popup is its own top-level window (it opens outside the dock), and the
+            // framework only lets it go when the closed Flyout is finalized — see NativeReclaim.
+            NativeReclaim.Request();
+
             // Only the bar that is still current gets to resume auto-hide. One that was replaced
             // before it finished closing (see _activeBarFlyout) leaves that job to whichever bar
             // superseded it — its own Closed will do the same check and actually resume.

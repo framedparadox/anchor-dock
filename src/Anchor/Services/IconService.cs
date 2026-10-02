@@ -23,6 +23,46 @@ public static class IconService
     // rather than leaving downloaded favicons in the real profile (see DockStore.DataDirectory).
     private static readonly string CacheDir = Path.Combine(DockStore.DataDirectory, "IconCache");
 
+    // Existence probes run on the pool. On a UNC path to a host that is not answering,
+    // File.Exists / Directory.Exists block for the SMB connect timeout (21 s per host, measured),
+    // and LoadIconAsync is started from the UI thread — everything before its first real await runs
+    // there, so a dock with two dead shares took 43 s to bring up its tray icon and shortcut.
+    // One probe per path at a time: a reload (language, import) of a dock full of dead shares then
+    // waits on the probes already in flight instead of parking a pool thread for each again.
+    private static readonly Dictionary<string, Task<bool>> Probes = new(StringComparer.OrdinalIgnoreCase);
+
+    private static Task<bool> ProbeAsync(string? path, bool directory)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return Task.FromResult(false);
+
+        string key = (directory ? "d:" : "f:") + path;
+        lock (Probes)
+        {
+            if (Probes.TryGetValue(key, out var running))
+                return running;
+
+            var probe = Task.Run(() =>
+            {
+                try
+                {
+                    return directory ? Directory.Exists(path) : File.Exists(path);
+                }
+                catch
+                {
+                    return false; // an unusable path is simply not there
+                }
+            });
+            Probes[key] = probe;
+            probe.ContinueWith(_ =>
+            {
+                lock (Probes)
+                    Probes.Remove(key);
+            }, TaskScheduler.Default);
+            return probe;
+        }
+    }
+
     private static HttpClient CreateClient()
     {
         var c = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -52,7 +92,7 @@ public static class IconService
             // 1. Explicit user-supplied icon wins — but only if it actually decodes. A path that
             // has since been deleted, or an image the XAML stack can't read, falls through to the
             // normal resolution below rather than leaving the item blank.
-            if (!string.IsNullOrWhiteSpace(item.CustomIconPath) && File.Exists(item.CustomIconPath))
+            if (!string.IsNullOrWhiteSpace(item.CustomIconPath) && await ProbeAsync(item.CustomIconPath, directory: false))
             {
                 var custom = await FromFileAsync(item.CustomIconPath!, decodeSize);
                 if (custom is not null)
@@ -65,7 +105,7 @@ public static class IconService
             {
                 case DockItemKind.Application:
                 case DockItemKind.File:
-                    if (File.Exists(item.Target))
+                    if (await ProbeAsync(item.Target, directory: false))
                         return await ShellIconAsync(item.Target, decodeSize);
                     // A Start-menu app has no file behind it to ask about — its icon is reached
                     // through the item ID list the shell resolves its AppUserModelID to.
@@ -74,7 +114,7 @@ public static class IconService
                     break;
 
                 case DockItemKind.Folder:
-                    if (Directory.Exists(item.Target))
+                    if (await ProbeAsync(item.Target, directory: true))
                         return await ShellIconAsync(item.Target, decodeSize);
                     break;
 

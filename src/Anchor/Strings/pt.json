@@ -237,6 +237,7 @@
   "Add.TypeShortcut": "Atalho",
   "Add.TypeSeparator": "Separador",
   "Add.TypeGroup": "Grupo",
+  "Add.TypeDrop": "Arrastar e soltar",
   "Add.Target": "Destino",
   "Add.TargetPlaceholder": "Escolha ou digite um destino…",
   "Add.Browse": "Procurar…",
@@ -245,6 +246,7 @@
   "Add.Args": "Argumentos (opcional)",
   "Add.ArgsPlaceholder": "Argumentos de linha de comando",
   "Add.Submit": "Adicionar ao dock",
+  "Add.SubmitMany": "Adicionar {0} itens ao dock",
 
   "Add.App.Label": "Aplicativo",
   "Add.App.Placeholder": "Caminho de um .exe ou .lnk",
@@ -263,6 +265,10 @@
   "Add.Shortcut.Hint": "Qualquer caminho, URI ou comando do shell. O tipo é detectado automaticamente.",
   "Add.Separator.Hint": "Adiciona uma linha divisória fina ao dock para agrupar ícones visualmente. Ela não tem destino e clicar nela não faz nada — arraste-a para posicioná-la como qualquer outro item.",
   "Add.Group.Hint": "Cria um grupo vazio: um ícone do dock que abre um submenu com os itens dentro dele. Preencha-o clicando com o botão direito em um item do dock e escolhendo “Mover para o grupo”.",
+  "Add.Drop.Prompt": "Arraste e solte um item aqui",
+  "Add.Drop.Hint": "Aplicativos (inclusive os do menu Iniciar), arquivos, pastas, atalhos e links da web funcionam — solte em qualquer lugar desta janela. O tipo, o caminho e o nome são preenchidos para você conferir antes de adicionar.",
+  "Add.Drop.Pending": "{0} itens prontos para adicionar",
+  "Add.Drop.Nothing": "Não foi possível adicionar isso. Solte aplicativos, arquivos, pastas ou links da web.",
 
   "Add.Error.NoTarget": "Digite ou escolha um destino primeiro.",
   "Add.Error.BadUrl": "Digite um endereço da web válido, ex.: https://exemplo.com. Para outros URIs ou comandos, use o tipo Atalho.",
