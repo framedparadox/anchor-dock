@@ -114,7 +114,7 @@ public sealed partial class DockWindow
 
     /// <summary>
     /// Writes an edit from <see cref="EditWindow"/> back onto one of this dock's items: its name,
-    /// and — for everything except a group, which points at nothing — its target.
+    /// its glyph colour, and — for everything except a group, which points at nothing — its target.
     /// <para>
     /// Re-classifying a new target can change the item's kind (a path swapped for a URL becomes a
     /// web link), so the icon is dropped and re-resolved, and the item is re-inserted at its own
@@ -124,11 +124,15 @@ public sealed partial class DockWindow
     /// </para>
     /// </summary>
     /// <param name="target">The new target, or null for an item that has none.</param>
-    internal void ApplyItemEdit(DockItem item, string name, string? target)
+    /// <param name="iconColor">The glyph colour as <c>#RRGGBB</c>, or null for the theme's.</param>
+    internal void ApplyItemEdit(DockItem item, string name, string? target, string? iconColor)
     {
         name = name.Trim();
         if (name.Length > 0)
             item.DisplayName = name;
+
+        if (iconColor != item.IconColor)
+            item.IconColor = iconColor;
 
         bool retargeted = false;
         if (target?.Trim() is { Length: > 0 } t && t != item.Target)

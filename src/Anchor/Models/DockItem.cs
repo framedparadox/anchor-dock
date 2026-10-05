@@ -69,6 +69,63 @@ public sealed class DockItem : INotifyPropertyChanged
         }
     }
 
+    private string? _iconColor;
+    private Windows.UI.Color? _iconTint;
+    private Brush? _glyphTint;
+
+    /// <summary>
+    /// Optional colour for the item's glyph, as <c>#RRGGBB</c> — picked from a group's editor.
+    /// Null (or anything that doesn't parse) means the theme's text colour, which is what every
+    /// glyph used before this existed. Only a glyph is tinted: an image icon draws its own colours.
+    /// Kept as a string for the same reason <see cref="Hotkey"/> is — a hand-edited config stays
+    /// legible, and a bad value degrades to "no colour" rather than failing the load.
+    /// </summary>
+    public string? IconColor
+    {
+        get => _iconColor;
+        set
+        {
+            _iconTint = TryParseColor(value, out var c) ? c : null;
+            _iconColor = _iconTint is { } t ? FormatColor(t) : null;
+            _glyphTint = null;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(GlyphTint));
+            OnPropertyChanged(nameof(GlyphVisibility));
+            OnPropertyChanged(nameof(TintedGlyphVisibility));
+        }
+    }
+
+    /// <summary>True when the glyph is drawn in <see cref="IconColor"/> rather than the theme's
+    /// text colour. Never under High Contrast, where Windows supplies every colour.</summary>
+    [JsonIgnore]
+    public bool HasGlyphTint => _iconTint is not null && !DockItemAnimations.HighContrast;
+
+    /// <summary>
+    /// The brush for a tinted glyph, or null when <see cref="HasGlyphTint"/> is false. Built on
+    /// first read rather than in the setter: the setter runs while the config is deserialized,
+    /// which need not be on the UI thread, and a XAML brush can only be made on it.
+    /// </summary>
+    [JsonIgnore]
+    public Brush? GlyphTint =>
+        HasGlyphTint ? _glyphTint ??= new SolidColorBrush(_iconTint!.Value) : null;
+
+    /// <summary>Parses <c>#RRGGBB</c> (the leading <c>#</c> optional) into an opaque colour.</summary>
+    public static bool TryParseColor(string? text, out Windows.UI.Color color)
+    {
+        color = default;
+        var hex = text?.Trim().TrimStart('#');
+        if (hex is not { Length: 6 }
+            || !uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
+                              System.Globalization.CultureInfo.InvariantCulture, out var rgb))
+            return false;
+        color = Windows.UI.Color.FromArgb(0xFF, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+        return true;
+    }
+
+    /// <summary>The <c>#RRGGBB</c> form <see cref="IconColor"/> stores (alpha dropped: always opaque).</summary>
+    public static string FormatColor(Windows.UI.Color color) =>
+        $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+
     /// <summary>
     /// When true the item stays in the config (and in the Settings ▸ Apps list) but is not
     /// rendered on the dock. Toggled from the Settings window's per-app show/hide switch.
@@ -118,6 +175,7 @@ public sealed class DockItem : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(ImageVisibility));
             OnPropertyChanged(nameof(GlyphVisibility));
+            OnPropertyChanged(nameof(TintedGlyphVisibility));
         }
     }
 
@@ -174,8 +232,19 @@ public sealed class DockItem : INotifyPropertyChanged
     [JsonIgnore]
     public Visibility ImageVisibility => _iconImage is null ? Visibility.Collapsed : Visibility.Visible;
 
+    // Two glyphs rather than one with a swappable brush: the untinted one's foreground is a
+    // ThemeResource, which only XAML can keep following the theme, and overwriting it with a
+    // colour would lose that for good once the colour was cleared again.
+
+    /// <summary>The glyph in the theme's text colour: no bitmap icon and no <see cref="IconColor"/>.</summary>
     [JsonIgnore]
-    public Visibility GlyphVisibility => _iconImage is null ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility GlyphVisibility =>
+        _iconImage is null && !HasGlyphTint ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The glyph drawn in <see cref="GlyphTint"/>: no bitmap icon, and a colour picked.</summary>
+    [JsonIgnore]
+    public Visibility TintedGlyphVisibility =>
+        _iconImage is null && HasGlyphTint ? Visibility.Visible : Visibility.Collapsed;
 
     [JsonIgnore]
     public bool IsSeparator => Kind == DockItemKind.Separator;

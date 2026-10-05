@@ -6,6 +6,21 @@
     xmlns:loc="using:Anchor.Localization">
 
     <Grid x:Name="RootGrid">
+        <Grid.Resources>
+            <!-- A round colour swatch: the colour is the content, inset so the checked state's
+                 accent fill shows as a ring around the chosen one. -->
+            <Style x:Key="ColourSwatchStyle" TargetType="ToggleButton">
+                <Setter Property="Width" Value="32" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+            </Style>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -130,6 +145,78 @@
                         <Button x:Name="BrowseButton" Grid.Column="1"
                                 Content="{loc:Localize Key=Add.Browse}" Click="Browse_Click" />
                     </Grid>
+                </StackPanel>
+
+                <!-- A group's glyph colour, in the row a group has free because it has no target.
+                     The theme's own text colour first (no colour of its own, which is what every
+                     group had before), then presets from the Windows palette that read on both
+                     the light and the dark glass, then a custom one that opens a full picker.
+                     Toggle buttons so the chosen one is announced as such, and ringed by the
+                     checked state rather than told apart by colour alone. Tag is the colour a
+                     swatch picks; the default's is empty. -->
+                <StackPanel x:Name="ColourPanel" Spacing="6" Visibility="Collapsed">
+                    <TextBlock Text="{loc:Localize Key=Flyout.Colour}" />
+                    <StackPanel x:Name="SwatchRow" Orientation="Horizontal" Spacing="6">
+                        <ToggleButton Tag="" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Default}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Default}">
+                            <Ellipse Width="24" Height="24"
+                                     Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#E74856" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Red}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Red}">
+                            <Ellipse Width="24" Height="24" Fill="#E74856" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#F7630C" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Orange}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Orange}">
+                            <Ellipse Width="24" Height="24" Fill="#F7630C" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#FFB900" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Yellow}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Yellow}">
+                            <Ellipse Width="24" Height="24" Fill="#FFB900" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#16C60C" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Green}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Green}">
+                            <Ellipse Width="24" Height="24" Fill="#16C60C" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#00B7C3" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Teal}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Teal}">
+                            <Ellipse Width="24" Height="24" Fill="#00B7C3" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#0078D4" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Blue}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Blue}">
+                            <Ellipse Width="24" Height="24" Fill="#0078D4" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#8764B8" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Purple}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Purple}">
+                            <Ellipse Width="24" Height="24" Fill="#8764B8" />
+                        </ToggleButton>
+                        <ToggleButton Tag="#E3008C" Style="{StaticResource ColourSwatchStyle}" Click="Swatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Pink}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Pink}">
+                            <Ellipse Width="24" Height="24" Fill="#E3008C" />
+                        </ToggleButton>
+                        <ToggleButton x:Name="CustomSwatch" Style="{StaticResource ColourSwatchStyle}"
+                                      Click="CustomSwatch_Click"
+                                      ToolTipService.ToolTip="{loc:Localize Key=Colour.Custom}"
+                                      AutomationProperties.Name="{loc:Localize Key=Colour.Custom}">
+                            <Grid>
+                                <!-- Filled with the colour once a custom one is in use; until then
+                                     just the palette glyph. -->
+                                <Ellipse x:Name="CustomSwatchFill" Width="24" Height="24" />
+                                <FontIcon x:Name="CustomSwatchGlyph" Glyph="&#xE790;"
+                                          FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                          FontSize="14" />
+                            </Grid>
+                        </ToggleButton>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
 

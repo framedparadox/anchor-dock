@@ -102,6 +102,7 @@ public sealed partial class DockWindow : Window
         RootGrid.ActualThemeChanged += (_, _) => ApplyWindowChrome();
 
         DockItemAnimations.ReducedMotion = !new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+        DockItemAnimations.HighContrast = IsHighContrast();
         DockItemAnimations.SetShowLabels(_manager.Config.ShowItemLabels);
         _showLabelsHandler = RefreshItemLabels;
         DockItemAnimations.ShowLabelsChanged += _showLabelsHandler;
@@ -1451,6 +1452,12 @@ public sealed partial class DockWindow : Window
         DragGhostGlyph.Glyph = item.Glyph;
         DragGhostGlyph.Visibility = item.GlyphVisibility;
         DragGhostGlyph.FontSize = DockMetrics.Glyph;
+
+        DragGhostTintedGlyph.Glyph = item.Glyph;
+        DragGhostTintedGlyph.Visibility = item.TintedGlyphVisibility;
+        DragGhostTintedGlyph.FontSize = DockMetrics.Glyph;
+        if (item.GlyphTint is { } tint)
+            DragGhostTintedGlyph.Foreground = tint;
 
         DragGhost.Visibility = Visibility.Visible;
     }
