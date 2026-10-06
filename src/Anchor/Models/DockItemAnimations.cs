@@ -7,6 +7,10 @@ public static class DockItemAnimations
 
     public static bool ShowLabels { get; set; }
 
+    /// <summary>A High Contrast theme is on, so items drop any colour of their own (see
+    /// <see cref="DockItem.IconColor"/>) and let Windows supply it.</summary>
+    public static bool HighContrast { get; set; }
+
     public static event Action? ShowLabelsChanged;
 
     public static void SetShowLabels(bool on)

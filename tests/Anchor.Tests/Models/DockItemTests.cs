@@ -449,4 +449,88 @@ public class DockItemTests
             DockItemAnimations.ReducedMotion = false;
         }
     }
+
+    // ---- Glyph colour ------------------------------------------------------
+    // GlyphTint itself is a XAML brush and needs a live UI thread, so these stay on the string
+    // and the visibilities, which are plain values.
+
+    [Theory]
+    [InlineData("#e74856", "#E74856")]
+    [InlineData("E74856", "#E74856")]
+    [InlineData("  #0078D4 ", "#0078D4")]
+    public void IconColor_is_normalized_to_upper_case_hash_form(string given, string stored)
+    {
+        var item = new DockItem { Kind = DockItemKind.Group, IconColor = given };
+
+        Assert.Equal(stored, item.IconColor);
+        Assert.True(item.HasGlyphTint);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("red")]
+    [InlineData("#FFF")]
+    [InlineData("#80E74856")] // alpha isn't offered: a see-through glyph on glass just looks broken
+    [InlineData("#GGGGGG")]
+    public void An_IconColor_that_does_not_parse_means_no_colour(string? given)
+    {
+        var item = new DockItem { Kind = DockItemKind.Group, IconColor = given };
+
+        Assert.Null(item.IconColor);
+        Assert.False(item.HasGlyphTint);
+    }
+
+    [Fact]
+    public void A_colour_swaps_the_themed_glyph_for_the_tinted_one()
+    {
+        var item = new DockItem { Kind = DockItemKind.Group };
+        var raised = new List<string?>();
+        item.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        item.IconColor = "#16C60C";
+
+        Assert.Equal(Visibility.Collapsed, item.GlyphVisibility);
+        Assert.Equal(Visibility.Visible, item.TintedGlyphVisibility);
+        Assert.Contains(nameof(DockItem.GlyphVisibility), raised);
+        Assert.Contains(nameof(DockItem.TintedGlyphVisibility), raised);
+        Assert.Contains(nameof(DockItem.GlyphTint), raised);
+
+        item.IconColor = null;
+
+        Assert.Equal(Visibility.Visible, item.GlyphVisibility);
+        Assert.Equal(Visibility.Collapsed, item.TintedGlyphVisibility);
+    }
+
+    [Fact]
+    public void High_Contrast_drops_the_colour_but_keeps_it_saved()
+    {
+        DockItemAnimations.HighContrast = true;
+        try
+        {
+            var item = new DockItem { Kind = DockItemKind.Group, IconColor = "#E3008C" };
+
+            Assert.Equal("#E3008C", item.IconColor);
+            Assert.False(item.HasGlyphTint);
+            Assert.Equal(Visibility.Visible, item.GlyphVisibility);
+            Assert.Equal(Visibility.Collapsed, item.TintedGlyphVisibility);
+        }
+        finally
+        {
+            DockItemAnimations.HighContrast = false;
+        }
+    }
+
+    [Fact]
+    public void IconColor_survives_a_save_and_load()
+    {
+        var item = new DockItem { Kind = DockItemKind.Group, IconColor = "#8764B8" };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(item);
+        var loaded = System.Text.Json.JsonSerializer.Deserialize<DockItem>(json)!;
+
+        Assert.Equal("#8764B8", loaded.IconColor);
+        Assert.DoesNotContain(nameof(DockItem.GlyphTint), json);
+        Assert.DoesNotContain(nameof(DockItem.HasGlyphTint), json);
+    }
 }

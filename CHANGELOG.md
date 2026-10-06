@@ -4,6 +4,26 @@ All notable changes to Anchor are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the change was made,
 not necessarily when it shipped in a release.
 
+## [Unreleased]
+
+#### Added
+
+- **Group icon colour.** A group's editor has a **Colour** row where other items have their
+  target: the theme's own colour, eight presets from the Windows palette, and a custom swatch that
+  opens a full colour picker. The swatches preview on the editor's icon and land with **Save**
+  (Escape discards them, like the name). The colour is stored on the item as `IconColor`
+  (`#RRGGBB`) and drawn on the dock strip, its drag ghost and the Settings ▸ Apps & links list. It
+  only tints a glyph — a group showing an image icon greys the row out — and is ignored while
+  Windows' High Contrast theme is on.
+
+#### Fixed
+
+- **The app icon sat on a blue square** on the taskbar, desktop and Start's app list in the Store
+  build. The package only shipped "plated" `Square44x44Logo.targetsize-*` icons, which Windows
+  draws on a backplate of the manifest's `BackgroundColor` — and `transparent` there means the
+  user's accent colour. Each size now has `altform-unplated` and `altform-lightunplated` variants
+  (the same transparent artwork), which Windows draws as-is.
+
 ## [v1.2.3]
 
 ### Add to Dock: drag 'n drop

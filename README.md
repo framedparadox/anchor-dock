@@ -166,7 +166,8 @@ old glass-frost slider:
   snapped to. Fill a group by **dragging an icon onto it**, or with *Move to group* on an item's
   right-click menu; drag a cell along the bar to reorder it among its siblings, or sideways clear
   of the bar to put it back on the strip — the same two gestures the main dock offers its own
-  items. A group's own menu offers *Ungroup*. Settings ▸ Appearance ▸ *Open groups on hover* (on by
+  items. A group's own menu offers *Ungroup*, and its *Edit* window a **colour** for the group's
+  icon — eight presets or any colour from a full picker. Settings ▸ Appearance ▸ *Open groups on hover* (on by
   default) opens the bar as soon as the cursor lands on the icon; turn it off and a click both
   opens and closes.
 

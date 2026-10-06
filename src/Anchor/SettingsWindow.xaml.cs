@@ -1017,19 +1017,23 @@ public sealed partial class SettingsWindow : Window
             }
             else
             {
-                iconHost.Children.Add(new FontIcon
+                var glyph = new FontIcon
                 {
                     Glyph = item.Glyph,
                     FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                     FontSize = 18,
-                });
+                };
+                // Only when there is one: a null Foreground would hide the glyph, not untint it.
+                if (item.GlyphTint is { } tint)
+                    glyph.Foreground = tint;
+                iconHost.Children.Add(glyph);
             }
         }
         RenderIcon();
 
         void OnItemPropertyChanged(object? s, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(DockItem.IconImage))
+            if (e.PropertyName is nameof(DockItem.IconImage) or nameof(DockItem.IconColor))
                 RenderIcon();
         }
         System.ComponentModel.PropertyChangedEventHandler onItemChanged = OnItemPropertyChanged;
@@ -1405,12 +1409,15 @@ public sealed partial class SettingsWindow : Window
         }
         else
         {
-            iconHost.Children.Add(new FontIcon
+            var glyph = new FontIcon
             {
                 Glyph = item.Glyph,
                 FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                 FontSize = 18,
-            });
+            };
+            if (item.GlyphTint is { } tint)
+                glyph.Foreground = tint;
+            iconHost.Children.Add(glyph);
         }
         content.Children.Add(iconHost);
 
