@@ -327,7 +327,7 @@ It publishes to `publish\Anchor-win-<arch>\`, zips each to `dist\Anchor-win-<arc
 and prints each zip's SHA-256. The version comes from
 [`src/Anchor/Anchor.csproj`](src/Anchor/Anchor.csproj) — bump `<Version>`, `<FileVersion>` and
 `<AssemblyVersion>` together, since Settings ▸ About reads the assembly version. Current version:
-**1.2.0**.
+**1.2.4**.
 
 ## Tests
 

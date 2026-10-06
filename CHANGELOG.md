@@ -4,7 +4,7 @@ All notable changes to Anchor are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the change was made,
 not necessarily when it shipped in a release.
 
-## [Unreleased]
+## [v1.2.4]
 
 #### Added
 
