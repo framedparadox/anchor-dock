@@ -79,6 +79,12 @@ Recorded so a future pass doesn't re-walk the same ground:
 
 ## Residual risk / recommendations
 
+- **Update 2026-10-01 — C7 re-diagnosed** in [`performance/2026-10-01-review`](performance/2026-10-01-review/REPORT.md) (findings PR-001 and PR-002), by heap dumps and
+  a window-lifetime probe rather than a third guess. It is two causes. (1) Closed windows were never freed: every window subscribed lambdas to its own `Activated` / `Closed`
+  events, and `SettingsWindow` rows subscribed `DockItem.PropertyChanged` with closures that kept the window alive (12 of 12 `SettingsWindow`s alive after a forced GC) — fixed.
+  C6's row teardown was incomplete for the same reason, and the `SystemBackdrop = null` change in C7 could not have mattered. (2) The residual ~30 GDI objects and ~40 handles per
+  dialog are the Windows App SDK custom title bar (`ExtendsContentIntoTitleBar` + `SetTitleBar`), paid per window whether or not it is collected: **still open**, a framework cost.
+  The "environment artifact" suspicion was wrong: the probe reproduces it in a bare WinUI app. The paragraph below is the 2026-09-05 state.
 - **C7 is open, not resolved.** Two targeted fixes (C6's event-unsubscription fix, and C7's
   backdrop-disposal fix) together cut Settings' per-open memory growth by ~74% and eliminated a
   creeping per-open slowdown entirely — real, measured wins — but a deterministic, timing-

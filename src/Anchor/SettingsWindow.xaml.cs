@@ -73,7 +73,7 @@ public sealed partial class SettingsWindow : Window
         ApplyTheme(manager.Config.Theme);
         RootGrid.ActualThemeChanged += (_, _) => ApplyChromeTheme();
         // Re-assert on activation: DWM otherwise restores its default rim on some state changes.
-        Activated += (_, _) => ApplyChromeTheme();
+        Activated += OnActivated;
 
         if (_appWindow.Presenter is OverlappedPresenter p)
         {
@@ -111,12 +111,28 @@ public sealed partial class SettingsWindow : Window
         _manager.ItemsChanged += OnDockItemsChanged;
         _manager.DocksChanged += OnDocksChanged;
         _manager.UpdateAvailable += OnUpdateAvailable;
-        Closed += (_, _) =>
-        {
-            _manager.ItemsChanged -= OnDockItemsChanged;
-            _manager.DocksChanged -= OnDocksChanged;
-            _manager.UpdateAvailable -= OnUpdateAvailable;
-        };
+        Closed += OnClosed;
+    }
+
+    private void OnActivated(object sender, WindowActivatedEventArgs e) => ApplyChromeTheme();
+
+    // Named, and every handler of the window's own removed here (this one included): a handler on
+    // the window's own event that references the window is held by the native window for the life
+    // of the process, so a lambda here kept every closed SettingsWindow and its whole visual tree
+    // alive (about 33 GDI objects, 40 handles and 5 MB per open). WindowEventLifetimeTests pins the rule.
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        Activated -= OnActivated;
+        Closed -= OnClosed;
+        _manager.ItemsChanged -= OnDockItemsChanged;
+        _manager.DocksChanged -= OnDocksChanged;
+        _manager.UpdateAvailable -= OnUpdateAvailable;
+
+        foreach (var (item, handler) in _rowSubscriptions)
+            item.PropertyChanged -= handler;
+        _rowSubscriptions.Clear();
+
+        NativeReclaim.Request();
     }
 
     private void OnDockItemsChanged() => DispatcherQueue.TryEnqueue(() =>
@@ -913,6 +929,14 @@ public sealed partial class SettingsWindow : Window
 
     private void AddNew_Click(object sender, RoutedEventArgs e) => _manager.OpenAddNew();
 
+    /// <summary>
+    /// Every row's subscription to its item's PropertyChanged, so closing the window can drop them all.
+    /// The DockItem is owned by the config and outlives every Settings window; a handler left on it
+    /// holds the row's closure and, through it, the whole closed window (gcroot on a retained
+    /// SettingsWindow: DockItem -> PropertyChangedEventHandler -> closure -> SettingsWindow).
+    /// </summary>
+    private readonly List<(DockItem Item, System.ComponentModel.PropertyChangedEventHandler Handler)> _rowSubscriptions = new();
+
     private void RebuildApps()
     {
         AppsList.Children.Clear();
@@ -993,22 +1017,28 @@ public sealed partial class SettingsWindow : Window
             }
             else
             {
-                iconHost.Children.Add(new FontIcon
+                var glyph = new FontIcon
                 {
                     Glyph = item.Glyph,
                     FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                     FontSize = 18,
-                });
+                };
+                // Only when there is one: a null Foreground would hide the glyph, not untint it.
+                if (item.GlyphTint is { } tint)
+                    glyph.Foreground = tint;
+                iconHost.Children.Add(glyph);
             }
         }
         RenderIcon();
 
         void OnItemPropertyChanged(object? s, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(DockItem.IconImage))
+            if (e.PropertyName is nameof(DockItem.IconImage) or nameof(DockItem.IconColor))
                 RenderIcon();
         }
-        item.PropertyChanged += OnItemPropertyChanged;
+        System.ComponentModel.PropertyChangedEventHandler onItemChanged = OnItemPropertyChanged;
+        item.PropertyChanged += onItemChanged;
+        _rowSubscriptions.Add((item, onItemChanged));
 
         Grid.SetColumn(iconHost, 0);
         grid.Children.Add(iconHost);
@@ -1181,7 +1211,13 @@ public sealed partial class SettingsWindow : Window
         };
         // The DockItem outlives this row (it's rebuilt wholesale on every RebuildApps), so the
         // subscription above must be torn down explicitly or it leaks a handler per rebuild.
-        row.Unloaded += (_, _) => item.PropertyChanged -= OnItemPropertyChanged;
+        // Unloaded covers the rebuild; it does NOT reliably fire when the whole window closes, so
+        // OnClosed drops whatever is left (see _rowSubscriptions).
+        row.Unloaded += (_, _) =>
+        {
+            item.PropertyChanged -= onItemChanged;
+            _rowSubscriptions.Remove((item, onItemChanged));
+        };
 
         // Drag-to-reorder: a hand-rolled press/poll/release gesture — the same pattern
         // DockWindow.xaml.cs (Dock_PointerPressed/DragTick) already uses for the dock's own strip,
@@ -1373,12 +1409,15 @@ public sealed partial class SettingsWindow : Window
         }
         else
         {
-            iconHost.Children.Add(new FontIcon
+            var glyph = new FontIcon
             {
                 Glyph = item.Glyph,
                 FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
                 FontSize = 18,
-            });
+            };
+            if (item.GlyphTint is { } tint)
+                glyph.Foreground = tint;
+            iconHost.Children.Add(glyph);
         }
         content.Children.Add(iconHost);
 

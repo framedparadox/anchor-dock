@@ -8,7 +8,7 @@
 
   <Identity Name="44492ajaykontham.AnchorDock"
             Publisher="CN=93C75305-77D7-448E-B1C4-591A0E9665E1"
-            Version="1.2.3.0" />
+            Version="1.2.4.0" />
 
   <Properties>
     <DisplayName>Anchor Dock</DisplayName>
@@ -42,6 +42,12 @@
     <Application Id="App" Executable="Anchor.exe" EntryPoint="Windows.FullTrustApplication">
       <!-- DisplayName matches Properties/DisplayName (and the reserved Store name) so the Start
            menu entry, the Store listing and the installed-apps list all say the same thing. -->
+      <!-- The taskbar, desktop shortcut, Start's app list and Explorer all draw from the
+           Square44x44Logo.targetsize-* set. Without an altform-unplated (dark taskbar) and
+           altform-lightunplated (light taskbar) variant of each size, Windows sits the icon on a
+           "plate" filled with BackgroundColor — and "transparent" there means the user's accent
+           colour, which is why the icon showed on a blue square. The variants in Images\ are the
+           same transparent artwork; their file names alone are what tell Windows not to plate it. -->
       <uap:VisualElements
         DisplayName="Anchor Dock"
         Description="A floating dock that keeps your apps, files, folders and web links one click away."

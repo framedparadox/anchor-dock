@@ -4,7 +4,44 @@ All notable changes to Anchor are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the change was made,
 not necessarily when it shipped in a release.
 
-## [Unreleased]
+## [v1.2.4]
+
+#### Added
+
+- **Group icon colour.** A group's editor has a **Colour** row where other items have their
+  target: the theme's own colour, eight presets from the Windows palette, and a custom swatch that
+  opens a full colour picker. The swatches preview on the editor's icon and land with **Save**
+  (Escape discards them, like the name). The colour is stored on the item as `IconColor`
+  (`#RRGGBB`) and drawn on the dock strip, its drag ghost and the Settings ▸ Apps & links list. It
+  only tints a glyph — a group showing an image icon greys the row out — and is ignored while
+  Windows' High Contrast theme is on.
+
+#### Fixed
+
+- **The app icon sat on a blue square** on the taskbar, desktop and Start's app list in the Store
+  build. The package only shipped "plated" `Square44x44Logo.targetsize-*` icons, which Windows
+  draws on a backplate of the manifest's `BackgroundColor` — and `transparent` there means the
+  user's accent colour. Each size now has `altform-unplated` and `altform-lightunplated` variants
+  (the same transparent artwork), which Windows draws as-is.
+
+## [v1.2.3]
+
+### Add to Dock: drag 'n drop
+
+#### Added
+
+- **Drop anything onto the Add to Dock window.** Apps (Start menu apps included), files, folders,
+  shortcuts and web links dropped anywhere in the window — whichever type is selected — fill the
+  form in: the matching type is selected, and the path and display name are filled in to check or
+  edit before pressing **Add to Dock** (which takes focus, so Enter finishes it). Several items
+  dropped together are listed with their type, name and path, and added with one button; each can
+  be taken off the list first. A new **Drag 'n drop** tile beside Group shows an empty drop zone.
+
+#### Changed
+
+- The eight type tiles now share one row (star-sized columns, ~81 DIP each, instead of seven fixed
+  88 DIP tiles). The "is this text a web address?" rule the dock strip used for dropped text moved
+  to `DockItemFactory.TryNormalizeWebUrl` so both windows apply the same one.
 
 ### Round 9 — crash and hang hardening
 

@@ -71,6 +71,54 @@ public static class ShellDrop
     }
 
     /// <summary>
+    /// True when the drag carries anything the Add window can turn into dock items: shell items
+    /// (see <see cref="HasShellItems"/>), or a web link / plain text a browser drag provides.
+    /// </summary>
+    public static bool CanAcceptAny(DataPackageView data)
+    {
+        try
+        {
+            return HasShellItems(data) ||
+                   data.Contains(StandardDataFormats.WebLink) ||
+                   data.Contains(StandardDataFormats.Text);
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("ShellDrop.CanAcceptAny failed: " + ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Like <see cref="ReadAsync"/>, but a drag with no shell items is also read as a web link or
+    /// text — the same order the dock strip itself uses. Text that isn't a plausible web address
+    /// resolves to nothing. Never throws, and has the same must-be-live requirement.
+    /// </summary>
+    public static async Task<IReadOnlyList<DroppedItem>> ReadAnyAsync(DataPackageView data)
+    {
+        try
+        {
+            if (HasShellItems(data))
+                return await ReadAsync(data);
+
+            string? text = data.Contains(StandardDataFormats.WebLink)
+                ? (await data.GetWebLinkAsync())?.ToString()
+                : data.Contains(StandardDataFormats.Text)
+                    ? await data.GetTextAsync()
+                    : null;
+
+            return DockItemFactory.TryNormalizeWebUrl(text) is { } url
+                ? [new DroppedItem(url, DockItemFactory.SuggestName(url), DockItemKind.WebLink)]
+                : [];
+        }
+        catch (Exception ex)
+        {
+            Diag.Log($"ShellDrop.ReadAnyAsync failed: {ex.GetType().Name}: {ex.Message}");
+            return [];
+        }
+    }
+
+    /// <summary>
     /// True when the drag carries CF_HDROP-backed storage items specifically — as opposed to a
     /// Start-menu app, which arrives as Shell IDList Array only. Callers that need to tell the two
     /// apart (a dropped app has no path to hand an app on a command line) ask this rather than

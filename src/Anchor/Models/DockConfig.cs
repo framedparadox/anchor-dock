@@ -191,6 +191,11 @@ public sealed class DockConfig
     /// </summary>
     public DockConfig Migrate()
     {
+        // A null entry is not a dock, so it goes before anything decides whether there is one:
+        // SanitizeItems (below) drops them too, but guaranteeing a dock first and sanitizing after
+        // left "Docks": [null] with none at all.
+        Docks.RemoveAll(d => d is null);
+
         bool hasLegacyDock =
             LegacyItems is not null || LegacySnapped is not null || LegacyEdge is not null ||
             LegacyFreeX is not null || LegacyFreeY is not null || LegacyAutoHide is not null ||

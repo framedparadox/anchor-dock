@@ -82,7 +82,7 @@ public sealed partial class DockWindow : Window
         WindowChrome.MakeBorderlessToolWindow(_appWindow, _hwnd);
         WindowChrome.StripFrame(_hwnd);
         WindowChrome.EnsureRoundedCorners(_hwnd, small: false);
-        Activated += (_, _) => ApplyWindowChrome();
+        Activated += OnActivated;
 
         // Seed the starter items only on the very first run — never after the user has
         // intentionally emptied the dock, and never for a dock they added themselves.
@@ -102,6 +102,7 @@ public sealed partial class DockWindow : Window
         RootGrid.ActualThemeChanged += (_, _) => ApplyWindowChrome();
 
         DockItemAnimations.ReducedMotion = !new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+        DockItemAnimations.HighContrast = IsHighContrast();
         DockItemAnimations.SetShowLabels(_manager.Config.ShowItemLabels);
         _showLabelsHandler = RefreshItemLabels;
         DockItemAnimations.ShowLabelsChanged += _showLabelsHandler;
@@ -145,22 +146,39 @@ public sealed partial class DockWindow : Window
             QueueRelayout();
         };
 
-        Closed += (_, _) =>
-        {
-            _pollTimer?.Stop();
-            _slideTimer?.Stop();
-            _dragTimer?.Stop();
-            _barCellDragTimer?.Stop();
-            _groupCloseTimer?.Stop();
-            _visualAnimTimer?.Stop();
-            DockItemAnimations.ShowLabelsChanged -= _showLabelsHandler;
-            _backdrop?.Dispose();
-        };
+        Closed += OnClosed;
 
         // Modest initial size so the first frame isn't full-screen before relayout.
         _appWindow.Resize(new SizeInt32(360, 96));
 
         _ = LoadIconsAsync();
+    }
+
+    /// <summary>Set once the window has closed, for a late timer tick or lazily created timer to see.</summary>
+    private bool _closed;
+
+    private void OnActivated(object sender, WindowActivatedEventArgs e) => ApplyWindowChrome();
+
+    // Named, and every handler of the window's own removed here (this one included): a handler on
+    // the window's own event that references the window is held by the native window for the life
+    // of the process, so lambdas here kept every dock that was ever closed (removed, or rebuilt by
+    // a language change or an import) alive with its whole visual tree. WindowEventLifetimeTests
+    // pins the rule.
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        _closed = true;
+        Activated -= OnActivated;
+        Closed -= OnClosed;
+        _pollTimer?.Stop();
+        _slideTimer?.Stop();
+        _dragTimer?.Stop();
+        _barCellDragTimer?.Stop();
+        _groupCloseTimer?.Stop();
+        _visualAnimTimer?.Stop();
+        _dropShellWatchdog?.Stop();
+        DockItemAnimations.ShowLabelsChanged -= _showLabelsHandler;
+        _backdrop?.Dispose();
+        NativeReclaim.Request();
     }
 
     // ---- Master / visible list sync ---------------------------------------
@@ -312,26 +330,14 @@ public sealed partial class DockWindow : Window
 
     private void AddWebLinkFromDrop(string? text, int at)
     {
-        if (string.IsNullOrWhiteSpace(text))
-            return;
-        text = text.Trim();
-
-        if (!text.Contains("://"))
-        {
-            // Only promote bare text to a URL when it plausibly is one (a single dotted token).
-            if (text.Contains(' ') || !text.Contains('.'))
-                return;
-            text = "https://" + text;
-        }
-        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        if (DockItemFactory.TryNormalizeWebUrl(text) is not { } url)
             return;
 
         InsertDockItem(at, new DockItem
         {
             Kind = DockItemKind.WebLink,
-            DisplayName = DockItemFactory.SuggestName(uri.ToString()),
-            Target = uri.ToString(),
+            DisplayName = DockItemFactory.SuggestName(url),
+            Target = url,
         });
     }
 
@@ -1446,6 +1452,12 @@ public sealed partial class DockWindow : Window
         DragGhostGlyph.Glyph = item.Glyph;
         DragGhostGlyph.Visibility = item.GlyphVisibility;
         DragGhostGlyph.FontSize = DockMetrics.Glyph;
+
+        DragGhostTintedGlyph.Glyph = item.Glyph;
+        DragGhostTintedGlyph.Visibility = item.TintedGlyphVisibility;
+        DragGhostTintedGlyph.FontSize = DockMetrics.Glyph;
+        if (item.GlyphTint is { } tint)
+            DragGhostTintedGlyph.Foreground = tint;
 
         DragGhost.Visibility = Visibility.Visible;
     }

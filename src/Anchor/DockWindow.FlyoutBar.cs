@@ -154,6 +154,10 @@ public sealed partial class DockWindow
             _barCellDragCleanup?.Invoke();
             _barCellDragCleanup = null;
 
+            // The bar's popup is its own top-level window (it opens outside the dock), and the
+            // framework only lets it go when the closed Flyout is finalized — see NativeReclaim.
+            NativeReclaim.Request();
+
             // Only the bar that is still current gets to resume auto-hide. One that was replaced
             // before it finished closing (see _activeBarFlyout) leaves that job to whichever bar
             // superseded it — its own Closed will do the same check and actually resume.
@@ -573,21 +577,30 @@ public sealed partial class DockWindow
     /// a live bar cell, which re-renders this on an <see cref="DockItem.IconImage"/> change, and its
     /// drag ghost, which just needs a single snapshot of whatever was already showing.
     /// </summary>
-    private static FrameworkElement BuildIconVisual(DockItem item) =>
-        item.IconImage is not null
-            ? new Image
+    private static FrameworkElement BuildIconVisual(DockItem item)
+    {
+        if (item.IconImage is not null)
+        {
+            return new Image
             {
                 Source = item.IconImage,
                 Width = DockMetrics.Icon,
                 Height = DockMetrics.Icon,
                 Stretch = Stretch.Uniform,
-            }
-            : new FontIcon
-            {
-                Glyph = item.Glyph,
-                FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
-                FontSize = DockMetrics.Glyph,
             };
+        }
+
+        var glyph = new FontIcon
+        {
+            Glyph = item.Glyph,
+            FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"],
+            FontSize = DockMetrics.Glyph,
+        };
+        // Only when there is one: a null Foreground would hide the glyph, not untint it.
+        if (item.GlyphTint is { } tint)
+            glyph.Foreground = tint;
+        return glyph;
+    }
 
     /// <summary>
     /// A small floating copy of a bar cell's icon, shown while it's being dragged — the bar's own

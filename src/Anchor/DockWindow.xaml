@@ -222,6 +222,16 @@
                                                   FontSize="{x:Bind RenderGlyphSize, Mode=OneWay}"
                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                   AutomationProperties.AccessibilityView="Raw" />
+
+                                        <!-- The same glyph in the colour picked for it (a group's
+                                             editor). A twin rather than a bound Foreground on the
+                                             one above, so that one keeps following the theme. -->
+                                        <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}"
+                                                  Visibility="{x:Bind TintedGlyphVisibility, Mode=OneWay}"
+                                                  FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                  FontSize="{x:Bind RenderGlyphSize, Mode=OneWay}"
+                                                  Foreground="{x:Bind GlyphTint, Mode=OneWay}"
+                                                  AutomationProperties.AccessibilityView="Raw" />
                                         </Grid>
                                         <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
                                                    Visibility="{x:Bind LabelVisibility, Mode=OneWay}"
@@ -334,6 +344,9 @@
                     <FontIcon x:Name="DragGhostGlyph"
                               FontFamily="{ThemeResource SymbolThemeFontFamily}"
                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                              AutomationProperties.AccessibilityView="Raw" />
+                    <FontIcon x:Name="DragGhostTintedGlyph"
+                              FontFamily="{ThemeResource SymbolThemeFontFamily}"
                               AutomationProperties.AccessibilityView="Raw" />
                 </Grid>
             </Border>

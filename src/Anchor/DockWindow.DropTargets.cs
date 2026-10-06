@@ -365,6 +365,8 @@ public sealed partial class DockWindow
 
     private void EnsureDropShellWatchdog()
     {
+        if (_closed)
+            return;
         _dropShellWatchdog ??= CreateDropShellWatchdog();
         if (!_dropShellWatchdog.IsRunning)
             _dropShellWatchdog.Start();
@@ -388,6 +390,11 @@ public sealed partial class DockWindow
         t.Interval = TimeSpan.FromMilliseconds(200);
         t.Tick += (_, _) =>
         {
+            if (_closed)
+            {
+                t.Stop();
+                return;
+            }
             if (Environment.TickCount64 - _dragSeenAt < DragLostAfterMs)
                 return;
             if (CursorOverDock() && DragButtonHeld())
@@ -397,16 +404,14 @@ public sealed partial class DockWindow
             ClearDropShell();
         };
 
-        // Every other polling timer this window owns is stopped from the shared Closed handler in
-        // DockWindow.xaml.cs, wired up once in the constructor — but this one is created lazily,
-        // the first time a drag is ever dragged over the dock, which can be long after that
-        // handler already ran were this dock closed with no drag ever having crossed it. A drag
-        // left in flight when the dock is removed (the strip's own context menu can do this
+        // A drag left in flight when the dock is removed (the strip's own context menu can do this
         // mid-drag) would otherwise keep this ticking on a window whose AppWindow is gone, and
         // CursorOverDock's read of _appWindow.Position/.Size throws once that happens — with
         // nothing above a DispatcherQueueTimer tick to catch it, that is an unhandled exception on
-        // the UI thread, i.e. a crash. So the watchdog stops itself here instead.
-        Closed += (_, _) => t.Stop();
+        // the UI thread, i.e. a crash. The shared OnClosed (DockWindow.xaml.cs) stops it if it
+        // exists by then, and the _closed check above covers a tick that was already queued. It is
+        // not stopped by a lambda on this window's own Closed event: that would keep the closed
+        // dock alive (see WindowEventLifetimeTests).
         return t;
     }
 

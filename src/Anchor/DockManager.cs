@@ -100,7 +100,15 @@ public sealed class DockManager
         var window = new DockWindow(this, profile, seedDefaults);
         // A dock closed by any means (its own menu, a crash in its content) must not leave a
         // stale entry behind that the tray and Settings still think exists.
-        window.Closed += (_, _) => _docks.Remove(window);
+        // Weakly, not a closure over the local: a strong reference from a handler on the window's own
+        // event is held by the native window for the life of the process, which would keep every
+        // closed dock alive (see WindowEventLifetimeTests).
+        var weak = new WeakReference<DockWindow>(window);
+        window.Closed += (_, _) =>
+        {
+            if (weak.TryGetTarget(out var closed))
+                _docks.Remove(closed);
+        };
         return window;
     }
 
@@ -512,9 +520,10 @@ public sealed class DockManager
         _editWindow = window;
         // Guarded: a window replaced above closes after its successor is already the current one,
         // and must not null it out on the way past.
+        var weak = new WeakReference<EditWindow>(window);
         window.Closed += (_, _) =>
         {
-            if (ReferenceEquals(_editWindow, window))
+            if (weak.TryGetTarget(out var closed) && ReferenceEquals(_editWindow, closed))
                 _editWindow = null;
         };
         window.Activate();
