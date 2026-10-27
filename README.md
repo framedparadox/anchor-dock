@@ -14,12 +14,14 @@ whistle for it with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd>.
 One dock, or one per screen. Eight languages. Groups that fly out like a second dock.
 Search that filters every pin at once. **No accounts, no telemetry, no ads, no admin rights.**
 
+Official website: https://www.anchodock-app.com
+
 <p>
-  <a href="https://github.com/framedparadox/anchor-dock/releases/latest"><strong>Download the latest zip</strong></a>
-  &nbsp;·&nbsp;
-  <a href="#install">Install</a>
-  &nbsp;·&nbsp;
   <a href="https://apps.microsoft.com/detail/9nlp5cwmkdj0"><strong>Get it from Microsoft Store</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://www.anchodock-app.com"><strong>Official website</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://www.anchodock-app.com/feedback.html">Feedback</a>
   &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
