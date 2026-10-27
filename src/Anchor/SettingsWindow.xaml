@@ -732,17 +732,20 @@
                                      so the links line up with the text above. -->
                                 <StackPanel Orientation="Horizontal" Spacing="4"
                                             HorizontalAlignment="Center">
+                                    <HyperlinkButton Content="Website"
+                                                     NavigateUri="https://www.anchodock-app.com" />
+                                    <HyperlinkButton Content="Feedback"
+                                                     NavigateUri="https://www.anchodock-app.com/feedback.html" />
+                                    <HyperlinkButton Content="Changelog"
+                                                     NavigateUri="https://www.anchodock-app.com/changelog.html" />
                                     <HyperlinkButton Content="{loc:Localize Key=About.SourceCode}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock" />
                                     <HyperlinkButton Content="{loc:Localize Key=About.ReportIssue}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock/issues" />
                                     <HyperlinkButton Content="{loc:Localize Key=About.License}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock/blob/main/LICENSE" />
-                                    <!-- The same document whose URL the Microsoft Store listing
-                                         carries; Store policy 10.5.1 requires a Win32 product to
-                                         have one, and having it in-app too costs nothing. -->
                                     <HyperlinkButton Content="{loc:Localize Key=About.PrivacyPolicy}"
-                                                     NavigateUri="https://github.com/framedparadox/anchor-dock/blob/main/docs/privacy-policy.md" />
+                                                     NavigateUri="https://www.anchodock-app.com/privacy.html" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
