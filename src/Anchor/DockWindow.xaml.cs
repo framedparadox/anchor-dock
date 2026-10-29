@@ -845,6 +845,11 @@ public sealed partial class DockWindow : Window
         menu.Items.Add(Mi(Loc.Get("Menu.Hide"), () => SetItemHidden(item, true)));
         menu.Items.Add(Mi(Loc.Get("Menu.Remove"), () => RemoveDockItem(item)));
 
+        // The cursor is about to sit over the menu, off the dock's own bounds; hold auto-hide out
+        // while it is up (same pattern as ShowPanelFlyout) so the dock doesn't slide away mid-click.
+        PauseAutoHideForDrag();
+        menu.Closed += (_, _) => ResumeAutoHideAfterDrag();
+
         if (e.TryGetPosition(target, out var pos))
             menu.ShowAt(target, pos);
         else
@@ -964,6 +969,10 @@ public sealed partial class DockWindow : Window
 
         menu.Items.Add(MenuItem(Loc.Get("Menu.Restart"), _manager.Restart));
         menu.Items.Add(MenuItem(Loc.Get("Menu.Quit"), _manager.Quit));
+
+        // Same reasoning as the per-item menu: keep the dock put while this one is open.
+        PauseAutoHideForDrag();
+        menu.Closed += (_, _) => ResumeAutoHideAfterDrag();
 
         menu.ShowAt(target, at);
 
