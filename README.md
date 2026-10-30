@@ -21,7 +21,7 @@ Official website: https://www.anchodock-app.com
   &nbsp;·&nbsp;
   <a href="https://www.anchodock-app.com"><strong>Official website</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://www.anchodock-app.com/feedback.html">Feedback</a>
+  <a href="https://www.anchordock-app.com/feedback.html">Feedback</a>
   &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;

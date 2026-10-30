@@ -731,21 +731,45 @@
                                      code-behind needed. Margin trims the button's built-in padding
                                      so the links line up with the text above. -->
                                 <StackPanel Orientation="Horizontal" Spacing="4"
-                                            HorizontalAlignment="Center">
-                                    <HyperlinkButton Content="Website"
-                                                     NavigateUri="https://www.anchodock-app.com" />
-                                    <HyperlinkButton Content="Feedback"
-                                                     NavigateUri="https://www.anchodock-app.com/feedback.html" />
-                                    <HyperlinkButton Content="Changelog"
-                                                     NavigateUri="https://www.anchodock-app.com/changelog.html" />
-                                    <HyperlinkButton Content="{loc:Localize Key=About.SourceCode}"
-                                                     NavigateUri="https://github.com/framedparadox/anchor-dock" />
-                                    <HyperlinkButton Content="{loc:Localize Key=About.ReportIssue}"
-                                                     NavigateUri="https://github.com/framedparadox/anchor-dock/issues" />
+                                            HorizontalAlignment="Left">
                                     <HyperlinkButton Content="{loc:Localize Key=About.License}"
                                                      NavigateUri="https://github.com/framedparadox/anchor-dock/blob/main/LICENSE" />
                                     <HyperlinkButton Content="{loc:Localize Key=About.PrivacyPolicy}"
-                                                     NavigateUri="https://www.anchodock-app.com/privacy.html" />
+                                                     NavigateUri="https://www.anchordock-app.com/privacy.html" />
+                                    <HyperlinkButton Content="{loc:Localize Key=About.Website}"
+                                                     NavigateUri="https://www.anchordock-app.com" />
+                                    <HyperlinkButton Content="{loc:Localize Key=About.Changelog}"
+                                                     NavigateUri="https://www.anchordock-app.com/changelog.html" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <FontIcon Glyph="&#xE939;"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                              FontSize="18" VerticalAlignment="Center" />
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{loc:Localize Key=About.Support}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{loc:Localize Key=About.SupportDesc}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="4"
+                                            HorizontalAlignment="Left">
+                                    <HyperlinkButton Content="{loc:Localize Key=About.RateStore}"
+                                                     NavigateUri="https://apps.microsoft.com/detail/9nlp5cwmkdj0" />
+                                    <HyperlinkButton Content="{loc:Localize Key=About.StarGitHub}"
+                                                     NavigateUri="https://github.com/framedparadox/anchor-dock" />
+                                    <HyperlinkButton Content="{loc:Localize Key=About.Feedback}"
+                                                     NavigateUri="https://www.anchordock-app.com/feedback.html" />
+                                    <HyperlinkButton Content="{loc:Localize Key=About.ReportIssue}"
+                                                     NavigateUri="https://github.com/framedparadox/anchor-dock/issues" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>

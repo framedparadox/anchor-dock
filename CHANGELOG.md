@@ -4,6 +4,14 @@ All notable changes to Anchor are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the change was made,
 not necessarily when it shipped in a release.
 
+## [v1.2.5]
+
+#### Changed
+
+- **About links are easier to find.** The About page now groups rating, GitHub stars, feedback
+  and issue reporting under **Feedback & support**, and keeps the license, privacy policy,
+  website and changelog together. The support section also has its own icon.
+
 ## [v1.2.4]
 
 #### Added
