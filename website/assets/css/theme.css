@@ -63,3 +63,79 @@ html[data-theme="dark"] .get__badge--grey { background: rgba(255,255,255,.1); }
 html[data-theme="dark"] .skip-link { background: #2c2c2e; color: #fff; }
 html[data-theme="dark"] .compare__head { background: rgba(28,28,30,.92); }
 html[data-theme="light"] .cheat__keys kbd { background: #ececf0; color: #1d1d1f; box-shadow: 0 -2px 0 rgba(0,0,0,.12) inset, 0 1px 0 #fff inset; }
+
+/* ---- Dark-mode fixes for document pages and the More apps cards ------------- */
+html[data-theme="dark"] .doc p,
+html[data-theme="dark"] .doc li,
+html[data-theme="dark"] .doc td { color: #d1d1d6; }
+html[data-theme="dark"] .app-card { background: #1c1c1e; box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset, 0 12px 40px -16px rgba(0,0,0,.6); }
+html[data-theme="dark"] .app-card__tag,
+html[data-theme="dark"] .app-pill { background: rgba(255,255,255,.08); }
+html[data-theme="dark"] .app-pill:hover { background: rgba(41,151,255,.16); color: var(--link) !important; }
+html[data-theme="dark"] .app-card__icon.app-card__icon--logo { background: #2c2c2e; box-shadow: 0 0 0 1px rgba(255,255,255,.1) inset; }
+
+/* ---- Changelog and feedback pages ------------------------------------------- */
+.release { margin: 0 0 28px; padding: 28px 28px 30px; border-radius: var(--radius-md); background: var(--paper-2); }
+.doc .release h2 { margin: 0; padding: 0; border: 0; }
+.release__meta { margin-top: 6px; color: var(--ink-2); font-size: 15px; }
+.release h3 { margin: 22px 0 0; font-size: 17px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 40px; }
+.summary-card { padding: 20px; border-radius: var(--radius-md); box-shadow: 0 0 0 1px var(--hairline) inset; }
+.summary-card h3 { margin: 0 0 6px; font-size: 17px; }
+.doc .summary-card p { margin: 0; color: var(--ink-2); font-size: 15px; }
+
+.feedback-form { display: grid; gap: 18px; }
+.feedback-form label { display: grid; gap: 8px; font-weight: 600; font-size: 15px; }
+.feedback-form .opt { color: var(--ink-2); font-weight: 400; }
+.feedback-form input, .feedback-form select, .feedback-form textarea {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 12px;
+  background: var(--paper); color: var(--ink); font: inherit; font-weight: 400;
+}
+.feedback-form input:focus-visible, .feedback-form select:focus-visible, .feedback-form textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; border-color: transparent; }
+.feedback-form textarea { min-height: 180px; resize: vertical; }
+.feedback-form .btn { justify-self: start; }
+.doc .feedback-form .muted { margin: 0; color: var(--ink-2); font-size: 14px; }
+.feedback-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 40px; }
+.feedback-card { padding: 20px; border-radius: var(--radius-md); background: var(--paper-2); }
+.feedback-card h3 { margin: 0 0 6px; font-size: 17px; }
+.doc .feedback-card p { margin: 0; color: var(--ink-2); font-size: 15px; }
+
+/* ---- Footer "More apps" row ------------------------------------------------- */
+.footer__cols--5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 1068px) { .footer__cols--5 { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 734px) { .footer__cols--5 { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---- Cookie notice: a small glass card, like the dock itself ---------------- */
+.cookie {
+  position: fixed; z-index: 90; left: 20px; bottom: 20px;
+  width: min(380px, calc(100% - 32px));
+  padding: 18px 18px 16px;
+  border-radius: 18px;
+  background: rgba(251, 251, 253, .82);
+  color: var(--ink);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.08) inset, 0 18px 50px -12px rgba(0,0,0,.28);
+  font-size: 14px; line-height: 1.45; letter-spacing: -0.01em;
+  transform: translateY(16px); opacity: 0;
+  transition: transform .45s var(--ease-out), opacity .45s var(--ease-out);
+}
+.cookie.is-shown { transform: none; opacity: 1; }
+.cookie__head { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.cookie__head svg { width: 22px; height: 22px; flex: none; }
+.cookie p { margin: 0; color: var(--ink-2); }
+.cookie__actions { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.cookie__actions a { font-size: 13px; }
+html[data-theme="dark"] .cookie { background: rgba(28, 28, 30, .82); box-shadow: 0 0 0 1px rgba(255,255,255,.1) inset, 0 18px 50px -12px rgba(0,0,0,.7); }
+@media (max-width: 600px) { .cookie { left: 16px; right: 16px; bottom: 16px; width: auto; } }
+@media (prefers-reduced-motion: reduce) { .cookie { transition: none; } }
+@media print { .cookie { display: none; } }
+
+/* ---- More apps: three-up grid for the desktop apps --------------------------- */
+.app-grid--three { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1068px) { .app-grid--three { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .app-grid--three { grid-template-columns: 1fr; } }
+.app-card[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
+.app-card--link { color: inherit; text-decoration: none !important; }
+.app-card--link h3 { color: var(--ink); }
+.app-card--link:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: var(--radius-lg); }

@@ -3,55 +3,219 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>AnchorDock</title>
-  <meta name="description" content="Anchor is a floating Windows dock and app launcher built on WinUI 3 and dotnet. Pin apps, files, folders and web links, and launch them across multiple monitors with a shortcut.">
+  <title>Anchor — Free Floating Dock &amp; App Launcher for Windows 11</title>
+  <meta name="description" content="Anchor is a free, open-source floating dock for Windows 11. Pin apps, files, folders and links, snap it to any monitor edge, and summon it with Ctrl+Alt+A.">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="author" content="Ajay Kontham">
   <meta name="theme-color" content="#000000">
   <meta name="color-scheme" content="light dark">
-  <link rel="canonical" href="https://www.anchordock-app.com/">
+  <link rel="canonical" href="https://anchordock-app.com/">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Anchor">
+  <meta property="og:locale" content="en_US">
   <meta property="og:title" content="Anchor — Drop anchor. Launch anything.">
-  <meta property="og:description" content="A native WinUI 3 dock for Windows. Real acrylic glass, one dock per monitor, fly-out groups and search across every pin. Free, open source, and private by design.">
-  <meta property="og:url" content="https://www.anchordock-app.com/">
-  <meta property="og:image" content="https://www.anchordock-app.com/assets/img/og.jpg">
+  <meta property="og:description" content="A free, native WinUI 3 dock for Windows 11. Real acrylic glass, one dock per monitor, fly-out groups and search across every pin. Open source and private by design.">
+  <meta property="og:url" content="https://anchordock-app.com/">
+  <meta property="og:image" content="https://anchordock-app.com/assets/img/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Anchor, a glass dock floating above the Windows 11 taskbar">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Anchor — Drop anchor. Launch anything.">
-  <meta name="twitter:description" content="A native WinUI 3 dock for Windows. Free, open source, and private by design.">
-  <meta name="twitter:image" content="https://www.anchordock-app.com/assets/img/og.jpg">
+  <meta name="twitter:description" content="A free, native WinUI 3 dock for Windows 11. Open source and private by design.">
+  <meta name="twitter:image" content="https://anchordock-app.com/assets/img/og.jpg">
+  <meta name="twitter:image:alt" content="Anchor, a glass dock floating above the Windows 11 taskbar">
+  <meta name="msapplication-TileColor" content="#000000">
 
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/icon-32.png">
-  <link rel="apple-touch-icon" href="assets/img/icon-180.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="assets/css/site.css">
-  <link rel="stylesheet" href="assets/css/theme.css">
-  <script src="assets/js/theme.js"></script>
-  <link rel="preload" as="image" href="assets/img/dock-dark.webp">
-
-  <script>document.documentElement.classList.add('js');</script>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon-32.png">
+  <link rel="apple-touch-icon" href="/assets/img/icon-180.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/theme.css">
+  <script src="/assets/js/theme.js"></script>
+  <link rel="preload" as="image" href="/assets/img/dock-dark.webp">
 
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "AnchorDock",
-    "alternateName": "Anchor Dock",
-    "applicationCategory": "UtilitiesApplication",
-    "operatingSystem": "Windows 11, Windows 10 version 1809 or later",
-    "softwareVersion": "1.2.3",
-    "description": "A native WinUI 3 dock for Windows. Pin apps, files, folders and web links; snap to any edge of any monitor; summon with Ctrl+Alt+A.",
-    "url": "https://www.anchordock-app.com/",
-    "downloadUrl": "https://apps.microsoft.com/detail/9nlp5cwmkdj0",
-    "installUrl": "https://apps.microsoft.com/detail/9nlp5cwmkdj0",
-    "license": "https://opensource.org/licenses/MIT",
-    "author": { "@type": "Person", "name": "Ajay Kontham", "url": "https://github.com/ajaykontham" },
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "inLanguage": ["en", "de", "es", "fr", "hi", "ja", "pt-BR", "zh-Hans"]
-  }
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://anchordock-app.com/#website",
+      "url": "https://anchordock-app.com/",
+      "name": "Anchor",
+      "alternateName": [
+        "AnchorDock",
+        "Anchor Dock"
+      ],
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://anchordock-app.com/#author"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://anchordock-app.com/#author",
+      "name": "Ajay Kontham",
+      "alternateName": "framedparadox",
+      "url": "https://anchordock-app.com/about",
+      "sameAs": [
+        "https://github.com/ajaykontham",
+        "https://github.com/framedparadox"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://anchordock-app.com/#app",
+      "name": "Anchor",
+      "alternateName": [
+        "AnchorDock",
+        "Anchor Dock"
+      ],
+      "applicationCategory": "UtilitiesApplication",
+      "applicationSubCategory": "Dock and app launcher",
+      "operatingSystem": "Windows 11, Windows 10 version 1809 or later",
+      "processorRequirements": "x64, ARM64",
+      "softwareVersion": "1.2.5",
+      "description": "A free, open-source floating dock and app launcher for Windows 11. Pin apps, files, folders and web links; snap to any edge of any monitor; summon it with Ctrl+Alt+A. No account, no telemetry.",
+      "url": "https://anchordock-app.com/",
+      "image": "https://anchordock-app.com/assets/img/og.jpg",
+      "screenshot": [
+        "https://anchordock-app.com/assets/img/dock-dark.webp",
+        "https://anchordock-app.com/assets/img/dock-light.webp",
+        "https://anchordock-app.com/assets/img/dock-group.webp"
+      ],
+      "downloadUrl": "https://apps.microsoft.com/detail/9nlp5cwmkdj0",
+      "installUrl": "https://apps.microsoft.com/detail/9nlp5cwmkdj0",
+      "releaseNotes": "https://anchordock-app.com/changelog",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "codeRepository": "https://github.com/framedparadox/anchor-dock",
+      "author": {
+        "@id": "https://anchordock-app.com/#author"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "inLanguage": [
+        "en",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "ja",
+        "pt-BR",
+        "zh-Hans"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://anchordock-app.com/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I quit Anchor?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Right-click the tray icon and choose Quit Anchor, or right-click the dock's background. The dock deliberately stays off the taskbar, so there's no taskbar close button."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where did my dock go after I snapped it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It auto-hides behind that edge. Move the cursor to the edge or onto the notch, press Ctrl+Alt+A, or click the tray icon. Turn off Auto-hide when snapped in Settings ▸ Docks to keep it visible."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "The shortcut doesn't work.",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Another app almost certainly owns that combination. Settings tells you when it can't register one. Pick a different combination, or switch the shortcut off entirely."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I run it on multiple monitors?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. A single dock hides and reveals on whichever monitor you dropped it on. Or give each screen its own from Settings ▸ Docks ▸ Add dock, and each keeps its own items and edge."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use my own icon for an item?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Right-click it, choose Edit…, then Change icon… and pick a PNG, ICO, JPG, BMP or GIF. Use the default icon puts the original back."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it need admin rights?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Everything, including Start with Windows, is per-user."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it work on Windows 10?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The minimum is Windows 10 version 1809 (build 17763). Anchor is designed and tested on Windows 11, where acrylic, rounded corners and the Mica Settings window look their best."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is it different from RocketDock or ObjectDock?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Those are classic docks that fake transparency, or theming shells around the taskbar. Anchor is a native WinUI 3 app that uses the real Windows 11 acrylic, lives beside the taskbar rather than replacing it, and treats files and links as first-class items, not just apps."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does SmartScreen warn me about the zip?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Portable releases aren't code-signed yet. Choose More info ▸ Run anyway. The Microsoft Store version doesn't show this warning."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I move my dock to another PC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Use Settings ▸ General ▸ Export to save every dock, item and setting to a file, then Import it on the other PC. Importing replaces everything, so export first if you want to keep what's there."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I add a language you don't ship?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Adding one is a single file. Copy src/Anchor/Strings/en.json, translate the values, and add the code to Loc.Available. The tests tell you if you missed a key. Translation fixes are welcome too."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I uninstall the portable version?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Turn off Start with Windows, quit Anchor from the tray, then delete the folder you extracted and %AppData%\\Anchor. That's everything."
+          }
+        }
+      ]
+    }
+  ]
+}
   </script>
 </head>
 <body>
@@ -157,7 +321,7 @@
 <header class="nav" id="nav">
   <div class="wrap-wide nav__inner">
     <a class="nav__brand" href="#top" aria-label="Anchor, back to top">
-      <img src="assets/img/icon-180.png" alt="" width="26" height="26">
+      <img src="/assets/img/icon-180.png" alt="" width="26" height="26">
       Anchor
     </a>
     <nav aria-label="Primary">
@@ -166,9 +330,9 @@
         <li><a href="#features">Features</a></li>
         <li><a href="#privacy">Privacy</a></li>
         <li><a href="#specs">Tech Specs</a></li>
-        <li><a href="changelog.html">Changelog</a></li>
-        <li><a href="feedback.html">Feedback</a></li>
-        <li><a href="apps.html">More Apps</a></li>
+        <li><a href="/changelog">Changelog</a></li>
+        <li><a href="/feedback">Feedback</a></li>
+        <li><a href="/apps">More Apps</a></li>
         <li><a href="#faq">FAQ</a></li>
         <li><a href="https://github.com/framedparadox/anchor-dock">GitHub</a></li>
       </ul>
@@ -185,8 +349,8 @@
 <!-- ============ Hero ============ -->
 <section class="stage hero center" id="top" aria-labelledby="hero-title">
   <div class="wrap">
-    <img class="hero__logo reveal" src="assets/img/logo.png" alt="" width="84" height="84">
-    <p class="hero__eyebrow reveal">Anchor for Windows</p>
+    <img class="hero__logo reveal" src="/assets/img/logo.png" alt="" width="84" height="84">
+    <p class="hero__eyebrow reveal">Anchor · the floating dock for Windows 11</p>
     <h1 class="headline reveal reveal-d1" id="hero-title">Drop anchor.<br><span class="gradient-text">Launch anything.</span></h1>
     <p class="lede reveal reveal-d2">A native glass dock for the apps, files, folders and links you actually reach for. It stays out of the way until you whistle for it.</p>
     <div class="cta-row reveal reveal-d3">
@@ -194,14 +358,14 @@
         <svg aria-hidden="true"><use href="#i-windows"/></svg>
         Get it from Microsoft Store
       </a>
-      <a class="more" href="changelog.html">View changelog</a>
+      <a class="more" href="/changelog">View changelog</a>
     </div>
-    <p class="hero__meta reveal reveal-d3">Free &amp; open source · Windows 11 · x64 and ARM64 · Version 1.2.3</p>
+    <p class="hero__meta reveal reveal-d3">Free &amp; open source · Windows 11 · x64 and ARM64 · Version 1.2.5</p>
   </div>
 
   <div class="hero__stage" aria-hidden="false">
     <figure class="hero__screen" id="hero-screen" style="margin-block:0">
-      <img src="assets/img/dock-dark.webp" width="1523" height="959"
+      <img src="/assets/img/dock-dark.webp" width="1523" height="959"
            alt="The Windows 11 desktop with Anchor floating as a slim dark glass strip just above the taskbar, holding two folders, a website and the Microsoft Store.">
       <figcaption class="hero__callout"><span>Anchor</span></figcaption>
     </figure>
@@ -267,7 +431,7 @@
         <p class="tile__kicker">A harbour, not a list</p>
         <h3 class="tile__title">Groups fly out like a second dock.</h3>
         <p class="tile__body">Same glass, same cells. Not a menu.</p>
-        <div class="tile__shot"><img src="assets/img/group-crop.webp" alt="A group's fly-out bar opening above the dock with five more apps in it." loading="lazy" width="680" height="406"></div>
+        <div class="tile__shot"><img src="/assets/img/group-crop.webp" alt="A group's fly-out bar opening above the dock with five more apps in it." loading="lazy" width="680" height="406"></div>
       </article>
 
       <!-- Shortcut -->
@@ -304,7 +468,7 @@
         <p class="tile__kicker">Out of sight</p>
         <h3 class="tile__title">Tucks behind any edge.</h3>
         <p class="tile__body">Snap it to a side and it slides away, leaving a small notch. Behind the taskbar, if you like.</p>
-        <img class="snap-shot" src="assets/img/dock-sidesnap.webp" alt="Anchor snapped vertically to the right edge of the screen, just above the clock." loading="lazy" width="185" height="353">
+        <img class="snap-shot" src="/assets/img/dock-sidesnap.webp" alt="Anchor snapped vertically to the right edge of the screen, just above the clock." loading="lazy" width="185" height="353">
       </article>
 
       <!-- Privacy -->
@@ -337,7 +501,7 @@
 
       <div class="closer__panels">
         <div class="closer__panel" role="tabpanel" id="panel-add" aria-labelledby="tab-add">
-          <div class="closer__media"><img src="assets/img/addToDock.webp" alt="The Add to Dock window with seven type buttons: App, File, Folder, Web Link, Shortcut, Separator and Group." width="1406" height="878" loading="lazy"></div>
+          <div class="closer__media"><img src="/assets/img/addToDock.webp" alt="The Add to Dock window with seven type buttons: App, File, Folder, Web Link, Shortcut, Separator and Group." width="1406" height="878" loading="lazy"></div>
           <div class="closer__copy">
             <h3>Seven kinds of thing, one window.</h3>
             <p>Apps are just the start. Pin a <strong>file, a folder, a web link, a shell shortcut</strong>, a separator or a whole group. Browse picks the target; the name fills itself in. Or skip the window and drag straight from Explorer.</p>
@@ -346,7 +510,7 @@
         </div>
 
         <div class="closer__panel" role="tabpanel" id="panel-search" aria-labelledby="tab-search" hidden>
-          <div class="closer__media closer__media--contain"><img src="assets/img/quick-search.webp" alt="Anchor Search open beneath the dock, listing folders, shortcuts and a website that match." width="542" height="561" loading="lazy"></div>
+          <div class="closer__media closer__media--contain"><img src="/assets/img/quick-search.webp" alt="Anchor Search open beneath the dock, listing folders, shortcuts and a website that match." width="542" height="561" loading="lazy"></div>
           <div class="closer__copy">
             <h3>Type. Arrow. Enter.</h3>
             <p>Quick-launch search opens a small glass card that filters <strong>every item on every dock</strong>, including the ones tucked inside groups. Esc or a click elsewhere dismisses it.</p>
@@ -355,7 +519,7 @@
         </div>
 
         <div class="closer__panel" role="tabpanel" id="panel-groups" aria-labelledby="tab-groups" hidden>
-          <div class="closer__media"><img src="assets/img/dock-group.webp" alt="A group open as a second glass bar directly above the main dock." width="1491" height="876" loading="lazy"></div>
+          <div class="closer__media"><img src="/assets/img/dock-group.webp" alt="A group open as a second glass bar directly above the main dock." width="1491" height="876" loading="lazy"></div>
           <div class="closer__copy">
             <h3>A long dock, kept short.</h3>
             <p>Drag an icon onto another to start a group. Hover it and a <strong>fly-out bar grows out of the icon</strong>, running across the dock and away from the edge it's snapped to.</p>
@@ -364,7 +528,7 @@
         </div>
 
         <div class="closer__panel" role="tabpanel" id="panel-light" aria-labelledby="tab-light" hidden>
-          <div class="closer__media"><img src="assets/img/dock-light.webp" alt="Anchor in its light theme floating above the taskbar." width="1492" height="939" loading="lazy"></div>
+          <div class="closer__media"><img src="/assets/img/dock-light.webp" alt="Anchor in its light theme floating above the taskbar." width="1492" height="939" loading="lazy"></div>
           <div class="closer__copy">
             <h3>Light, Dark, or whatever Windows says.</h3>
             <p>The dock, its glass, and the Settings and Add windows all switch together. Turn on <strong>accent tint</strong> to wash the acrylic in your Windows accent colour.</p>
@@ -373,7 +537,7 @@
         </div>
 
         <div class="closer__panel" role="tabpanel" id="panel-settings" aria-labelledby="tab-settings" hidden>
-          <div class="closer__media"><img src="assets/img/s-appearance.webp" alt="Anchor Settings open on the Appearance page with theme, icon size and magnification options." width="1000" height="728" loading="lazy"></div>
+          <div class="closer__media"><img src="/assets/img/s-appearance.webp" alt="Anchor Settings open on the Appearance page with theme, icon size and magnification options." width="1000" height="728" loading="lazy"></div>
           <div class="closer__copy">
             <h3>Settings that feel like Windows.</h3>
             <p>A Mica window with left navigation and six pages: <strong>General, Appearance, Shortcuts, Docks, Apps &amp; links</strong> and <strong>About</strong>. Changes apply as you make them.</p>
@@ -430,7 +594,7 @@
   <div class="wrap-wide">
 
     <div class="split">
-      <div class="split__media reveal"><img src="assets/img/group-crop.webp" alt="Close-up of a group fly-out above the main dock." width="680" height="406" loading="lazy"></div>
+      <div class="split__media reveal"><img src="/assets/img/group-crop.webp" alt="Close-up of a group fly-out above the main dock." width="680" height="406" loading="lazy"></div>
       <div class="split__copy">
         <p class="eyebrow reveal">Groups &amp; folder stacks</p>
         <h2 class="headline headline--sm reveal">Club related things into one icon.</h2>
@@ -465,7 +629,7 @@
 
     <div class="split">
       <div class="split__media reveal" style="background:#dfe6ee;display:grid;place-items:center;padding:28px">
-        <img src="assets/img/quick-search.webp" alt="Anchor Search filtering pinned items." width="542" height="561" loading="lazy" style="width:auto;max-height:440px;border-radius:12px">
+        <img src="/assets/img/quick-search.webp" alt="Anchor Search filtering pinned items." width="542" height="561" loading="lazy" style="width:auto;max-height:440px;border-radius:12px">
       </div>
       <div class="split__copy">
         <p class="eyebrow reveal">Keyboard first</p>
@@ -494,12 +658,12 @@
   </div>
 
   <div class="carousel" id="carousel" tabindex="0" aria-label="Settings pages, scroll horizontally">
-    <figure class="slide"><div class="slide__frame"><img src="assets/img/s-general.webp" alt="Settings, General page" width="1006" height="743" loading="lazy"></div><figcaption><strong>General.</strong> Language, running-app indicators, start with Windows, backup and restore.</figcaption></figure>
-    <figure class="slide"><div class="slide__frame"><img src="assets/img/s-appearance.webp" alt="Settings, Appearance page" width="1000" height="728" loading="lazy"></div><figcaption><strong>Appearance.</strong> Theme, icon size, gear position, magnification, group on hover, names, accent tint.</figcaption></figure>
-    <figure class="slide"><div class="slide__frame"><img src="assets/img/s-shortcuts.webp" alt="Settings, Shortcuts page" width="1005" height="768" loading="lazy"></div><figcaption><strong>Shortcuts.</strong> The summon key, quick-launch search, and every per-item shortcut you've assigned.</figcaption></figure>
-    <figure class="slide"><div class="slide__frame"><img src="assets/img/s-docks.webp" alt="Settings, Docks page" width="1000" height="744" loading="lazy"></div><figcaption><strong>Docks.</strong> One card per dock: name, monitor, position, auto-hide and always-on-top.</figcaption></figure>
-    <figure class="slide"><div class="slide__frame"><img src="assets/img/s-appsAndLinks.webp" alt="Settings, Apps and links page" width="1045" height="757" loading="lazy"></div><figcaption><strong>Apps &amp; links.</strong> Every entry by dock, with reorder, show/hide, edit and remove.</figcaption></figure>
-    <figure class="slide"><div class="slide__frame"><img src="assets/img/s-about.webp" alt="Settings, About page" width="925" height="739" loading="lazy"></div><figcaption><strong>About.</strong> Version, source, licence, and the privacy summary in plain words.</figcaption></figure>
+    <figure class="slide"><div class="slide__frame"><img src="/assets/img/s-general.webp" alt="Settings, General page" width="1006" height="743" loading="lazy"></div><figcaption><strong>General.</strong> Language, running-app indicators, start with Windows, backup and restore.</figcaption></figure>
+    <figure class="slide"><div class="slide__frame"><img src="/assets/img/s-appearance.webp" alt="Settings, Appearance page" width="1000" height="728" loading="lazy"></div><figcaption><strong>Appearance.</strong> Theme, icon size, gear position, magnification, group on hover, names, accent tint.</figcaption></figure>
+    <figure class="slide"><div class="slide__frame"><img src="/assets/img/s-shortcuts.webp" alt="Settings, Shortcuts page" width="1005" height="768" loading="lazy"></div><figcaption><strong>Shortcuts.</strong> The summon key, quick-launch search, and every per-item shortcut you've assigned.</figcaption></figure>
+    <figure class="slide"><div class="slide__frame"><img src="/assets/img/s-docks.webp" alt="Settings, Docks page" width="1000" height="744" loading="lazy"></div><figcaption><strong>Docks.</strong> One card per dock: name, monitor, position, auto-hide and always-on-top.</figcaption></figure>
+    <figure class="slide"><div class="slide__frame"><img src="/assets/img/s-appsAndLinks.webp" alt="Settings, Apps and links page" width="1045" height="757" loading="lazy"></div><figcaption><strong>Apps &amp; links.</strong> Every entry by dock, with reorder, show/hide, edit and remove.</figcaption></figure>
+    <figure class="slide"><div class="slide__frame"><img src="/assets/img/s-about.webp" alt="Settings, About page" width="925" height="739" loading="lazy"></div><figcaption><strong>About.</strong> Version, source, licence, and the privacy summary in plain words.</figcaption></figure>
   </div>
 
   <div class="wrap-wide">
@@ -523,7 +687,7 @@
       <div class="compare__head" role="row">
         <span role="columnheader"></span>
         <span role="columnheader">Windows taskbar</span>
-        <span role="columnheader" class="is-us"><img src="assets/img/icon-32.png" alt="" width="22" height="22">Anchor</span>
+        <span role="columnheader" class="is-us"><img src="/assets/img/icon-32.png" alt="" width="22" height="22">Anchor</span>
       </div>
       <dl style="margin:0">
         <div class="compare__row" role="row"><dt role="rowheader">What you pin</dt><dd role="cell">Apps</dd><dd role="cell" class="is-us">Apps, plus <b>files, folders, web links, shortcuts, separators and groups</b></dd></div>
@@ -573,7 +737,7 @@
       <p class="dim" style="margin-top:10px">// Never pin a web link and Anchor makes no network requests at all.</p>
     </div>
 
-    <p class="center reveal" style="margin-top:40px"><a class="more" href="privacy.html">Read the privacy policy</a></p>
+    <p class="center reveal" style="margin-top:40px"><a class="more" href="/privacy">Read the privacy policy</a></p>
   </div>
 </section>
 
@@ -638,18 +802,18 @@
 
       <article class="get__card reveal reveal-d1">
         <span class="get__badge get__badge--grey">Alternative</span>
-        <h3>Microsoft Store</h3>
-        <p>The recommended install path for most users: simple, clean, and automatically updated by Windows.</p>
+        <h3>GitHub release</h3>
+        <p>For offline or managed PCs: install the same app package by hand, straight from the source repository.</p>
         <ol>
-          <li>Open the Microsoft Store listing.</li>
-          <li>Choose <strong>Install</strong> and wait for the app to download.</li>
-          <li>Launch Anchor from the Start menu or your tray icon.</li>
+          <li>Open the latest release on GitHub.</li>
+          <li>Download the <strong>.msixbundle</strong> file under <em>Assets</em>.</li>
+          <li>Double-click it and choose <strong>Install</strong>.</li>
           <li>Use <strong>Settings ▸ General ▸ Start with Windows</strong> if you want it to launch at sign-in.</li>
         </ol>
         <div class="get__actions">
-          <a class="btn" href="https://apps.microsoft.com/detail/9nlp5cwmkdj0"><svg aria-hidden="true"><use href="#i-download"/></svg>Open Microsoft Store</a>
+          <a class="btn" href="https://github.com/framedparadox/anchor-dock/releases/latest"><svg aria-hidden="true"><use href="#i-download"/></svg>Latest release on GitHub</a>
         </div>
-        <p class="get__note">The Store version is the supported install path. The GitHub release remains available for advanced/manual scenarios, but the Store keeps Anchor current and simplifies support.</p>
+        <p class="get__note">The Microsoft Store is the supported install path and keeps Anchor up to date. A manual install doesn't update itself, so check the <a href="/changelog">changelog</a> now and then.</p>
       </article>
     </div>
   </div>
@@ -684,7 +848,7 @@
     <h2 class="headline headline--md reveal" id="specs-title">Tech Specs</h2>
 
     <div class="specs">
-      <div class="spec"><h3>Version</h3><div class="spec__body"><p>1.2.3</p><p class="sub"><a href="https://github.com/framedparadox/anchor-dock/blob/main/CHANGELOG.md">Release notes</a></p></div></div>
+      <div class="spec"><h3>Version</h3><div class="spec__body"><p>1.2.5</p><p class="sub"><a href="/changelog">Release notes</a></p></div></div>
       <div class="spec"><h3>Operating system</h3><div class="spec__body"><p>Windows 11 (designed and tested on build 26200)</p><p class="sub">Windows 10 version 1809 (build 17763) and later should also work. Acrylic, rounded corners and Mica look their best on Windows 11.</p></div></div>
       <div class="spec"><h3>Architecture</h3><div class="spec__body"><p>x64 and ARM64</p><p class="sub">Separate native builds. There is no x86 build.</p></div></div>
       <div class="spec"><h3>Built with</h3><div class="spec__body"><p>.NET 10 and WinUI 3 (Windows App SDK)</p><p class="sub">Self-contained. Nothing else to install.</p></div></div>
@@ -762,7 +926,7 @@
 <!-- ============ Open source ============ -->
 <section class="stage oss" aria-labelledby="oss-title">
   <div class="wrap">
-    <img class="oss__logo reveal" src="assets/img/logo.png" alt="" width="96" height="96" loading="lazy">
+    <img class="oss__logo reveal" src="/assets/img/logo.png" alt="" width="96" height="96" loading="lazy">
     <h2 class="headline headline--md reveal" id="oss-title">Built in the open.<br><span class="gradient-text">Free for everyone.</span></h2>
     <p class="lede reveal" style="margin-inline:auto">Anchor is MIT-licensed and developed on GitHub. Bug reports, feature ideas and translation fixes are all welcome.</p>
     <div class="cta-row reveal">
@@ -779,6 +943,42 @@
   </div>
 </section>
 
+<!-- ============ More from the developer ============ -->
+<section class="stage stage--paper more-apps" aria-labelledby="more-apps-title">
+  <div class="wrap-wide">
+    <div class="section-head section-head--split">
+      <h2 class="headline headline--md reveal" id="more-apps-title">More from the developer.</h2>
+      <a class="more reveal" href="/apps">See all apps</a>
+    </div>
+    <div class="app-grid app-grid--three">
+      <a class="app-card app-card--link reveal" href="/apps#swiftx">
+        <div class="app-card__top">
+          <div class="app-card__icon app-card__icon--logo"><img src="/assets/img/apps/swiftx.svg" alt="" width="32" height="32" loading="lazy"></div>
+          <span class="app-card__tag">Windows app</span>
+        </div>
+        <h3>SwiftX</h3>
+        <p>A quick-access orbit for apps, files, folders and links, summoned with a shortcut, a screen corner or the tray.</p>
+      </a>
+      <a class="app-card app-card--link reveal reveal-d1" href="/apps#keystore-studio">
+        <div class="app-card__top">
+          <div class="app-card__icon app-card__icon--logo"><img src="/assets/img/apps/keystore-studio.png" alt="" width="34" height="34" loading="lazy"></div>
+          <span class="app-card__tag">Windows · macOS · Linux</span>
+        </div>
+        <h3>Keystore Studio</h3>
+        <p>Open, convert, sign and audit Java keystores, PKCS#12 files and X.509 certificates, all locally.</p>
+      </a>
+      <a class="app-card app-card--link reveal reveal-d2" href="/apps#dockdev">
+        <div class="app-card__top">
+          <div class="app-card__icon app-card__icon--logo"><img src="/assets/img/apps/dockdev.png" alt="" width="36" height="36" loading="lazy"></div>
+          <span class="app-card__tag">Windows app</span>
+        </div>
+        <h3>DockDev</h3>
+        <p>A floating developer toolbox: format JSON, decode JWTs, hash files and mask personal data, offline.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
 </main>
 
 <!-- ============ Footer ============ -->
@@ -790,7 +990,7 @@
       <p>Windows, Microsoft Store and the Microsoft logo are trademarks of the Microsoft group of companies. Anchor is an independent project and is not affiliated with or endorsed by Microsoft.</p>
     </div>
 
-    <div class="footer__cols">
+    <div class="footer__cols footer__cols--5">
       <div>
         <h2>Anchor</h2>
         <ul>
@@ -798,34 +998,43 @@
           <li><a href="#features">Features</a></li>
           <li><a href="#compare">Anchor vs. taskbar</a></li>
           <li><a href="#specs">Tech Specs</a></li>
+          <li><a href="#faq">FAQ</a></li>
         </ul>
       </div>
       <div>
         <h2>Get it</h2>
         <ul>
           <li><a href="https://apps.microsoft.com/detail/9nlp5cwmkdj0">Microsoft Store</a></li>
-          <li><a href="changelog.html">Changelog</a></li>
-          <li><a href="feedback.html">Share feedback</a></li>
+          <li><a href="https://github.com/framedparadox/anchor-dock/releases/latest">Latest release</a></li>
+          <li><a href="/changelog">Changelog</a></li>
           <li><a href="#how">How to use it</a></li>
         </ul>
       </div>
       <div>
         <h2>Support</h2>
         <ul>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="feedback.html">Suggestions &amp; praise</a></li>
+          <li><a href="/feedback">Share feedback</a></li>
           <li><a href="https://github.com/framedparadox/anchor-dock/issues">Report a bug</a></li>
           <li><a href="https://github.com/sponsors/ajaykontham">Sponsor the project</a></li>
-          <li><a href="apps.html">More Apps</a></li>
+          <li><a href="/privacy">Privacy policy</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>More apps</h2>
+        <ul>
+          <li><a href="/apps#swiftx">SwiftX</a></li>
+          <li><a href="/apps#keystore-studio">Keystore Studio</a></li>
+          <li><a href="/apps#dockdev">DockDev</a></li>
+          <li><a href="/apps">All apps</a></li>
         </ul>
       </div>
       <div>
         <h2>Open source</h2>
         <ul>
+          <li><a href="/about">About the developer</a></li>
           <li><a href="https://github.com/framedparadox/anchor-dock">Source code</a></li>
           <li><a href="https://github.com/framedparadox/anchor-dock#contributing">Contributing</a></li>
           <li><a href="https://github.com/framedparadox/anchor-dock/blob/main/LICENSE">MIT License</a></li>
-          <li><a href="https://github.com/ajaykontham">Ajay Kontham on GitHub</a></li>
         </ul>
       </div>
     </div>
@@ -833,15 +1042,17 @@
     <div class="footer__legal">
       <p style="margin:0">Copyright © 2026 Ajay Kontham. Released under the MIT License.</p>
       <nav aria-label="Legal">
-        <a href="privacy.html">Privacy Policy</a>
-        <a href="feedback.html">Feedback</a>
-        <a href="changelog.html">Changelog</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/feedback">Contact</a>
+        <a href="/changelog">Changelog</a>
+        <a href="/about">About</a>
         <a href="https://github.com/framedparadox/anchor-dock">GitHub</a>
       </nav>
     </div>
   </div>
 </footer>
 
-<script src="assets/js/site.js" defer></script>
+<script src="/assets/js/site.js" defer></script>
+<script src="/assets/js/consent.js" defer></script>
 </body>
 </html>

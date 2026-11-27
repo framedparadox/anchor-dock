@@ -4,6 +4,7 @@
   'use strict';
   var KEY = 'appsite-theme';
   var root = document.documentElement;
+  root.classList.add('js'); // lets CSS hide scroll-reveal content only when JS can show it again
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
   function stored() {

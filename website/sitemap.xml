@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://www.anchordock-app.com/</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://www.anchordock-app.com/privacy.html</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://www.anchordock-app.com/changelog.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.anchordock-app.com/feedback.html</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://www.anchordock-app.com/apps.html</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://anchordock-app.com/</loc><lastmod>2026-11-27</lastmod><changefreq>monthly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://anchordock-app.com/changelog</loc><lastmod>2026-11-27</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://anchordock-app.com/apps</loc><lastmod>2026-11-27</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://anchordock-app.com/feedback</loc><lastmod>2026-11-27</lastmod><changefreq>yearly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://anchordock-app.com/about</loc><lastmod>2026-11-27</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://anchordock-app.com/privacy</loc><lastmod>2026-11-27</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
 </urlset>

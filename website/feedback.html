@@ -3,64 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Feedback — Anchor</title>
+  <title>Feedback &amp; Contact — Anchor Dock for Windows</title>
   <meta name="description" content="Send suggestions, feedback, or praise for Anchor. Include your email if you'd like a reply.">
   <meta name="theme-color" content="#0d0f14">
-  <link rel="canonical" href="https://www.anchordock-app.com/feedback.html">
+  <link rel="canonical" href="https://anchordock-app.com/feedback">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Anchor">
   <meta property="og:title" content="Feedback — Anchor">
   <meta property="og:description" content="Send suggestions, feedback, or praise for Anchor. Include your email if you'd like a reply.">
-  <meta property="og:url" content="https://www.anchordock-app.com/feedback.html">
-  <meta property="og:image" content="https://www.anchordock-app.com/assets/img/og.jpg">
+  <meta property="og:url" content="https://anchordock-app.com/feedback">
+  <meta property="og:image" content="https://anchordock-app.com/assets/img/og.jpg">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Feedback — Anchor">
   <meta name="twitter:description" content="Send suggestions, feedback, or praise for Anchor. Include your email if you'd like a reply.">
-  <meta name="twitter:image" content="https://www.anchordock-app.com/assets/img/og.jpg">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/icon-32.png">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="assets/css/site.css">
-  <link rel="stylesheet" href="assets/css/theme.css">
-  <script src="assets/js/theme.js"></script>
-  <style>
-    .feedback-wrap { max-width: 760px; margin: 0 auto; }
-    .feedback-form { display: grid; gap: 1rem; }
-    .feedback-form label { display: grid; gap: 0.5rem; font-weight: 600; }
-    .feedback-form input,
-    .feedback-form select,
-    .feedback-form textarea {
-      width: 100%;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(255,255,255,0.04);
-      color: inherit;
-      font: inherit;
-      padding: 0.85rem 1rem;
-      box-sizing: border-box;
-    }
-    .feedback-form textarea { min-height: 180px; resize: vertical; }
-    .feedback-form .muted { color: var(--night-ink-2, #9aa6b2); font-size: 0.92rem; }
-    .feedback-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-    .feedback-card { border: 1px solid rgba(148,163,184,0.2); border-radius: 18px; padding: 1rem; background: rgba(255,255,255,0.02); }
-    .feedback-card h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
-    .feedback-card p { margin: 0; color: var(--night-ink-2); }
-  </style>
+  <meta name="twitter:image" content="https://anchordock-app.com/assets/img/og.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon-32.png">
+  <link rel="apple-touch-icon" href="/assets/img/icon-180.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/theme.css">
+  <script src="/assets/js/theme.js"></script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="nav is-light" id="nav">
   <div class="wrap-wide nav__inner">
-    <a class="nav__brand" href="index.html" aria-label="Anchor home">
-      <img src="assets/img/icon-180.png" alt="" width="26" height="26">
+    <a class="nav__brand" href="/" aria-label="Anchor home">
+      <img src="/assets/img/icon-180.png" alt="" width="26" height="26">
       Anchor
     </a>
     <nav aria-label="Primary">
       <ul class="nav__links" id="nav-links">
-        <li><a href="index.html#highlights">Highlights</a></li>
-        <li><a href="index.html#features">Features</a></li>
-        <li><a href="changelog.html">Changelog</a></li>
-        <li><a href="feedback.html" aria-current="page">Feedback</a></li>
-        <li><a href="apps.html">More Apps</a></li>
-        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="/#highlights">Highlights</a></li>
+        <li><a href="/#features">Features</a></li>
+        <li><a href="/#privacy">Privacy</a></li>
+        <li><a href="/#specs">Tech Specs</a></li>
+        <li><a href="/changelog">Changelog</a></li>
+        <li><a href="/feedback" aria-current="page">Feedback</a></li>
+        <li><a href="/apps">More Apps</a></li>
+        <li><a href="/#faq">FAQ</a></li>
         <li><a href="https://github.com/framedparadox/anchor-dock">GitHub</a></li>
       </ul>
     </nav>
@@ -80,26 +62,27 @@
     </div>
   </header>
 
-  <article class="doc feedback-wrap">
+  <article class="doc">
     <div class="doc-callout">
-      <p>Use the form below to send your feedback by email. Your mail app will open with the message ready to send.</p>
+      <p>Use the form below to send your feedback by email. For bugs you can also <a href="https://github.com/framedparadox/anchor-dock/issues">open an issue on GitHub</a>.</p>
     </div>
 
-    <form class="feedback-form" action="mailto:hello@anchodock-app.com" method="post" enctype="text/plain">
+    <form class="feedback-form" id="feedback-form" action="mailto:hello@anchordock-app.com" method="get">
       <label>
-        Name
-        <input type="text" name="Name" placeholder="Your name (optional)">
+        <span>Name <span class="opt">(optional)</span></span>
+        <input type="text" name="name" autocomplete="name">
       </label>
 
       <label>
-        Email
-        <input type="email" name="Email" placeholder="you@example.com (optional)">
+        <span>Email <span class="opt">(optional, if you'd like a reply)</span></span>
+        <input type="email" name="email" autocomplete="email" placeholder="you@example.com">
       </label>
 
       <label>
         Type
-        <select name="Type">
+        <select name="type">
           <option value="Suggestion">Suggestion</option>
+          <option value="Bug report">Bug report</option>
           <option value="Feedback">Feedback</option>
           <option value="Praise">Praise</option>
         </select>
@@ -107,11 +90,11 @@
 
       <label>
         Message
-        <textarea name="Message" placeholder="Tell us what you like, what you'd improve, or what bug or idea you'd like to share."></textarea>
+        <textarea name="message" required placeholder="Tell us what you like, what you'd improve, or what bug or idea you'd like to share."></textarea>
       </label>
 
       <button class="btn" type="submit">Send feedback</button>
-      <p class="muted">If your device has no default mail app, copy the message and send it to hello@anchodock-app.com.</p>
+      <p class="muted">Nothing is sent from this page: your mail app opens with the message ready to send. If you have no mail app, write to <a href="mailto:hello@anchordock-app.com">hello@anchordock-app.com</a>. How your email is handled is in the <a href="/privacy#website">privacy policy</a>.</p>
     </form>
 
     <div class="feedback-grid">
@@ -133,18 +116,74 @@
 
 <footer class="footer">
   <div class="wrap-wide">
+    <div class="footer__notes">
+      <p>Windows, Microsoft Store and the Microsoft logo are trademarks of the Microsoft group of companies. Anchor is an independent project and is not affiliated with or endorsed by Microsoft.</p>
+    </div>
+
+    <div class="footer__cols footer__cols--5">
+      <div>
+        <h2>Anchor</h2>
+        <ul>
+          <li><a href="/#highlights">Highlights</a></li>
+          <li><a href="/#features">Features</a></li>
+          <li><a href="/#compare">Anchor vs. taskbar</a></li>
+          <li><a href="/#specs">Tech Specs</a></li>
+          <li><a href="/#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Get it</h2>
+        <ul>
+          <li><a href="https://apps.microsoft.com/detail/9nlp5cwmkdj0">Microsoft Store</a></li>
+          <li><a href="https://github.com/framedparadox/anchor-dock/releases/latest">Latest release</a></li>
+          <li><a href="/changelog">Changelog</a></li>
+          <li><a href="/#how">How to use it</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Support</h2>
+        <ul>
+          <li><a href="/feedback">Share feedback</a></li>
+          <li><a href="https://github.com/framedparadox/anchor-dock/issues">Report a bug</a></li>
+          <li><a href="https://github.com/sponsors/ajaykontham">Sponsor the project</a></li>
+          <li><a href="/privacy">Privacy policy</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>More apps</h2>
+        <ul>
+          <li><a href="/apps#swiftx">SwiftX</a></li>
+          <li><a href="/apps#keystore-studio">Keystore Studio</a></li>
+          <li><a href="/apps#dockdev">DockDev</a></li>
+          <li><a href="/apps">All apps</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Open source</h2>
+        <ul>
+          <li><a href="/about">About the developer</a></li>
+          <li><a href="https://github.com/framedparadox/anchor-dock">Source code</a></li>
+          <li><a href="https://github.com/framedparadox/anchor-dock#contributing">Contributing</a></li>
+          <li><a href="https://github.com/framedparadox/anchor-dock/blob/main/LICENSE">MIT License</a></li>
+        </ul>
+      </div>
+    </div>
+
     <div class="footer__legal">
-      <p style="margin:0">Copyright © 2026 Ajay Kontham.</p>
+      <p style="margin:0">Copyright © 2026 Ajay Kontham. Released under the MIT License.</p>
       <nav aria-label="Legal">
-        <a href="index.html">Home</a>
-        <a href="privacy.html">Privacy Policy</a>
-        <a href="changelog.html">Changelog</a>
-        <a href="apps.html">More Apps</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/feedback">Contact</a>
+        <a href="/changelog">Changelog</a>
+        <a href="/about">About</a>
+        <a href="https://github.com/framedparadox/anchor-dock">GitHub</a>
       </nav>
     </div>
   </div>
 </footer>
 
-<script src="assets/js/site.js" defer></script>
+<script src="/assets/js/site.js" defer></script>
+<script src="/assets/js/consent.js" defer></script>
+<script src="/assets/js/feedback.js" defer></script>
 </body>
 </html>
